@@ -1,0 +1,173 @@
+import { mkdir, writeFile } from "node:fs/promises";
+
+const rows = [
+  // Grundlagen (12)
+  ["Gerader Zweier","Grundlagen",55,140,"2/4","Viertel","Leicht","Zähle beide Schläge laut und halte den zweiten genauso stabil wie den ersten.","down"],
+  ["Walzer-Basis","Grundlagen",55,150,"3/4","Viertel","Leicht","Spüre den ersten Schlag schwer und zwei sowie drei leicht.","down"],
+  ["Solider Vierer","Grundlagen",45,160,"4/4","Viertel","Leicht","Halte alle vier Schläge gleichmäßig und atme über den Taktstrich.","down"],
+  ["Sechs-Achtel-Puls","Grundlagen",45,120,"6/8","Achtel","Leicht","Bündele die Achtel in zwei ruhige Dreiergruppen.","compound"],
+  ["Neun-Achtel-Fluss","Grundlagen",45,105,"9/8","Achtel","Mittel","Führe drei Dreiergruppen ohne Pause durch den Takt.","compound"],
+  ["Zwölf-Achtel-Runde","Grundlagen",45,115,"12/8","Achtel","Mittel","Spüre vier große Pulse mit jeweils drei Unterteilungen.","compound"],
+  ["Dreier ohne Eins","Grundlagen",50,120,"3/4","Viertel","Mittel","Halte die Takt-Eins innerlich, während nur zwei und drei führen.","back"],
+  ["Vierer auf Zwei und Vier","Grundlagen",60,170,"4/4","Viertel","Leicht","Klatsche auf zwei und vier und trage eins und drei selbst.","back"],
+  ["Sechser reduziert","Grundlagen",50,115,"6/8","Achtel","Mittel","Höre nur die beiden Hauptpulse und fülle die Zwischenräume selbst.","sparse"],
+  ["Zwölfer reduziert","Grundlagen",45,100,"12/8","Achtel","Mittel","Halte alle zwölf Achtel stabil, obwohl nur vier Orientierungspunkte klingen.","sparse"],
+  ["Ein-Puls-Takt","Grundlagen",40,90,"1/4","Viertel","Leicht","Nutze jeden Klick als ruhigen Startpunkt einer neuen Bewegung.","down"],
+  ["Breiter Vierer","Grundlagen",20,55,"4/4","Viertel","Mittel","Lass zwischen den Klicks viel Raum, ohne den Puls zu verlieren.","down"],
+  // Unterteilungen (10)
+  ["Achtel-Kompass","Unterteilungen",45,150,"4/4","Achtel","Leicht","Zähle jede Und-Zählzeit gleich deutlich wie den Grundschlag.","down"],
+  ["Sechzehntel-Kompass","Unterteilungen",40,110,"4/4","16tel","Mittel","Zähle 1-e-und-e und achte auf identische Abstände.","down"],
+  ["Triolen-Kompass","Unterteilungen",40,130,"4/4","Triolen","Mittel","Sprich jede Dreiergruppe gleichmäßig und ohne Betonungsverschiebung.","compound"],
+  ["Sextolen-Kompass","Unterteilungen",35,90,"4/4","Sextolen","Fortgeschritten","Verbinde je sechs gleichmäßige Impulse zu einem entspannten Grundschlag.","compound"],
+  ["Achtel im Dreier","Unterteilungen",50,125,"3/4","Achtel","Leicht","Halte sechs Achtel gleichmäßig und betone nur den Taktanfang.","down"],
+  ["Sechzehntel im Zweier","Unterteilungen",45,125,"2/4","16tel","Mittel","Spiele acht präzise Impulse und entspanne nach jeder Zweiergruppe.","down"],
+  ["Triolen auf Zwei und Vier","Unterteilungen",55,145,"4/4","Triolen","Mittel","Lass die großen Akzente auf zwei und vier über den Triolen schweben.","back"],
+  ["Sextolen-Gruppen 3+3","Unterteilungen",40,100,"4/4","Sextolen","Fortgeschritten","Spüre pro Schlag zwei Dreiergruppen, ohne das Tempo zu verändern.","split"],
+  ["Unterteilungswechsel A","Unterteilungen",50,110,"4/4","Achtel","Mittel","Wechsle gedanklich zwischen Vierteln und Achteln, der Puls bleibt konstant.","alternate"],
+  ["Unterteilungswechsel B","Unterteilungen",45,95,"4/4","16tel","Fortgeschritten","Spiele nacheinander Viertel, Achtel und Sechzehntel über denselben Puls.","quarters"],
+  // Rhythmustraining (12)
+  ["Offbeat-Achtel","Rhythmustraining",55,145,"4/4","Achtel","Mittel","Spiele die Grundschläge selbst; der Klick antwortet auf den Und-Zählzeiten.","off"],
+  ["Offbeat-Sechzehntel","Rhythmustraining",45,105,"4/4","16tel","Fortgeschritten","Ziele auf jede zweite Sechzehntelposition und halte die Hände locker.","off"],
+  ["Synkope vor Zwei","Rhythmustraining",55,125,"4/4","Achtel","Mittel","Betone die Und vor zwei, ohne den folgenden Grundschlag vorzuziehen.","syncA"],
+  ["Synkope vor Vier","Rhythmustraining",55,130,"4/4","Achtel","Mittel","Lass die vorgezogene Vier klar klingen und lande stabil auf der nächsten Eins.","syncB"],
+  ["Akzentwanderung 1","Rhythmustraining",45,105,"4/4","16tel","Mittel","Verschiebe den Akzent pro Schlag um eine Sechzehntelposition.","shift"],
+  ["Akzentwanderung 2","Rhythmustraining",45,100,"3/4","16tel","Fortgeschritten","Folge dem wandernden Akzent, während der Dreiertakt unverändert bleibt.","shift"],
+  ["Gap Click: Halbe","Rhythmustraining",45,110,"4/4","Viertel","Mittel","Fülle jeden zweiten Schlag innerlich und prüfe deine Landung auf der Eins.","gap"],
+  ["Gap Click: Nur Eins","Rhythmustraining",40,95,"4/4","Viertel","Fortgeschritten","Trage drei stille Schläge selbst und lande entspannt auf dem nächsten Taktanfang.","sparse"],
+  ["Gap Click im 6/8","Rhythmustraining",45,105,"6/8","Achtel","Fortgeschritten","Halte beide Dreiergruppen stabil, obwohl nur ihre Anfänge hörbar sind.","sparse"],
+  ["Antizipation","Rhythmustraining",60,140,"4/4","16tel","Fortgeschritten","Setze Akzente kurz vor dem Grundschlag und widerstehe dem Beschleunigen.","anticipate"],
+  ["Drei gegen Vier","Rhythmustraining",45,90,"4/4","Triolen","Fortgeschritten","Spiele Viererpulse über die Dreierunterteilung und höre auf gemeinsame Landungen.","cross"],
+  ["Stille Taktmitte","Rhythmustraining",45,110,"4/4","Achtel","Mittel","Halte die Mitte des Takts ohne Klick stabil und bleibe klanglich ruhig.","middleGap"],
+  // Swing & Shuffle (8)
+  ["Achtel-Swing Basis","Swing & Shuffle",60,180,"4/4","Achtel","Leicht","Stelle Swing auf 66 Prozent und lasse die kurze Achtel federnd antworten.","down"],
+  ["Achtel-Swing Backbeat","Swing & Shuffle",70,190,"4/4","Achtel","Mittel","Betone zwei und vier, während die Achtel locker nach hinten liegen.","back"],
+  ["Sechzehntel-Swing","Swing & Shuffle",65,125,"4/4","16tel","Fortgeschritten","Schwinge jedes Sechzehntelpaar subtil, ohne den Grundpuls zu verbiegen.","down"],
+  ["Blues-Shuffle","Swing & Shuffle",55,150,"4/4","Triolen","Leicht","Spiele die erste und dritte Triolennote und lasse die Mitte offen.","shuffle"],
+  ["Texas Shuffle","Swing & Shuffle",80,175,"4/4","Triolen","Mittel","Halte die Dreierunterteilung konstant und setze zwei und vier kräftig.","back"],
+  ["Slow Shuffle","Swing & Shuffle",40,80,"12/8","Achtel","Mittel","Lass vier breite Hauptpulse durch die zwölf Achtel fließen.","compound"],
+  ["Swing Gap","Swing & Shuffle",70,160,"4/4","Achtel","Fortgeschritten","Bewahre die Swing-Phrasierung, wenn jeweils ein Grundschlag verschwindet.","gap"],
+  ["Jazz Walk","Swing & Shuffle",90,210,"4/4","Viertel","Mittel","Gehe in Vierteln und höre zwei und vier als leichte Orientierung.","back"],
+  // Genres (15)
+  ["Rock Backbeat","Genres",70,170,"4/4","Achtel","Leicht","Spüre zwei und vier deutlich und halte die Achtel gerade.","back"],
+  ["Pop Pulse","Genres",75,135,"4/4","Achtel","Leicht","Halte einen gleichmäßigen Achtelfluss mit klarer Eins.","down"],
+  ["Funk Pocket","Genres",82,118,"4/4","16tel","Fortgeschritten","Platziere kurze Noten exakt zwischen den wenigen hörbaren Akzenten.","funk"],
+  ["Blues Slow Twelve","Genres",45,85,"12/8","Achtel","Mittel","Phrasiere über vier große Pulse und lasse die Dreiergruppen atmen.","compound"],
+  ["Jazz Two & Four","Genres",90,240,"4/4","Viertel","Mittel","Trage eins und drei selbst, der Klick markiert zwei und vier.","back"],
+  ["Reggae Skank","Genres",65,135,"4/4","Achtel","Mittel","Setze kurze Akzente auf die Und-Zählzeiten und bleibe entspannt.","off"],
+  ["Hip-Hop Headnod","Genres",65,105,"4/4","16tel","Mittel","Lehne den Puls zurück, ohne die Sechzehntel ungenau werden zu lassen.","hiphop"],
+  ["Metal Gallop","Genres",90,210,"4/4","16tel","Fortgeschritten","Gruppiere lang-kurz-kurz sauber und steigere nur ohne Spannung.","gallop"],
+  ["Punk Drive","Genres",140,240,"4/4","Achtel","Mittel","Halte schnelle Achtel kompakt und betone zwei sowie vier.","back"],
+  ["EDM Four","Genres",110,150,"4/4","Viertel","Leicht","Verankere jeden Viertelpuls gleich stark und konstant.","allAccent"],
+  ["Disco Offbeat","Genres",105,135,"4/4","Achtel","Mittel","Halte Viertel stabil und setze die hörbaren Akzente auf jedes Und.","off"],
+  ["Soul Pocket","Genres",65,115,"4/4","16tel","Mittel","Spüre einen tiefen Backbeat und lass die übrigen Sechzehntel leicht.","back"],
+  ["Indie Straight","Genres",95,165,"4/4","Achtel","Leicht","Spiele gerade Achtel mit ruhiger Dynamik und klarer Takt-Eins.","down"],
+  ["Trap Half-Time","Genres",55,85,"4/4","16tel","Fortgeschritten","Höre den schweren dritten Schlag und halte die feinen Unterteilungen stabil.","half"],
+  ["House Offbeat","Genres",115,135,"4/4","Achtel","Leicht","Wechsle gleichmäßige Viertel und Offbeats ohne Akzentverschiebung.","alternate"],
+  // Weltmusik (10)
+  ["Bossa Nova Clave","Weltmusik",90,150,"4/4","Achtel","Mittel","Lass die Synkopen weich klingen und halte den Grundpuls im Körper.","bossa"],
+  ["Samba Partido Alto","Weltmusik",90,170,"4/4","16tel","Fortgeschritten","Verbinde die versetzten Akzente über den Taktstrich hinweg.","samba"],
+  ["Rumba Clave 3–2","Weltmusik",70,135,"4/4","Achtel","Mittel","Spüre erst drei, dann zwei Orientierungspunkte als zusammenhängenden Zyklus.","clave32"],
+  ["Son Clave 2–3","Weltmusik",70,140,"4/4","Achtel","Mittel","Beginne mit zwei Akzenten und beantworte sie im zweiten Teil mit drei.","clave23"],
+  ["Afrobeat Grid","Weltmusik",85,125,"4/4","16tel","Fortgeschritten","Halte die Sechzehntel ruhig, während die Akzente gegeneinander greifen.","afro"],
+  ["Cuban Tumbao Guide","Weltmusik",75,125,"4/4","Achtel","Fortgeschritten","Verankere die vorgezogenen Akzente ohne die nächste Eins zu verschlucken.","syncB"],
+  ["Samba Sechzehntel","Weltmusik",90,160,"2/4","16tel","Mittel","Halte acht Sechzehntel federnd und betone die synkopierten Ziele.","samba"],
+  ["Baião-Puls","Weltmusik",80,145,"2/4","Achtel","Mittel","Spüre die Antwort auf dem letzten Achtel und lande klar im neuen Takt.","syncA"],
+  ["Afro 12/8","Weltmusik",65,125,"12/8","Achtel","Fortgeschritten","Lass vier Hauptpulse und drei Unterteilungen gleichzeitig präsent bleiben.","cross"],
+  ["Rumba 6/8","Weltmusik",70,145,"6/8","Achtel","Mittel","Verbinde beide Dreiergruppen mit einem fließenden Gegenakzent.","clave32"],
+  // Ungerade Takte (10)
+  ["Fünfer 3+2","Ungerade Takte",50,135,"5/8","Achtel","Mittel","Sprich 1-2-3, 1-2 und verbinde beide Gruppen flüssig.","odd32"],
+  ["Fünfer 2+3","Ungerade Takte",50,135,"5/8","Achtel","Mittel","Sprich 1-2, 1-2-3 und vermeide eine Pause zwischen den Gruppen.","odd23"],
+  ["Fünf-Viertel Kreis","Ungerade Takte",45,120,"5/4","Viertel","Mittel","Teile den langen Takt in drei plus zwei Viertel.","odd32"],
+  ["Siebener 2+2+3","Ungerade Takte",55,155,"7/8","Achtel","Mittel","Führe zwei kurze und eine lange Gruppe ohne Unterbrechung.","odd223"],
+  ["Siebener 3+2+2","Ungerade Takte",55,155,"7/8","Achtel","Mittel","Beginne breit mit drei und schließe zwei kurze Gruppen an.","odd322"],
+  ["Siebener 2+3+2","Ungerade Takte",55,150,"7/8","Achtel","Fortgeschritten","Halte die mittlere Dreiergruppe klar, ohne den Takt zu strecken.","odd232"],
+  ["Neuner 2+2+2+3","Ungerade Takte",50,135,"9/8","Achtel","Mittel","Spüre drei kurze Gruppen und einen längeren Abschluss.","odd2223"],
+  ["Neuner 3+3+3","Ungerade Takte",45,125,"9/8","Achtel","Leicht","Bündele neun Achtel in drei gleichmäßige Dreiergruppen.","compound"],
+  ["Elfer 3+3+3+2","Ungerade Takte",45,110,"11/8","Achtel","Fortgeschritten","Zähle drei Dreiergruppen und einen kurzen Zweierabschluss.","odd3332"],
+  ["Elfer 2+3+3+3","Ungerade Takte",45,110,"11/8","Achtel","Fortgeschritten","Starte kurz und halte die folgenden Dreiergruppen gleich groß.","odd2333"],
+  // Instrumente (8)
+  ["Gitarre: Akkordwechsel","Instrumente",45,100,"4/4","Viertel","Leicht","Wechsle auf eins und bereite die Greifhand auf Schlag vier vor.","down"],
+  ["Gitarre: Strumming","Instrumente",55,135,"4/4","Achtel","Mittel","Führe die Schlaghand durchgehend und variiere nur den Saitenkontakt.","off"],
+  ["Bass: Pocket","Instrumente",55,125,"4/4","16tel","Mittel","Lass kurze Töne exakt enden und halte zwei sowie vier im Körper.","back"],
+  ["Bass: Walking","Instrumente",75,190,"4/4","Viertel","Mittel","Gib jedem Viertel gleiches Gewicht und führe Linien durch die Taktgrenze.","down"],
+  ["Schlagzeug: Rudiment Grid","Instrumente",45,120,"4/4","16tel","Fortgeschritten","Verschiebe das Rudiment über vier Startpositionen bei gleicher Stickhöhe.","shift"],
+  ["Klavier: Gleichlauf","Instrumente",45,130,"4/4","16tel","Mittel","Synchronisiere beide Hände und höre auf identische Tonlängen.","down"],
+  ["Bläser: Atemphrasen","Instrumente",45,100,"4/4","Viertel","Leicht","Spiele drei Takte und plane den Atem ruhig vor dem nächsten Einsatz.","sparse"],
+  ["Schlagzeug: Backbeat","Instrumente",60,180,"4/4","Achtel","Leicht","Halte die Bassdrum stabil und platziere die Snare genau auf zwei und vier.","back"],
+  // Technik (8)
+  ["Tonleitern in Vierteln","Technik",45,140,"4/4","Viertel","Leicht","Spiele pro Klick einen Ton mit konstantem Anschlag.","down"],
+  ["Tonleitern in Triolen","Technik",45,125,"4/4","Triolen","Mittel","Wechsle die Lage, ohne die Dreiergruppen zu unterbrechen.","compound"],
+  ["Alternate Picking Leiter","Technik",55,180,"4/4","16tel","Mittel","Beginne jeden Saitenwechsel mit der geplanten Anschlagsrichtung.","down"],
+  ["Strumming-Matrix","Technik",55,140,"4/4","16tel","Fortgeschritten","Führe die Hand durchgehend und lasse ausgewählte Kontakte stumm.","funk"],
+  ["Single Stroke Rudiment","Technik",50,190,"4/4","16tel","Mittel","Halte beide Hände gleich laut und die Bewegungen klein.","down"],
+  ["Double Stroke Rudiment","Technik",45,150,"4/4","Sextolen","Fortgeschritten","Balanciere Erst- und Zweitschlag jedes Doppels bei lockerem Rebound.","split"],
+  ["Akkordwechsel auf Und","Technik",50,125,"4/4","Achtel","Mittel","Wechsle auf der Und-Zählzeit und stabilisiere sofort den nächsten Grundschlag.","off"],
+  ["Chromatik-Fingerfolge","Technik",45,150,"4/4","16tel","Mittel","Halte Fingerbewegungen minimal und jede Note gleich lang.","down"],
+  // Trainingsziele (7)
+  ["Timing: Mitte des Klicks","Trainingsziele",45,110,"4/4","Viertel","Leicht","Spiele so präzise, dass dein Ton den Klick akustisch verdeckt.","down"],
+  ["Geschwindigkeit: Stufen","Trainingsziele",70,220,"4/4","16tel","Fortgeschritten","Aktiviere den Trainer und erhöhe nur bei sauberer, lockerer Ausführung.","down"],
+  ["Ausdauer: Zehn Minuten","Trainingsziele",70,150,"4/4","Achtel","Mittel","Nutze den Timer und beobachte Haltung sowie Spannung bis zum Ende.","down"],
+  ["Präzision: Gap Test","Trainingsziele",45,105,"4/4","Viertel","Fortgeschritten","Trage drei stille Schläge und prüfe jede neue Eins ehrlich.","sparse"],
+  ["Warm-up: Ruhiger Start","Trainingsziele",40,80,"4/4","Achtel","Leicht","Beginne mit minimaler Spannung und vergrößere den Bewegungsumfang langsam.","down"],
+  ["Dynamik-Kontrolle","Trainingsziele",50,120,"3/4","Achtel","Mittel","Spiele ein Crescendo über vier Takte, während das Timing unverändert bleibt.","down"],
+  ["Tempo-Pyramide","Trainingsziele",60,180,"4/4","16tel","Fortgeschritten","Steigere schrittweise, erreiche einen sauberen Gipfel und gehe kontrolliert zurück.","quarters"],
+];
+
+const factor = { Viertel: 1, Achtel: 2, "16tel": 4, Triolen: 3, Sextolen: 6 };
+const motifMap = {
+  down: "ANNNNNNNNNNNNNNNNNNNNNNN",
+  allAccent: "AAAAAAAAAAAAAAAAAAAAAAAA",
+  back: "NNANNNANNNANNNANNNANNNAN",
+  compound: "ANNANNANNANNANNANNANNANN",
+  sparse: "AMMMAMMMAMMMAMMMAMMMAMMM",
+  off: "MAMAMAMAMAMAMAMAMAMAMAMA",
+  alternate: "ANANANANANANANANANANANAN",
+  split: "ANNANNANNANNANNANNANNANN",
+  quarters: "AMMMAMMMAMMMAMMMAMMMAMMM",
+  gap: "AMNMAMNMAMNMAMNMAMNMAMNM",
+  syncA: "ANMANNAMANMANNAMANMANNAM",
+  syncB: "AMANNMNAAMANNMNAAMANNMNA",
+  shift: "ANNNNANNNNANNNNANNNNANNN",
+  anticipate: "MNNAMNNAMNNAMNNAMNNAMNNA",
+  cross: "ANNMANNMANNMANNMANNMANNM",
+  middleGap: "ANNAMMMMANNAMMMMANNAMMMM",
+  shuffle: "AMNAMNAMNAMNAMNAMNAMNAMN",
+  funk: "AMNMNMAMNMNMAMNMNMAMNMNM",
+  hiphop: "ANMMMNMNAMMMANMMANMMMNMN",
+  gallop: "ANANMNMNANANMNMNANANMNMN",
+  half: "AMMMAMMMANMMAMMMAMMMAMMM",
+  bossa: "AMNANMANAMNANMANAMNANMAN",
+  samba: "ANMAMNANMANMAMNANMAMNANM",
+  clave32: "AMNAMMANAAMNAMMANAAMNAMMA",
+  clave23: "ANMMANAMNAMMANAMNANMMANAM",
+  afro: "ANMANMAMNANMANMAMNANMANMA",
+  odd32: "ANNANANNANANNANANNANANNAN",
+  odd23: "ANANNANANNANANNANANNANANN",
+  odd223: "ANANANNANANANNANANANNANAN",
+  odd322: "ANNANANANNANANANNANANANNA",
+  odd232: "ANANNANANANNANANANNANANNA",
+  odd2223: "ANANANANNANANANANNANANANA",
+  odd3332: "ANNANNANNANANNANNANNANAN",
+  odd2333: "ANANNANNANNANANNANNANNAN",
+};
+
+const toState = { A: "accent", N: "normal", M: "mute" };
+const patterns = rows.map(([name, category, bpmMin, bpmMax, meter, subdivision, difficulty, instruction, motif], index) => {
+  const beats = Number(meter.split("/")[0]);
+  const length = beats * factor[subdivision];
+  const sequence = motifMap[motif] || motifMap.down;
+  return {
+    id: `v1-${String(index + 1).padStart(3, "0")}`,
+    name, category, bpmMin, bpmMax, meter, subdivision,
+    pattern: Array.from({ length }, (_, step) => toState[sequence[step % sequence.length]]),
+    difficulty, instruction,
+  };
+});
+
+await mkdir(new URL("../public/data/", import.meta.url), { recursive: true });
+await writeFile(
+  new URL("../public/data/patterns-v1.json", import.meta.url),
+  `${JSON.stringify({ version: 1, updated: "2026-08-20", count: patterns.length, patterns }, null, 2)}\n`,
+);
+
+console.log(`Generated ${patterns.length} patterns.`);

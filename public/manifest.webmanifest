@@ -1,0 +1,16 @@
+{
+  "name": "Klangmaß — Präzises Metronom",
+  "short_name": "Klangmaß",
+  "description": "Präzises, offline nutzbares Metronom mit Pattern-Bibliothek.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f4f0e8",
+  "theme_color": "#e94f37",
+  "orientation": "any",
+  "lang": "de",
+  "categories": ["music", "education", "utilities"],
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
