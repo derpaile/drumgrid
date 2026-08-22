@@ -1,4 +1,4 @@
-const CACHE = "klangmass-v1";
+const CACHE = "klangmass-v3";
 const CORE = ["/", "/manifest.webmanifest", "/data/patterns-v1.json", "/icon-192.png", "/icon-512.png"];
 
 self.addEventListener("install", (event) => {

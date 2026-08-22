@@ -1,15 +1,16 @@
 # Klangmaß
 
-Installierbares, präzise vorausplanendes Web-Metronom mit 100 kuratierten
-Übungspatterns. Die App funktioniert ohne Konto und nach dem ersten Aufruf
-vollständig offline.
+Installierbarer Drum-Groove-Trainer mit 47 kuratierten Schlagzeugübungen und
+synthetischen Drumkits. Die App funktioniert ohne Konto und nach dem ersten
+Aufruf vollständig offline.
 
 ## Enthalten
 
 - Web-Audio-Scheduler mit Tempo, Taktart, Unterteilungen und Swing
-- Akzent-, Klick- und Stille-Raster mit eigenem Pattern-Editor
+- synthetische Drumkits mit Kick, Snare, Hats, Toms, Rim und Crash
+- mehrspuriges Groove-Raster mit Ghostnotes und Akzenten
 - Count-in, Timer, Wiederholungen und Tempo-Trainer
-- durchsuchbare, versionierte Pattern-Bibliothek
+- durchsuchbare, versionierte Bibliothek mit 47 reinen Drum-Grooves
 - Favoriten, Verlauf und eigene Presets in IndexedDB
 - PWA-Manifest, Service Worker und Wake Lock
 

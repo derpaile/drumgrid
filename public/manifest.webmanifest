@@ -1,7 +1,7 @@
 {
-  "name": "Klangmaß — Präzises Metronom",
+  "name": "Klangmaß — Drum-Groove-Trainer",
   "short_name": "Klangmaß",
-  "description": "Präzises, offline nutzbares Metronom mit Pattern-Bibliothek.",
+  "description": "47 Drum-Grooves mit synthetischen Drumkits, präzisem Timing und Offline-Modus.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f4f0e8",
