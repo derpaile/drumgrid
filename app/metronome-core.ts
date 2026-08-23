@@ -5,6 +5,7 @@ export type TempoUnit = "quarter" | "eighth" | "dotted-quarter";
 export type TrainerMode = "up" | "pyramid";
 export type Meter = { beats: number; denominator: number };
 export type DrumKit = "Studio" | "Trocken" | "Elektronisch";
+export type PatternType = "Groove" | "Break" | "Technik";
 
 export const DRUM_VOICES = ["kick", "snare", "closedHat", "openHat", "ride", "crash", "rim", "highTom", "lowTom"] as const;
 export type DrumVoice = typeof DRUM_VOICES[number];
@@ -32,6 +33,7 @@ export type Pattern = {
   id: string;
   name: string;
   category: string;
+  patternType?: PatternType;
   bpmMin: number;
   bpmMax: number;
   meter: string;
@@ -64,6 +66,11 @@ export type PracticeEntry = {
 };
 
 export const SUBDIVISIONS: Subdivision[] = ["Viertel", "Achtel", "16tel", "Triolen", "Sextolen"];
+export const PATTERN_CATEGORIES = [
+  "Rock & Pop", "Punk & Metal", "Funk & Soul", "Hip-Hop", "Dance & Electronic",
+  "Reggae", "Latin & World", "Blues & Shuffle", "Genreübergreifend",
+] as const;
+export const PATTERN_TYPES: PatternType[] = ["Groove", "Break", "Technik"];
 export const FACTOR: Record<Subdivision, number> = { Viertel: 1, Achtel: 2, "16tel": 4, Triolen: 3, Sextolen: 6 };
 export const DRUM_LABELS: Record<DrumVoice, string> = {
   kick: "Kick", snare: "Snare", closedHat: "Hi-Hat", openHat: "Open Hat", ride: "Ride",
@@ -74,7 +81,7 @@ export const HIT_LABELS: Record<DrumHitState, string> = {
 };
 
 export const FALLBACK_PATTERNS: Pattern[] = [{
-  id: "drum-basic-rock", name: "Rock-Backbeat", category: "Grundlagen", bpmMin: 45, bpmMax: 160,
+  id: "drum-basic-rock", name: "Rock-Backbeat", category: "Rock & Pop", patternType: "Groove", bpmMin: 45, bpmMax: 160,
   meter: "4/4", subdivision: "Achtel", bars: 1, grouping: [1, 1, 1, 1], tempoUnit: "quarter",
   pattern: ["accent", "normal", "accent", "normal", "accent", "normal", "accent", "normal"],
   drumTracks: {
@@ -164,9 +171,8 @@ export function learningGoalsFor(pattern: Pattern): string[] {
   if (pattern.learningGoals?.length) return pattern.learningGoals;
   const goals = new Set<string>();
   if (pattern.difficulty === "Leicht") goals.add("Grundlagen");
-  if ((pattern.playback?.swing ?? 50) > 50 || pattern.category === "Shuffle") goals.add("Pocket");
-  if (pattern.category.includes("Rudiment")) goals.add("Technik");
-  if (pattern.category.includes("Ungerade")) goals.add("Ungerade Takte");
+  if ((pattern.playback?.swing ?? 50) > 50 || pattern.category === "Blues & Shuffle") goals.add("Pocket");
+  if (pattern.patternType === "Technik") goals.add("Technik");
   if (pattern.bpmMax >= 170) goals.add("Geschwindigkeit");
   if (pattern.drumTracks?.kick) goals.add("Fußtechnik");
   if (!goals.size) goals.add("Timing");

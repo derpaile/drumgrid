@@ -5,7 +5,7 @@ import {
   cloneDrumTracks, cycleDrumHit, cycleStep, defaultDrumTracks, defaultGrouping, defaultTempoUnit,
   DRUM_LABELS, DRUM_VOICES, FALLBACK_PATTERNS, firstValidSubdivision, hasExactGrid, HIT_LABELS,
   learningGoalsFor, mergeDrumTracks, normalizedDrumTracks, normalizedSteps, parseMeter, stepsPerBar,
-  SUBDIVISIONS,
+  PATTERN_CATEGORIES, PATTERN_TYPES, SUBDIVISIONS,
   type DrumHitState, type DrumKit, type DrumTracks, type DrumVoice, type Meter, type Pattern,
   type OriginalFeel, type PracticeEntry, type StepState, type Subdivision, type TempoUnit, type TrainerMode,
 } from "./metronome-core";
@@ -74,6 +74,7 @@ export default function MetronomeApp() {
   const [practiceHistory, setPracticeHistory] = useState<PracticeEntry[]>([]);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("Alle");
+  const [patternTypeFilter, setPatternTypeFilter] = useState("Alle");
   const [visibleCount, setVisibleCount] = useState(18);
   const [editorOpen, setEditorOpen] = useState(false);
   const [presetName, setPresetName] = useState("Mein Pattern");
@@ -1149,12 +1150,14 @@ export default function MetronomeApp() {
     }
   };
 
-  const categories = useMemo(() => ["Alle", ...Array.from(new Set(library.map((item) => item.category)))], [library]);
+  const categories = useMemo(() => ["Alle", ...PATTERN_CATEGORIES.filter((item) => library.some((pattern) => pattern.category === item))], [library]);
+  const patternTypes = useMemo(() => ["Alle", ...PATTERN_TYPES.filter((item) => library.some((pattern) => pattern.patternType === item))], [library]);
   const filteredPatterns = useMemo(() => library.filter((pattern) => {
     const query = search.toLocaleLowerCase("de");
-    return (!query || `${pattern.name} ${pattern.category} ${pattern.instruction} ${learningGoalsFor(pattern).join(" ")}`.toLocaleLowerCase("de").includes(query))
-      && (category === "Alle" || pattern.category === category);
-  }), [library, search, category]);
+    return (!query || `${pattern.name} ${pattern.category} ${pattern.patternType || "Groove"} ${pattern.instruction} ${learningGoalsFor(pattern).join(" ")}`.toLocaleLowerCase("de").includes(query))
+      && (category === "Alle" || pattern.category === category)
+      && (patternTypeFilter === "Alle" || pattern.patternType === patternTypeFilter);
+  }), [library, search, category, patternTypeFilter]);
 
   const resetControls = () => {
     volumeRef.current = 72; soundRef.current = "Studio"; swingRef.current = 50; timerMinutesRef.current = 0;
@@ -1342,11 +1345,14 @@ export default function MetronomeApp() {
             <h2>Patterns <span>{libraryStatus === "loading" ? "…" : library.length}</span></h2>
             <label className="search-field"><input className="text-field" placeholder="Name, Stil, Ziel …" value={search} onChange={(event) => setSearch(event.target.value)} aria-label="Patterns durchsuchen" /></label>
           </div>
-          <div className="category-chips" aria-label="Kategorien">{categories.map((item) => <button key={item} className={`chip ${category === item ? "active" : ""}`} aria-pressed={category === item} onClick={() => { setCategory(item); setVisibleCount(18); }}>{item}</button>)}</div>
+          <div className="library-filters">
+            <div className="library-filter-row"><span>Stil</span><div className="category-chips" aria-label="Stile">{categories.map((item) => <button key={item} className={`chip ${category === item ? "active" : ""}`} aria-pressed={category === item} onClick={() => { setCategory(item); setVisibleCount(18); }}>{item === "Alle" ? "Alle Stile" : item}</button>)}</div></div>
+            <div className="library-filter-row"><span>Art</span><div className="category-chips" aria-label="Patternarten">{patternTypes.map((item) => <button key={item} className={`chip ${patternTypeFilter === item ? "active" : ""}`} aria-pressed={patternTypeFilter === item} onClick={() => { setPatternTypeFilter(item); setVisibleCount(18); }}>{item === "Alle" ? "Alle Arten" : item}</button>)}</div></div>
+          </div>
           <div className="pattern-grid">
             {filteredPatterns.slice(0, visibleCount).map((pattern) => (
               <article className="pattern-card" key={pattern.id}>
-                <div className="card-top"><div><div className="card-category">{pattern.category} · {pattern.attribution || (pattern.source ? "Übungsrekonstruktion" : "Genreübung")}</div><h3>{pattern.name}</h3></div><button className={`favorite ${favorites.includes(pattern.id) ? "on" : ""}`} onClick={() => toggleFavorite(pattern.id)} aria-label={favorites.includes(pattern.id) ? "Aus Favoriten entfernen" : "Zu Favoriten hinzufügen"} aria-pressed={favorites.includes(pattern.id)}>{favorites.includes(pattern.id) ? "♥" : "♡"}</button></div>
+                <div className="card-top"><div><div className="card-category" title={pattern.attribution}>{pattern.category} · {pattern.patternType || "Groove"} · {pattern.attribution || (pattern.source ? "Übungsrekonstruktion" : "Genreübung")}</div><h3>{pattern.name}</h3></div><button className={`favorite ${favorites.includes(pattern.id) ? "on" : ""}`} onClick={() => toggleFavorite(pattern.id)} aria-label={favorites.includes(pattern.id) ? "Aus Favoriten entfernen" : "Zu Favoriten hinzufügen"} aria-pressed={favorites.includes(pattern.id)}>{favorites.includes(pattern.id) ? "♥" : "♡"}</button></div>
                 <div className="mini-pattern">{pattern.pattern.slice(0, 32).map((step, index) => <span key={index} className={`mini-step ${step}`} />)}</div>
                 <div className="card-footer"><div className="card-meta"><span>{pattern.meter}</span><span>{pattern.subdivision}</span><span>{pattern.bpmMin}–{pattern.bpmMax}</span>{(pattern.bars || 1) > 1 && <span>{pattern.bars}T</span>}{(pattern.playback?.swing ?? 50) > 50 && <span>Swing {Math.round(((pattern.playback?.swing ?? 50) - 50) * 2)}%</span>}{pattern.originalFeel && <span>Original Feel</span>}<span>{pattern.difficulty}</span>{pattern.source && <a className="source-link" href={pattern.source.url} target="_blank" rel="noreferrer" title={pattern.source.label}>Quelle</a>}</div><div className="card-actions"><button className="secondary-small" onClick={() => loadPattern(pattern)}>Laden</button><button className="start-small" onClick={() => loadPattern(pattern, true)}>▶</button></div></div>
               </article>

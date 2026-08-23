@@ -6,7 +6,8 @@
     {
       "id": "drum-basic-rock",
       "name": "Rock-Backbeat",
-      "category": "Grundlagen",
+      "category": "Rock & Pop",
+      "patternType": "Groove",
       "bpmMin": 45,
       "bpmMax": 160,
       "meter": "4/4",
@@ -77,7 +78,8 @@
     {
       "id": "drum-driving-rock",
       "name": "Driving Rock",
-      "category": "Grundlagen",
+      "category": "Rock & Pop",
+      "patternType": "Groove",
       "bpmMin": 70,
       "bpmMax": 190,
       "meter": "4/4",
@@ -180,7 +182,8 @@
     {
       "id": "drum-half-time",
       "name": "Half-Time Backbeat",
-      "category": "Grundlagen",
+      "category": "Rock & Pop",
+      "patternType": "Groove",
       "bpmMin": 50,
       "bpmMax": 130,
       "meter": "4/4",
@@ -283,7 +286,8 @@
     {
       "id": "drum-pop-sixteenths",
       "name": "Pop-Sechzehntel",
-      "category": "Grundlagen",
+      "category": "Rock & Pop",
+      "patternType": "Groove",
       "bpmMin": 55,
       "bpmMax": 125,
       "meter": "4/4",
@@ -387,7 +391,8 @@
     {
       "id": "drum-punk",
       "name": "Punk Double-Time",
-      "category": "Rock & Metal",
+      "category": "Punk & Metal",
+      "patternType": "Groove",
       "bpmMin": 130,
       "bpmMax": 240,
       "meter": "4/4",
@@ -491,7 +496,8 @@
     {
       "id": "drum-four-floor",
       "name": "Four on the Floor",
-      "category": "Dance & Hip-Hop",
+      "category": "Dance & Electronic",
+      "patternType": "Groove",
       "bpmMin": 90,
       "bpmMax": 150,
       "meter": "4/4",
@@ -617,7 +623,8 @@
     {
       "id": "drum-disco",
       "name": "Disco Open-Hat",
-      "category": "Dance & Hip-Hop",
+      "category": "Dance & Electronic",
+      "patternType": "Groove",
       "bpmMin": 95,
       "bpmMax": 140,
       "meter": "4/4",
@@ -761,7 +768,8 @@
     {
       "id": "drum-house",
       "name": "House mit synkopierter Clap",
-      "category": "Dance & Hip-Hop",
+      "category": "Dance & Electronic",
+      "patternType": "Groove",
       "bpmMin": 110,
       "bpmMax": 145,
       "meter": "4/4",
@@ -905,7 +913,8 @@
     {
       "id": "drum-boom-bap",
       "name": "Boom-Bap Pocket",
-      "category": "Dance & Hip-Hop",
+      "category": "Hip-Hop",
+      "patternType": "Groove",
       "bpmMin": 70,
       "bpmMax": 105,
       "meter": "4/4",
@@ -1010,7 +1019,8 @@
     {
       "id": "drum-trap",
       "name": "Trap Half-Time",
-      "category": "Dance & Hip-Hop",
+      "category": "Hip-Hop",
+      "patternType": "Groove",
       "bpmMin": 55,
       "bpmMax": 85,
       "meter": "4/4",
@@ -1114,7 +1124,8 @@
     {
       "id": "drum-amen",
       "name": "Amen Break — Übungsrekonstruktion",
-      "category": "Legendäre Breaks",
+      "category": "Dance & Electronic",
+      "patternType": "Break",
       "bpmMin": 80,
       "bpmMax": 180,
       "meter": "4/4",
@@ -1547,7 +1558,8 @@
     {
       "id": "drum-funky-drummer",
       "name": "Funky Drummer — Zweitaktausschnitt",
-      "category": "Legendäre Breaks",
+      "category": "Funk & Soul",
+      "patternType": "Break",
       "bpmMin": 70,
       "bpmMax": 120,
       "meter": "4/4",
@@ -1846,7 +1858,8 @@
     {
       "id": "drum-impeach",
       "name": "Impeach the President — Takt 1",
-      "category": "Legendäre Breaks",
+      "category": "Funk & Soul",
+      "patternType": "Break",
       "bpmMin": 70,
       "bpmMax": 110,
       "meter": "4/4",
@@ -1998,7 +2011,8 @@
     {
       "id": "drum-think-break",
       "name": "Think Break — Takt 23",
-      "category": "Legendäre Breaks",
+      "category": "Funk & Soul",
+      "patternType": "Break",
       "bpmMin": 75,
       "bpmMax": 150,
       "meter": "4/4",
@@ -2140,7 +2154,8 @@
     {
       "id": "drum-apache",
       "name": "Apache — Takt 7",
-      "category": "Legendäre Breaks",
+      "category": "Funk & Soul",
+      "patternType": "Break",
       "bpmMin": 80,
       "bpmMax": 145,
       "meter": "4/4",
@@ -2271,7 +2286,8 @@
     {
       "id": "drum-big-beat",
       "name": "The Big Beat — Reduktion",
-      "category": "Legendäre Breaks",
+      "category": "Rock & Pop",
+      "patternType": "Break",
       "bpmMin": 70,
       "bpmMax": 125,
       "meter": "4/4",
@@ -2379,7 +2395,8 @@
     {
       "id": "drum-synthetic-substitution",
       "name": "Synthetic Substitution — Zweitaktform",
-      "category": "Legendäre Breaks",
+      "category": "Funk & Soul",
+      "patternType": "Break",
       "bpmMin": 70,
       "bpmMax": 125,
       "meter": "4/4",
@@ -2552,7 +2569,8 @@
     {
       "id": "drum-roachclip",
       "name": "Ashley’s Roachclip — Zweitaktform",
-      "category": "Legendäre Breaks",
+      "category": "Funk & Soul",
+      "patternType": "Break",
       "bpmMin": 65,
       "bpmMax": 115,
       "meter": "4/4",
@@ -2793,7 +2811,8 @@
     {
       "id": "drum-its-a-new-day",
       "name": "It’s a New Day — Drum Break",
-      "category": "Legendäre Breaks",
+      "category": "Funk & Soul",
+      "patternType": "Break",
       "bpmMin": 70,
       "bpmMax": 125,
       "meter": "4/4",
@@ -3006,7 +3025,8 @@
     {
       "id": "drum-express-yourself",
       "name": "Express Yourself — Zweitaktform",
-      "category": "Legendäre Breaks",
+      "category": "Funk & Soul",
+      "patternType": "Break",
       "bpmMin": 70,
       "bpmMax": 120,
       "meter": "4/4",
@@ -3287,7 +3307,8 @@
     {
       "id": "drum-hot-pants",
       "name": "Hot Pants (Bonus Beats) — Stilreduktion",
-      "category": "Legendäre Breaks",
+      "category": "Funk & Soul",
+      "patternType": "Break",
       "bpmMin": 75,
       "bpmMax": 120,
       "meter": "4/4",
@@ -3460,7 +3481,8 @@
     {
       "id": "drum-mardi-gras",
       "name": "Take Me to the Mardi Gras — Introreduktion",
-      "category": "Legendäre Breaks",
+      "category": "Funk & Soul",
+      "patternType": "Groove",
       "bpmMin": 70,
       "bpmMax": 125,
       "meter": "4/4",
@@ -3761,7 +3783,8 @@
     {
       "id": "drum-god-made-me-funky",
       "name": "God Made Me Funky — Linearübung",
-      "category": "Legendäre Breaks",
+      "category": "Funk & Soul",
+      "patternType": "Groove",
       "bpmMin": 70,
       "bpmMax": 125,
       "meter": "4/4",
@@ -3930,7 +3953,8 @@
     {
       "id": "drum-cold-sweat",
       "name": "Cold Sweat — Zweitaktgroove",
-      "category": "Legendäre Breaks",
+      "category": "Funk & Soul",
+      "patternType": "Groove",
       "bpmMin": 75,
       "bpmMax": 135,
       "meter": "4/4",
@@ -4137,7 +4161,8 @@
     {
       "id": "drum-rock-steady",
       "name": "Rock Steady",
-      "category": "Legendäre Breaks",
+      "category": "Funk & Soul",
+      "patternType": "Groove",
       "bpmMin": 65,
       "bpmMax": 125,
       "meter": "4/4",
@@ -4264,7 +4289,8 @@
     {
       "id": "drum-levee",
       "name": "When the Levee Breaks",
-      "category": "Legendäre Breaks",
+      "category": "Rock & Pop",
+      "patternType": "Groove",
       "bpmMin": 45,
       "bpmMax": 95,
       "meter": "4/4",
@@ -4372,7 +4398,8 @@
     {
       "id": "drum-superstition",
       "name": "Superstition — Drumgroove",
-      "category": "Legendäre Grooves",
+      "category": "Funk & Soul",
+      "patternType": "Groove",
       "bpmMin": 70,
       "bpmMax": 125,
       "meter": "4/4",
@@ -4481,7 +4508,8 @@
     {
       "id": "drum-cissy-strut",
       "name": "Cissy Strut — Takte 3–4",
-      "category": "Legendäre Grooves",
+      "category": "Funk & Soul",
+      "patternType": "Groove",
       "bpmMin": 60,
       "bpmMax": 115,
       "meter": "4/4",
@@ -4694,7 +4722,8 @@
     {
       "id": "drum-walk-this-way",
       "name": "Walk This Way — Groove",
-      "category": "Legendäre Grooves",
+      "category": "Rock & Pop",
+      "patternType": "Groove",
       "bpmMin": 70,
       "bpmMax": 125,
       "meter": "4/4",
@@ -4820,7 +4849,8 @@
     {
       "id": "drum-teen-spirit",
       "name": "Smells Like Teen Spirit — Refrain",
-      "category": "Legendäre Grooves",
+      "category": "Rock & Pop",
+      "patternType": "Groove",
       "bpmMin": 75,
       "bpmMax": 130,
       "meter": "4/4",
@@ -4928,7 +4958,8 @@
     {
       "id": "drum-pop-pocket-offbeats",
       "name": "Pop-Pocket mit Offbeat-Kick",
-      "category": "Grundlagen",
+      "category": "Rock & Pop",
+      "patternType": "Groove",
       "bpmMin": 65,
       "bpmMax": 135,
       "meter": "4/4",
@@ -5032,7 +5063,8 @@
     {
       "id": "drum-rock-hat-barks",
       "name": "Rockgroove mit Hi-Hat-Barks",
-      "category": "Rock & Metal",
+      "category": "Rock & Pop",
+      "patternType": "Groove",
       "bpmMin": 65,
       "bpmMax": 135,
       "meter": "4/4",
@@ -5154,7 +5186,8 @@
     {
       "id": "drum-purdie-shuffle",
       "name": "Purdie Half-Time Shuffle",
-      "category": "Shuffle",
+      "category": "Blues & Shuffle",
+      "patternType": "Groove",
       "bpmMin": 60,
       "bpmMax": 145,
       "meter": "12/8",
@@ -5246,7 +5279,8 @@
     {
       "id": "drum-fool-rain",
       "name": "Fool in the Rain Shuffle",
-      "category": "Shuffle",
+      "category": "Blues & Shuffle",
+      "patternType": "Groove",
       "bpmMin": 55,
       "bpmMax": 105,
       "meter": "12/8",
@@ -5352,7 +5386,8 @@
     {
       "id": "drum-rosanna",
       "name": "Rosanna Shuffle — Reduktion",
-      "category": "Shuffle",
+      "category": "Blues & Shuffle",
+      "patternType": "Groove",
       "bpmMin": 55,
       "bpmMax": 100,
       "meter": "12/8",
@@ -5492,7 +5527,8 @@
     {
       "id": "drum-texas-shuffle",
       "name": "Texas Shuffle",
-      "category": "Shuffle",
+      "category": "Blues & Shuffle",
+      "patternType": "Groove",
       "bpmMin": 65,
       "bpmMax": 175,
       "meter": "4/4",
@@ -5579,7 +5615,8 @@
     {
       "id": "drum-one-drop",
       "name": "Reggae One Drop",
-      "category": "Reggae & World",
+      "category": "Reggae",
+      "patternType": "Groove",
       "bpmMin": 55,
       "bpmMax": 95,
       "meter": "4/4",
@@ -5688,7 +5725,8 @@
     {
       "id": "drum-rockers",
       "name": "Reggae Rockers",
-      "category": "Reggae & World",
+      "category": "Reggae",
+      "patternType": "Groove",
       "bpmMin": 60,
       "bpmMax": 105,
       "meter": "4/4",
@@ -5797,7 +5835,8 @@
     {
       "id": "drum-steppers",
       "name": "Reggae Steppers",
-      "category": "Reggae & World",
+      "category": "Reggae",
+      "patternType": "Groove",
       "bpmMin": 65,
       "bpmMax": 125,
       "meter": "4/4",
@@ -5906,7 +5945,8 @@
     {
       "id": "drum-bo-diddley",
       "name": "Bo Diddley Beat",
-      "category": "Reggae & World",
+      "category": "Funk & Soul",
+      "patternType": "Groove",
       "bpmMin": 70,
       "bpmMax": 150,
       "meter": "4/4",
@@ -6079,7 +6119,8 @@
     {
       "id": "drum-bossa",
       "name": "Bossa-Nova Drumset",
-      "category": "Reggae & World",
+      "category": "Latin & World",
+      "patternType": "Groove",
       "bpmMin": 80,
       "bpmMax": 150,
       "meter": "4/4",
@@ -6183,7 +6224,8 @@
     {
       "id": "drum-samba",
       "name": "Samba Drumset",
-      "category": "Reggae & World",
+      "category": "Latin & World",
+      "patternType": "Groove",
       "bpmMin": 90,
       "bpmMax": 175,
       "meter": "2/4",
@@ -6286,7 +6328,8 @@
     {
       "id": "drum-five-four",
       "name": "5/4 Drumgroove 3+2",
-      "category": "Ungerade Grooves",
+      "category": "Genreübergreifend",
+      "patternType": "Groove",
       "bpmMin": 55,
       "bpmMax": 130,
       "meter": "5/4",
@@ -6404,7 +6447,8 @@
     {
       "id": "drum-seven-eight",
       "name": "7/8 Drumgroove 2+2+3",
-      "category": "Ungerade Grooves",
+      "category": "Genreübergreifend",
+      "patternType": "Groove",
       "bpmMin": 60,
       "bpmMax": 150,
       "meter": "7/8",
@@ -6499,7 +6543,8 @@
     {
       "id": "drum-single-stroke",
       "name": "Single-Stroke Roll",
-      "category": "Rudiments & Technik",
+      "category": "Genreübergreifend",
+      "patternType": "Technik",
       "bpmMin": 50,
       "bpmMax": 200,
       "meter": "4/4",
@@ -6567,7 +6612,8 @@
     {
       "id": "drum-double-stroke",
       "name": "Double-Stroke Orchestrierung",
-      "category": "Rudiments & Technik",
+      "category": "Genreübergreifend",
+      "patternType": "Technik",
       "bpmMin": 45,
       "bpmMax": 180,
       "meter": "4/4",
@@ -6671,7 +6717,8 @@
     {
       "id": "drum-paradiddle",
       "name": "Paradiddle-Orchestrierung",
-      "category": "Rudiments & Technik",
+      "category": "Genreübergreifend",
+      "patternType": "Technik",
       "bpmMin": 45,
       "bpmMax": 160,
       "meter": "4/4",
@@ -6775,7 +6822,8 @@
     {
       "id": "drum-bonham-triplets",
       "name": "Bonham-Triplets",
-      "category": "Rudiments & Technik",
+      "category": "Genreübergreifend",
+      "patternType": "Technik",
       "bpmMin": 45,
       "bpmMax": 135,
       "meter": "4/4",
@@ -6849,7 +6897,8 @@
     {
       "id": "drum-kick-doubles",
       "name": "Kick-Doubles",
-      "category": "Rudiments & Technik",
+      "category": "Genreübergreifend",
+      "patternType": "Technik",
       "bpmMin": 45,
       "bpmMax": 150,
       "meter": "4/4",
@@ -6953,7 +7002,8 @@
     {
       "id": "drum-blast-beat",
       "name": "Blast Beat",
-      "category": "Rock & Metal",
+      "category": "Punk & Metal",
+      "patternType": "Groove",
       "bpmMin": 90,
       "bpmMax": 220,
       "meter": "4/4",
@@ -7057,7 +7107,8 @@
     {
       "id": "drum-dbeat",
       "name": "D-Beat",
-      "category": "Rock & Metal",
+      "category": "Punk & Metal",
+      "patternType": "Groove",
       "bpmMin": 110,
       "bpmMax": 220,
       "meter": "4/4",
@@ -7165,7 +7216,8 @@
     {
       "id": "drum-tempo-pyramid",
       "name": "Drumgroove Tempo-Pyramide",
-      "category": "Rudiments & Technik",
+      "category": "Genreübergreifend",
+      "patternType": "Technik",
       "bpmMin": 60,
       "bpmMax": 180,
       "meter": "4/4",

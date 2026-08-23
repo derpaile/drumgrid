@@ -7,6 +7,11 @@ import test from "node:test";
 const FACTOR = { Viertel: 1, Achtel: 2, "16tel": 4, Triolen: 3, Sextolen: 6 };
 const HIT_STATES = new Set(["mute", "ghost", "normal", "accent"]);
 const SUMMARY_STATES = new Set(["mute", "normal", "accent"]);
+const PATTERN_CATEGORIES = new Set([
+  "Rock & Pop", "Punk & Metal", "Funk & Soul", "Hip-Hop", "Dance & Electronic",
+  "Reggae", "Latin & World", "Blues & Shuffle", "Genreübergreifend",
+]);
+const PATTERN_TYPES = new Set(["Groove", "Break", "Technik"]);
 const DRUM_VOICES = new Set([
   "kick", "snare", "closedHat", "openHat", "ride", "crash", "rim", "highTom", "lowTom",
 ]);
@@ -79,12 +84,14 @@ test("ships a drum-only v2 library with 52 complete patterns", async () => {
   const names = new Set();
   const musicalSignatures = new Set();
   for (const pattern of library.patterns) {
-    for (const field of ["id", "name", "category", "bpmMin", "bpmMax", "meter", "subdivision", "pattern", "drumTracks", "difficulty", "instruction", "drumOnly", "attribution", "learningGoals", "whyInteresting"]) {
+    for (const field of ["id", "name", "category", "patternType", "bpmMin", "bpmMax", "meter", "subdivision", "pattern", "drumTracks", "difficulty", "instruction", "drumOnly", "attribution", "learningGoals", "whyInteresting"]) {
       assert.ok(pattern[field] !== undefined, `${pattern.id} lacks ${field}`);
     }
     assert.match(pattern.id, /^drum-[a-z0-9]+(?:-[a-z0-9]+)*$/);
     assert.equal(pattern.drumOnly, true, `${pattern.id} is not marked drum-only`);
-    assert.notEqual(pattern.category, "Instrumente", `${pattern.id} uses the removed generic instrument category`);
+    assert.ok(PATTERN_CATEGORIES.has(pattern.category), `${pattern.id} uses unknown category ${pattern.category}`);
+    assert.ok(PATTERN_TYPES.has(pattern.patternType), `${pattern.id} uses unknown pattern type ${pattern.patternType}`);
+    if (pattern.patternType === "Technik") assert.equal(pattern.category, "Genreübergreifend", `${pattern.id} assigns technique to a genre`);
     assert.ok(!REMOVED_NON_DRUM_EXERCISES.has(pattern.name), `${pattern.id} retained a non-drum exercise`);
     assert.ok(!ids.has(pattern.id), `duplicate id ${pattern.id}`);
     assert.ok(pattern.name.trim().length > 0, `${pattern.id} has an empty name`);
