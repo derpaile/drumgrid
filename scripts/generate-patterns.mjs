@@ -26,13 +26,24 @@ const sources = {
 };
 
 function exercise(id, name, category, bpm, instruction, tracks, options = {}) {
+  const learningGoals = options.learningGoals || [
+    difficultyGoal(options.difficulty || "Mittel"),
+    category.includes("Rudiment") ? "Technik" : category.includes("Ungerade") ? "Ungerade Takte" : category === "Shuffle" ? "Pocket" : category === "Grundlagen" ? "Grundlagen" : "Timing",
+  ].filter((value, index, values) => values.indexOf(value) === index);
   return {
     id, name, category, bpmMin: bpm[0], bpmMax: bpm[1],
     meter: options.meter || "4/4", subdivision: options.subdivision || "16tel",
     bars: options.bars || 1, grouping: options.grouping,
     difficulty: options.difficulty || "Mittel", instruction, tracks,
+    attribution: options.attribution || (options.source ? "Quellenbasierte Übungsrekonstruktion" : "Genreübung"),
+    learningGoals,
+    whyInteresting: options.whyInteresting || instruction,
     playback: options.playback, source: options.source, drumOnly: true,
   };
+}
+
+function difficultyGoal(difficulty) {
+  return difficulty === "Leicht" ? "Grundlagen" : difficulty === "Fortgeschritten" ? "Koordination" : "Pocket";
 }
 
 const eighths16 = seq(0, 16, 2);
@@ -60,11 +71,11 @@ const exercises = [
     kick: { accent: quarters16 }, snare: { accent: [4, 12] }, closedHat: { normal: quarters16 }, openHat: { accent: [2, 6, 10, 14] },
   }, { playback: { bpm: 124, kit: "Elektronisch" }, source: sources.fourFloor }),
   exercise("drum-disco", "Disco Open-Hat", "Dance & Hip-Hop", [95, 140], "Halte vier Kicks stabil; die offene Hi-Hat hebt jedes Und an.", {
-    kick: { accent: quarters16 }, snare: { accent: [4, 12] }, closedHat: { normal: quarters16 }, openHat: { accent: [2, 6, 10, 14] },
+    kick: { accent: quarters16 }, snare: { accent: [4, 12] }, closedHat: { normal: quarters16 }, openHat: { accent: [2, 6, 10, 14] }, crash: { accent: [0] },
   }, { playback: { bpm: 118, kit: "Studio" }, source: sources.fourFloor }),
-  exercise("drum-house", "House 909", "Dance & Hip-Hop", [110, 145], "Programmiere Kick-Viertel, Clap-Backbeat und offene Hats auf allen Offbeats.", {
-    kick: { accent: quarters16 }, snare: { accent: [4, 12] }, closedHat: { normal: quarters16 }, openHat: { accent: [2, 6, 10, 14] },
-  }, { playback: { bpm: 126, kit: "Elektronisch" }, source: sources.fourFloor }),
+  exercise("drum-house", "House mit synkopierter Clap", "Dance & Hip-Hop", [110, 145], "Halte die Kick in Vierteln und ergänze die leisen Clap-Vorzieher erst, wenn die offenen Hats stabil liegen.", {
+    kick: { accent: quarters16 }, snare: { accent: [4, 12], ghost: [3, 11] }, closedHat: { normal: [0, 4, 8, 12] }, openHat: { accent: [2, 6, 10, 14] }, rim: { normal: [7, 15] },
+  }, { playback: { bpm: 126, kit: "Elektronisch" }, source: sources.fourFloor, learningGoals: ["Pocket", "Koordination"] }),
   exercise("drum-boom-bap", "Boom-Bap Pocket", "Dance & Hip-Hop", [70, 105], "Lege Kick und Snare leicht hinter den Puls und lasse die Ghostnote vor vier klein.", {
     kick: { accent: [0, 7, 10] }, snare: { accent: [4, 12], ghost: [11] }, closedHat: { normal: eighths16, accent: [0, 8] },
   }, { playback: { bpm: 88, swing: 57, kit: "Trocken" } }),
@@ -123,12 +134,12 @@ const exercises = [
   exercise("drum-teen-spirit", "Smells Like Teen Spirit — Refrain", "Legendäre Grooves", [75, 130], "Spiele die Refrain-Reduktion mit explosiven offenen Hats und eng zusammenliegenden Kick-Schlägen.", {
     kick: { accent: [0, 3, 8, 10, 11] }, snare: { accent: [4, 7, 12] }, openHat: { accent: quarters16 },
   }, { playback: { bpm: 116, kit: "Studio" }, source: sources.famous }),
-  exercise("drum-billie-jean", "Billie Jean — Backbeat", "Legendäre Grooves", [75, 130], "Halte Ndugu Chanclers Achtel völlig gleichmäßig; der Groove entsteht aus Konstanz und Balance.", {
-    kick: { accent: [0, 8] }, snare: { accent: [4, 12] }, closedHat: { normal: eighths16, accent: quarters16 },
-  }, { difficulty: "Leicht", playback: { bpm: 117, kit: "Studio" }, source: sources.famous }),
-  exercise("drum-back-in-black", "Back in Black — Backbeat", "Legendäre Grooves", [60, 120], "Spiele Phil Rudds reduzierten Rockpuls mit identischen Hat-Abständen und klarer Snare.", {
-    kick: { accent: [0, 8] }, snare: { accent: [4, 12] }, closedHat: { normal: eighths16, accent: quarters16 },
-  }, { difficulty: "Leicht", playback: { bpm: 93, kit: "Studio" }, source: sources.famous }),
+  exercise("drum-pop-pocket-offbeats", "Pop-Pocket mit Offbeat-Kick", "Grundlagen", [65, 135], "Halte die Achtelhand ruhig und platziere die Kick vor drei sowie auf dem Und von drei ohne den Backbeat zu verschieben.", {
+    kick: { accent: [0, 6, 10] }, snare: { accent: [4, 12] }, closedHat: { normal: eighths16, accent: [0, 8] },
+  }, { difficulty: "Leicht", playback: { bpm: 96, kit: "Studio" }, learningGoals: ["Grundlagen", "Fußtechnik"], whyInteresting: "Zwei leicht versetzte Kicks machen aus dem Standard-Backbeat eine musikalisch brauchbare Pop-Phrase." }),
+  exercise("drum-rock-hat-barks", "Rockgroove mit Hi-Hat-Barks", "Rock & Metal", [65, 135], "Öffne die Hi-Hat kurz auf dem letzten Und und schließe sie exakt mit der Kick auf der nächsten Eins.", {
+    kick: { accent: [0, 7, 8, 10] }, snare: { accent: [4, 12] }, closedHat: { normal: [0, 2, 4, 6, 8, 10, 12] }, openHat: { accent: [14] },
+  }, { playback: { bpm: 104, kit: "Studio" }, learningGoals: ["Koordination", "Dynamik"], whyInteresting: "Der kontrollierte Hat-Bark trainiert Timing und Fußkoordination, ohne einen Songnamen vorzutäuschen." }),
 
   exercise("drum-purdie-shuffle", "Purdie Half-Time Shuffle", "Shuffle", [60, 145], "Verbinde geshuffelte Hats, Snare-Ghostnotes und den Half-Time-Backbeat ohne Dynamikverlust.", {
     kick: { accent: [0, 5, 11] }, snare: { accent: [6], ghost: [1, 4, 7, 10] }, closedHat: { normal: shuffle12, accent: [0, 3, 6, 9] },
@@ -172,9 +183,9 @@ const exercises = [
   exercise("drum-single-stroke", "Single-Stroke Roll", "Rudiments & Technik", [50, 200], "Spiele RLRL als gleichmäßige Sechzehntel auf der Snare; jeder Viertelbeginn bleibt entspannt akzentuiert.", {
     snare: { normal: sixteenths, accent: quarters16 },
   }, { difficulty: "Leicht", playback: { bpm: 90, kit: "Trocken" } }),
-  exercise("drum-double-stroke", "Double-Stroke Roll", "Rudiments & Technik", [45, 180], "Spiele RRLL mit identischem Zweitschlag und klaren Viertelakzenten.", {
-    snare: { normal: sixteenths, accent: quarters16 },
-  }, { playback: { bpm: 80, kit: "Trocken" } }),
+  exercise("drum-double-stroke", "Double-Stroke Orchestrierung", "Rudiments & Technik", [45, 180], "Spiele RRLL als Paare und verteile die Doppelschläge zwischen Snare, High Tom und Floor Tom.", {
+    snare: { normal: [0, 1, 4, 5, 8, 9, 12, 13], accent: [0, 4, 8, 12] }, highTom: { normal: [2, 3, 10, 11] }, lowTom: { normal: [6, 7, 14, 15] },
+  }, { playback: { bpm: 80, kit: "Trocken" }, learningGoals: ["Technik", "Orchestrierung"] }),
   exercise("drum-paradiddle", "Paradiddle-Orchestrierung", "Rudiments & Technik", [45, 160], "Spiele RLRR LRLL; Akzente wandern zwischen Snare und Toms, die Kick markiert die Viertel.", {
     kick: { normal: quarters16 }, snare: { normal: [1, 2, 3, 5, 6, 7, 9, 10, 11, 13, 14, 15], accent: [0, 8] }, highTom: { accent: [4, 12] },
   }, { difficulty: "Fortgeschritten", playback: { bpm: 78, kit: "Studio" } }),
@@ -191,7 +202,7 @@ const exercises = [
     kick: { accent: [0, 3, 5, 8, 11, 13] }, snare: { accent: [2, 6, 10, 14] }, closedHat: { accent: eighths16 },
   }, { difficulty: "Fortgeschritten", playback: { bpm: 165, kit: "Trocken" }, source: sources.dbeat }),
   exercise("drum-tempo-pyramid", "Drumgroove Tempo-Pyramide", "Rudiments & Technik", [60, 180], "Halte Rock-Backbeat und Kick sauber, während der Trainer automatisch hoch- und wieder herunterfährt.", {
-    kick: { accent: [0, 7, 8, 10] }, snare: { accent: [4, 12] }, closedHat: { normal: sixteenths, accent: quarters16 },
+    kick: { accent: [0, 3, 7, 8, 10, 14] }, snare: { accent: [4, 12], ghost: [11, 15] }, closedHat: { normal: sixteenths, accent: quarters16 },
   }, { difficulty: "Fortgeschritten", playback: { bpm: 60, kit: "Studio", trainer: { mode: "pyramid", step: 5, every: 8, min: 60, max: 180 } } }),
 ];
 
@@ -243,13 +254,14 @@ const patterns = exercises.map((entry) => {
     tempoUnit: tempoUnitFor(denominator, grouping),
     pattern: mergeTracks(drumTracks, length), drumTracks,
     difficulty: entry.difficulty, instruction: entry.instruction, drumOnly: true,
+    attribution: entry.attribution, learningGoals: entry.learningGoals, whyInteresting: entry.whyInteresting,
     ...(entry.playback ? { playback: entry.playback } : {}),
     ...(entry.source ? { source: entry.source } : {}),
   };
 });
 
 const target = new URL("../public/data/patterns-v1.json", import.meta.url);
-const output = `${JSON.stringify({ version: 2, updated: "2026-08-21", count: patterns.length, patterns }, null, 2)}\n`;
+const output = `${JSON.stringify({ version: 2, updated: "2026-08-23", count: patterns.length, patterns }, null, 2)}\n`;
 
 if (process.argv.includes("--check")) {
   const current = await readFile(target, "utf8");

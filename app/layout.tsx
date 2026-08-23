@@ -1,12 +1,11 @@
 import type { Metadata, Viewport } from "next";
-import { headers } from "next/headers";
 import "./globals.css";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const requestHeaders = await headers();
-  const host = requestHeaders.get("x-forwarded-host") || requestHeaders.get("host") || "localhost:3000";
-  const protocol = requestHeaders.get("x-forwarded-proto") || (host.startsWith("localhost") ? "http" : "https");
-  const origin = `${protocol}://${host}`;
+  const configuredOrigin = process.env.NEXT_PUBLIC_SITE_URL;
+  const origin = configuredOrigin && /^https?:\/\//.test(configuredOrigin)
+    ? new URL(configuredOrigin).origin
+    : "http://localhost:3000";
   return {
     metadataBase: new URL(origin),
     title: { default: "Klangmaß — Drum-Groove-Trainer", template: "%s · Klangmaß" },
@@ -30,7 +29,6 @@ export async function generateMetadata(): Promise<Metadata> {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
   viewportFit: "cover",
   themeColor: "#e94f37",
 };

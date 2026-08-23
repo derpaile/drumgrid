@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "updated": "2026-08-21",
+  "updated": "2026-08-23",
   "count": 47,
   "patterns": [
     {
@@ -64,6 +64,11 @@
       "difficulty": "Leicht",
       "instruction": "Spiele Kick auf eins und drei, Snare auf zwei und vier und führe die Hi-Hat in Achteln.",
       "drumOnly": true,
+      "attribution": "Genreübung",
+      "learningGoals": [
+        "Grundlagen"
+      ],
+      "whyInteresting": "Spiele Kick auf eins und drei, Snare auf zwei und vier und führe die Hi-Hat in Achteln.",
       "playback": {
         "bpm": 92,
         "kit": "Studio"
@@ -162,6 +167,11 @@
       "difficulty": "Leicht",
       "instruction": "Halte die Achtelhand konstant und setze die zusätzliche Kick vor Schlag drei sauber.",
       "drumOnly": true,
+      "attribution": "Genreübung",
+      "learningGoals": [
+        "Grundlagen"
+      ],
+      "whyInteresting": "Halte die Achtelhand konstant und setze die zusätzliche Kick vor Schlag drei sauber.",
       "playback": {
         "bpm": 118,
         "kit": "Studio"
@@ -260,6 +270,11 @@
       "difficulty": "Leicht",
       "instruction": "Lass die Snare schwer auf drei landen; Kick und Hi-Hat halten den großen Raum zusammen.",
       "drumOnly": true,
+      "attribution": "Genreübung",
+      "learningGoals": [
+        "Grundlagen"
+      ],
+      "whyInteresting": "Lass die Snare schwer auf drei landen; Kick und Hi-Hat halten den großen Raum zusammen.",
       "playback": {
         "bpm": 82,
         "kit": "Trocken"
@@ -358,6 +373,12 @@
       "difficulty": "Mittel",
       "instruction": "Spiele durchgehende Sechzehntel auf der Hi-Hat und halte Backbeat und Kick entspannt.",
       "drumOnly": true,
+      "attribution": "Genreübung",
+      "learningGoals": [
+        "Pocket",
+        "Grundlagen"
+      ],
+      "whyInteresting": "Spiele durchgehende Sechzehntel auf der Hi-Hat und halte Backbeat und Kick entspannt.",
       "playback": {
         "bpm": 96,
         "kit": "Studio"
@@ -456,6 +477,12 @@
       "difficulty": "Mittel",
       "instruction": "Führe schnelle Achtel auf der Hi-Hat, Snare auf den Offbeats und die Kick ohne Verkrampfung.",
       "drumOnly": true,
+      "attribution": "Genreübung",
+      "learningGoals": [
+        "Pocket",
+        "Timing"
+      ],
+      "whyInteresting": "Führe schnelle Achtel auf der Hi-Hat, Snare auf den Offbeats und die Kick ohne Verkrampfung.",
       "playback": {
         "bpm": 180,
         "kit": "Trocken"
@@ -572,6 +599,12 @@
       "difficulty": "Mittel",
       "instruction": "Setze die Kick auf alle vier Viertel, die Snare auf zwei und vier und öffne die Hat auf den Offbeats.",
       "drumOnly": true,
+      "attribution": "Quellenbasierte Übungsrekonstruktion",
+      "learningGoals": [
+        "Pocket",
+        "Timing"
+      ],
+      "whyInteresting": "Setze die Kick auf alle vier Viertel, die Snare auf zwei und vier und öffne die Hat auf den Offbeats.",
       "playback": {
         "bpm": 124,
         "kit": "Elektronisch"
@@ -687,11 +720,35 @@
           "mute",
           "accent",
           "mute"
+        ],
+        "crash": [
+          "accent",
+          "mute",
+          "mute",
+          "mute",
+          "mute",
+          "mute",
+          "mute",
+          "mute",
+          "mute",
+          "mute",
+          "mute",
+          "mute",
+          "mute",
+          "mute",
+          "mute",
+          "mute"
         ]
       },
       "difficulty": "Mittel",
       "instruction": "Halte vier Kicks stabil; die offene Hi-Hat hebt jedes Und an.",
       "drumOnly": true,
+      "attribution": "Quellenbasierte Übungsrekonstruktion",
+      "learningGoals": [
+        "Pocket",
+        "Timing"
+      ],
+      "whyInteresting": "Halte vier Kicks stabil; die offene Hi-Hat hebt jedes Und an.",
       "playback": {
         "bpm": 118,
         "kit": "Studio"
@@ -703,7 +760,7 @@
     },
     {
       "id": "drum-house",
-      "name": "House 909",
+      "name": "House mit synkopierter Clap",
       "category": "Dance & Hip-Hop",
       "bpmMin": 110,
       "bpmMax": 145,
@@ -721,19 +778,19 @@
         "accent",
         "mute",
         "accent",
-        "mute",
+        "normal",
         "accent",
         "mute",
         "accent",
-        "mute",
+        "normal",
         "accent",
         "mute",
         "accent",
-        "mute",
+        "normal",
         "accent",
         "mute",
         "accent",
-        "mute"
+        "normal"
       ],
       "drumTracks": {
         "kick": [
@@ -758,7 +815,7 @@
           "mute",
           "mute",
           "mute",
-          "mute",
+          "ghost",
           "accent",
           "mute",
           "mute",
@@ -766,7 +823,7 @@
           "mute",
           "mute",
           "mute",
-          "mute",
+          "ghost",
           "accent",
           "mute",
           "mute",
@@ -807,11 +864,35 @@
           "mute",
           "accent",
           "mute"
+        ],
+        "rim": [
+          "mute",
+          "mute",
+          "mute",
+          "mute",
+          "mute",
+          "mute",
+          "mute",
+          "normal",
+          "mute",
+          "mute",
+          "mute",
+          "mute",
+          "mute",
+          "mute",
+          "mute",
+          "normal"
         ]
       },
       "difficulty": "Mittel",
-      "instruction": "Programmiere Kick-Viertel, Clap-Backbeat und offene Hats auf allen Offbeats.",
+      "instruction": "Halte die Kick in Vierteln und ergänze die leisen Clap-Vorzieher erst, wenn die offenen Hats stabil liegen.",
       "drumOnly": true,
+      "attribution": "Quellenbasierte Übungsrekonstruktion",
+      "learningGoals": [
+        "Pocket",
+        "Koordination"
+      ],
+      "whyInteresting": "Halte die Kick in Vierteln und ergänze die leisen Clap-Vorzieher erst, wenn die offenen Hats stabil liegen.",
       "playback": {
         "bpm": 126,
         "kit": "Elektronisch"
@@ -914,6 +995,12 @@
       "difficulty": "Mittel",
       "instruction": "Lege Kick und Snare leicht hinter den Puls und lasse die Ghostnote vor vier klein.",
       "drumOnly": true,
+      "attribution": "Genreübung",
+      "learningGoals": [
+        "Pocket",
+        "Timing"
+      ],
+      "whyInteresting": "Lege Kick und Snare leicht hinter den Puls und lasse die Ghostnote vor vier klein.",
       "playback": {
         "bpm": 88,
         "swing": 57,
@@ -1013,6 +1100,12 @@
       "difficulty": "Fortgeschritten",
       "instruction": "Halte die Snare auf drei schwer und spiele die Hat-Rolls kontrolliert gegen die Kick.",
       "drumOnly": true,
+      "attribution": "Genreübung",
+      "learningGoals": [
+        "Koordination",
+        "Timing"
+      ],
+      "whyInteresting": "Halte die Snare auf drei schwer und spiele die Hat-Rolls kontrolliert gegen die Kick.",
       "playback": {
         "bpm": 72,
         "kit": "Elektronisch"
@@ -1435,6 +1528,12 @@
       "difficulty": "Fortgeschritten",
       "instruction": "Spiele den viertaktigen Coleman-Break: Ride-Achtel tragen die versetzten Kicks, Ghostnotes und späten Snares.",
       "drumOnly": true,
+      "attribution": "Quellenbasierte Übungsrekonstruktion",
+      "learningGoals": [
+        "Koordination",
+        "Timing"
+      ],
+      "whyInteresting": "Spiele den viertaktigen Coleman-Break: Ride-Achtel tragen die versetzten Kicks, Ghostnotes und späten Snares.",
       "playback": {
         "bpm": 137,
         "swing": 52,
@@ -1556,6 +1655,12 @@
       "difficulty": "Fortgeschritten",
       "instruction": "Isoliere zuerst Clydes einhändige Sechzehntel-Hat; ergänze danach Kick, Backbeat und sehr leise Ghostnotes.",
       "drumOnly": true,
+      "attribution": "Quellenbasierte Übungsrekonstruktion",
+      "learningGoals": [
+        "Koordination",
+        "Timing"
+      ],
+      "whyInteresting": "Isoliere zuerst Clydes einhändige Sechzehntel-Hat; ergänze danach Kick, Backbeat und sehr leise Ghostnotes.",
       "playback": {
         "bpm": 101,
         "swing": 55,
@@ -1677,6 +1782,12 @@
       "difficulty": "Mittel",
       "instruction": "Halte den trockenen Boom-Bap-Kern stabil; die versetzten Kicks geben dem Break seinen Zug.",
       "drumOnly": true,
+      "attribution": "Quellenbasierte Übungsrekonstruktion",
+      "learningGoals": [
+        "Pocket",
+        "Timing"
+      ],
+      "whyInteresting": "Halte den trockenen Boom-Bap-Kern stabil; die versetzten Kicks geben dem Break seinen Zug.",
       "playback": {
         "bpm": 96,
         "kit": "Trocken"
@@ -1797,6 +1908,12 @@
       "difficulty": "Mittel",
       "instruction": "Übe die Drumset-Basis des Jabo-Starks-Breaks; Vocal- und Percussion-Hits sind bewusst weggelassen.",
       "drumOnly": true,
+      "attribution": "Quellenbasierte Übungsrekonstruktion",
+      "learningGoals": [
+        "Pocket",
+        "Timing"
+      ],
+      "whyInteresting": "Übe die Drumset-Basis des Jabo-Starks-Breaks; Vocal- und Percussion-Hits sind bewusst weggelassen.",
       "playback": {
         "bpm": 113,
         "swing": 53,
@@ -1918,6 +2035,12 @@
       "difficulty": "Mittel",
       "instruction": "Übertrage den bongo-geprägten B-Boy-Break auf Kick, Snare und Hats, ohne die Synkopen zu begradigen.",
       "drumOnly": true,
+      "attribution": "Quellenbasierte Übungsrekonstruktion",
+      "learningGoals": [
+        "Pocket",
+        "Timing"
+      ],
+      "whyInteresting": "Übertrage den bongo-geprägten B-Boy-Break auf Kick, Snare und Hats, ohne die Synkopen zu begradigen.",
       "playback": {
         "bpm": 115,
         "kit": "Studio"
@@ -2020,6 +2143,12 @@
       "difficulty": "Mittel",
       "instruction": "Lass viel Luft zwischen Kick und geflammter Snare; der Break lebt von Raum statt Hi-Hat-Dichte.",
       "drumOnly": true,
+      "attribution": "Quellenbasierte Übungsrekonstruktion",
+      "learningGoals": [
+        "Pocket",
+        "Timing"
+      ],
+      "whyInteresting": "Lass viel Luft zwischen Kick und geflammter Snare; der Break lebt von Raum statt Hi-Hat-Dichte.",
       "playback": {
         "bpm": 108,
         "kit": "Studio"
@@ -2122,6 +2251,12 @@
       "difficulty": "Fortgeschritten",
       "instruction": "Halte Purdies synkopierte Kickfolge gegen die knappen Snare-Akzente und geraden Hats.",
       "drumOnly": true,
+      "attribution": "Quellenbasierte Übungsrekonstruktion",
+      "learningGoals": [
+        "Koordination",
+        "Timing"
+      ],
+      "whyInteresting": "Halte Purdies synkopierte Kickfolge gegen die knappen Snare-Akzente und geraden Hats.",
       "playback": {
         "bpm": 98,
         "swing": 53,
@@ -2243,6 +2378,12 @@
       "difficulty": "Mittel",
       "instruction": "Spiele den offenen Hat-Akzent nach drei und halte die Kick-Doppelfigur kompakt.",
       "drumOnly": true,
+      "attribution": "Quellenbasierte Übungsrekonstruktion",
+      "learningGoals": [
+        "Pocket",
+        "Timing"
+      ],
+      "whyInteresting": "Spiele den offenen Hat-Akzent nach drei und halte die Kick-Doppelfigur kompakt.",
       "playback": {
         "bpm": 95,
         "kit": "Trocken"
@@ -2443,6 +2584,12 @@
       "difficulty": "Fortgeschritten",
       "instruction": "Verbinde beide Takte des frühen Funkgrooves; Ghostnotes bleiben deutlich unter dem Backbeat.",
       "drumOnly": true,
+      "attribution": "Quellenbasierte Übungsrekonstruktion",
+      "learningGoals": [
+        "Koordination",
+        "Timing"
+      ],
+      "whyInteresting": "Verbinde beide Takte des frühen Funkgrooves; Ghostnotes bleiben deutlich unter dem Backbeat.",
       "playback": {
         "bpm": 120,
         "swing": 54,
@@ -2564,6 +2711,12 @@
       "difficulty": "Fortgeschritten",
       "instruction": "Kontrolliere die weiten Hi-Hat-Öffnungen und Purdies leise Snare-Füllstimmen.",
       "drumOnly": true,
+      "attribution": "Quellenbasierte Übungsrekonstruktion",
+      "learningGoals": [
+        "Koordination",
+        "Timing"
+      ],
+      "whyInteresting": "Kontrolliere die weiten Hi-Hat-Öffnungen und Purdies leise Snare-Füllstimmen.",
       "playback": {
         "bpm": 105,
         "swing": 57,
@@ -2667,6 +2820,12 @@
       "difficulty": "Mittel",
       "instruction": "Spiele Bonhams schweren Raumgroove: die Kick-Doppelschläge bleiben kurz, die Snare landet breit auf zwei und vier.",
       "drumOnly": true,
+      "attribution": "Quellenbasierte Übungsrekonstruktion",
+      "learningGoals": [
+        "Pocket",
+        "Timing"
+      ],
+      "whyInteresting": "Spiele Bonhams schweren Raumgroove: die Kick-Doppelschläge bleiben kurz, die Snare landet breit auf zwei und vier.",
       "playback": {
         "bpm": 72,
         "kit": "Studio"
@@ -2769,6 +2928,12 @@
       "difficulty": "Mittel",
       "instruction": "Halte den federnden Sechzehntelfluss und die Hat-Akzente gegen den geraden Backbeat.",
       "drumOnly": true,
+      "attribution": "Quellenbasierte Übungsrekonstruktion",
+      "learningGoals": [
+        "Pocket",
+        "Timing"
+      ],
+      "whyInteresting": "Halte den federnden Sechzehntelfluss und die Hat-Akzente gegen den geraden Backbeat.",
       "playback": {
         "bpm": 101,
         "swing": 58,
@@ -3064,6 +3229,12 @@
       "difficulty": "Fortgeschritten",
       "instruction": "Lerne den viertaktigen New-Orleans-Funk in kleinen Phrasen und halte die Ghostnotes unter den Kicks.",
       "drumOnly": true,
+      "attribution": "Quellenbasierte Übungsrekonstruktion",
+      "learningGoals": [
+        "Koordination",
+        "Timing"
+      ],
+      "whyInteresting": "Lerne den viertaktigen New-Orleans-Funk in kleinen Phrasen und halte die Ghostnotes unter den Kicks.",
       "playback": {
         "bpm": 90,
         "swing": 55,
@@ -3185,6 +3356,12 @@
       "difficulty": "Mittel",
       "instruction": "Setze die offene Hat auf eins deutlich und halte Kramers synkopierte Kickfigur trocken.",
       "drumOnly": true,
+      "attribution": "Quellenbasierte Übungsrekonstruktion",
+      "learningGoals": [
+        "Pocket",
+        "Timing"
+      ],
+      "whyInteresting": "Setze die offene Hat auf eins deutlich und halte Kramers synkopierte Kickfigur trocken.",
       "playback": {
         "bpm": 108,
         "kit": "Studio"
@@ -3287,6 +3464,12 @@
       "difficulty": "Mittel",
       "instruction": "Spiele die Refrain-Reduktion mit explosiven offenen Hats und eng zusammenliegenden Kick-Schlägen.",
       "drumOnly": true,
+      "attribution": "Quellenbasierte Übungsrekonstruktion",
+      "learningGoals": [
+        "Pocket",
+        "Timing"
+      ],
+      "whyInteresting": "Spiele die Refrain-Reduktion mit explosiven offenen Hats und eng zusammenliegenden Kick-Schlägen.",
       "playback": {
         "bpm": 116,
         "kit": "Studio"
@@ -3297,11 +3480,11 @@
       }
     },
     {
-      "id": "drum-billie-jean",
-      "name": "Billie Jean — Backbeat",
-      "category": "Legendäre Grooves",
-      "bpmMin": 75,
-      "bpmMax": 130,
+      "id": "drum-pop-pocket-offbeats",
+      "name": "Pop-Pocket mit Offbeat-Kick",
+      "category": "Grundlagen",
+      "bpmMin": 65,
+      "bpmMax": 135,
       "meter": "4/4",
       "subdivision": "16tel",
       "bars": 1,
@@ -3319,11 +3502,11 @@
         "mute",
         "accent",
         "mute",
-        "normal",
+        "accent",
         "mute",
         "accent",
         "mute",
-        "normal",
+        "accent",
         "mute",
         "accent",
         "mute",
@@ -3338,11 +3521,11 @@
           "mute",
           "mute",
           "mute",
-          "mute",
-          "mute",
           "accent",
           "mute",
           "mute",
+          "mute",
+          "accent",
           "mute",
           "mute",
           "mute",
@@ -3372,7 +3555,7 @@
           "mute",
           "normal",
           "mute",
-          "accent",
+          "normal",
           "mute",
           "normal",
           "mute",
@@ -3380,30 +3563,32 @@
           "mute",
           "normal",
           "mute",
-          "accent",
+          "normal",
           "mute",
           "normal",
           "mute"
         ]
       },
       "difficulty": "Leicht",
-      "instruction": "Halte Ndugu Chanclers Achtel völlig gleichmäßig; der Groove entsteht aus Konstanz und Balance.",
+      "instruction": "Halte die Achtelhand ruhig und platziere die Kick vor drei sowie auf dem Und von drei ohne den Backbeat zu verschieben.",
       "drumOnly": true,
+      "attribution": "Genreübung",
+      "learningGoals": [
+        "Grundlagen",
+        "Fußtechnik"
+      ],
+      "whyInteresting": "Zwei leicht versetzte Kicks machen aus dem Standard-Backbeat eine musikalisch brauchbare Pop-Phrase.",
       "playback": {
-        "bpm": 117,
+        "bpm": 96,
         "kit": "Studio"
-      },
-      "source": {
-        "label": "Drumeo — recognizable drum beats",
-        "url": "https://www.drumeo.com/beat/the-20-most-recognizable-drum-beats-of-all-time/"
       }
     },
     {
-      "id": "drum-back-in-black",
-      "name": "Back in Black — Backbeat",
-      "category": "Legendäre Grooves",
-      "bpmMin": 60,
-      "bpmMax": 120,
+      "id": "drum-rock-hat-barks",
+      "name": "Rockgroove mit Hi-Hat-Barks",
+      "category": "Rock & Metal",
+      "bpmMin": 65,
+      "bpmMax": 135,
       "meter": "4/4",
       "subdivision": "16tel",
       "bars": 1,
@@ -3422,14 +3607,14 @@
         "accent",
         "mute",
         "normal",
+        "accent",
+        "accent",
         "mute",
         "accent",
         "mute",
-        "normal",
-        "mute",
         "accent",
         "mute",
-        "normal",
+        "accent",
         "mute"
       ],
       "drumTracks": {
@@ -3441,10 +3626,10 @@
           "mute",
           "mute",
           "mute",
-          "mute",
+          "accent",
           "accent",
           "mute",
-          "mute",
+          "accent",
           "mute",
           "mute",
           "mute",
@@ -3470,34 +3655,54 @@
           "mute"
         ],
         "closedHat": [
-          "accent",
+          "normal",
           "mute",
           "normal",
           "mute",
-          "accent",
+          "normal",
           "mute",
           "normal",
           "mute",
-          "accent",
+          "normal",
           "mute",
           "normal",
           "mute",
-          "accent",
-          "mute",
           "normal",
+          "mute",
+          "mute",
+          "mute"
+        ],
+        "openHat": [
+          "mute",
+          "mute",
+          "mute",
+          "mute",
+          "mute",
+          "mute",
+          "mute",
+          "mute",
+          "mute",
+          "mute",
+          "mute",
+          "mute",
+          "mute",
+          "mute",
+          "accent",
           "mute"
         ]
       },
-      "difficulty": "Leicht",
-      "instruction": "Spiele Phil Rudds reduzierten Rockpuls mit identischen Hat-Abständen und klarer Snare.",
+      "difficulty": "Mittel",
+      "instruction": "Öffne die Hi-Hat kurz auf dem letzten Und und schließe sie exakt mit der Kick auf der nächsten Eins.",
       "drumOnly": true,
+      "attribution": "Genreübung",
+      "learningGoals": [
+        "Koordination",
+        "Dynamik"
+      ],
+      "whyInteresting": "Der kontrollierte Hat-Bark trainiert Timing und Fußkoordination, ohne einen Songnamen vorzutäuschen.",
       "playback": {
-        "bpm": 93,
+        "bpm": 104,
         "kit": "Studio"
-      },
-      "source": {
-        "label": "Drumeo — recognizable drum beats",
-        "url": "https://www.drumeo.com/beat/the-20-most-recognizable-drum-beats-of-all-time/"
       }
     },
     {
@@ -3577,6 +3782,12 @@
       "difficulty": "Fortgeschritten",
       "instruction": "Verbinde geshuffelte Hats, Snare-Ghostnotes und den Half-Time-Backbeat ohne Dynamikverlust.",
       "drumOnly": true,
+      "attribution": "Quellenbasierte Übungsrekonstruktion",
+      "learningGoals": [
+        "Koordination",
+        "Pocket"
+      ],
+      "whyInteresting": "Verbinde geshuffelte Hats, Snare-Ghostnotes und den Half-Time-Backbeat ohne Dynamikverlust.",
       "playback": {
         "bpm": 72,
         "kit": "Studio"
@@ -3677,6 +3888,12 @@
       "difficulty": "Fortgeschritten",
       "instruction": "Halte Bonhams Half-Time-Snare schwer und lasse die Triolenhand gleichmäßig durchlaufen.",
       "drumOnly": true,
+      "attribution": "Quellenbasierte Übungsrekonstruktion",
+      "learningGoals": [
+        "Koordination",
+        "Pocket"
+      ],
+      "whyInteresting": "Halte Bonhams Half-Time-Snare schwer und lasse die Triolenhand gleichmäßig durchlaufen.",
       "playback": {
         "bpm": 73,
         "kit": "Studio"
@@ -3811,6 +4028,12 @@
       "difficulty": "Fortgeschritten",
       "instruction": "Spiele die zweitaktige Porcaro-Reduktion: Shuffle-Hat, Ghostnotes und synkopierte Kick bleiben unabhängig.",
       "drumOnly": true,
+      "attribution": "Quellenbasierte Übungsrekonstruktion",
+      "learningGoals": [
+        "Koordination",
+        "Pocket"
+      ],
+      "whyInteresting": "Spiele die zweitaktige Porcaro-Reduktion: Shuffle-Hat, Ghostnotes und synkopierte Kick bleiben unabhängig.",
       "playback": {
         "bpm": 85,
         "kit": "Studio"
@@ -3897,6 +4120,11 @@
       "difficulty": "Mittel",
       "instruction": "Spiele jede erste und dritte Triolennote auf der Hat und setze Backbeat und Kick breit.",
       "drumOnly": true,
+      "attribution": "Genreübung",
+      "learningGoals": [
+        "Pocket"
+      ],
+      "whyInteresting": "Spiele jede erste und dritte Triolennote auf der Hat und setze Backbeat und Kick breit.",
       "playback": {
         "bpm": 110,
         "kit": "Studio"
@@ -3995,6 +4223,12 @@
       "difficulty": "Mittel",
       "instruction": "Lass die Eins frei; Kick und Rim treffen gemeinsam auf drei, die Hat bleibt leicht.",
       "drumOnly": true,
+      "attribution": "Quellenbasierte Übungsrekonstruktion",
+      "learningGoals": [
+        "Pocket",
+        "Timing"
+      ],
+      "whyInteresting": "Lass die Eins frei; Kick und Rim treffen gemeinsam auf drei, die Hat bleibt leicht.",
       "playback": {
         "bpm": 76,
         "swing": 54,
@@ -4098,6 +4332,12 @@
       "difficulty": "Mittel",
       "instruction": "Setze Kicks auf eins und drei und den Rim-Akzent auf drei; die Hat darf leicht schieben.",
       "drumOnly": true,
+      "attribution": "Quellenbasierte Übungsrekonstruktion",
+      "learningGoals": [
+        "Pocket",
+        "Timing"
+      ],
+      "whyInteresting": "Setze Kicks auf eins und drei und den Rim-Akzent auf drei; die Hat darf leicht schieben.",
       "playback": {
         "bpm": 82,
         "swing": 54,
@@ -4201,6 +4441,12 @@
       "difficulty": "Mittel",
       "instruction": "Treibe den Groove mit vier Kicks, während Rim und Hat den Reggae-Pocket offenlassen.",
       "drumOnly": true,
+      "attribution": "Quellenbasierte Übungsrekonstruktion",
+      "learningGoals": [
+        "Pocket",
+        "Timing"
+      ],
+      "whyInteresting": "Treibe den Groove mit vier Kicks, während Rim und Hat den Reggae-Pocket offenlassen.",
       "playback": {
         "bpm": 92,
         "swing": 53,
@@ -4368,6 +4614,12 @@
       "difficulty": "Mittel",
       "instruction": "Orchestriere die 3–2-Clave auf Floor-Tom und Kick und halte den Zweitaktzyklus tanzbar.",
       "drumOnly": true,
+      "attribution": "Quellenbasierte Übungsrekonstruktion",
+      "learningGoals": [
+        "Pocket",
+        "Timing"
+      ],
+      "whyInteresting": "Orchestriere die 3–2-Clave auf Floor-Tom und Kick und halte den Zweitaktzyklus tanzbar.",
       "playback": {
         "bpm": 104,
         "swing": 54,
@@ -4471,6 +4723,12 @@
       "difficulty": "Mittel",
       "instruction": "Halte die Kick als leisen Zweierpuls und spiele die Clave weich auf dem Rim.",
       "drumOnly": true,
+      "attribution": "Genreübung",
+      "learningGoals": [
+        "Pocket",
+        "Timing"
+      ],
+      "whyInteresting": "Halte die Kick als leisen Zweierpuls und spiele die Clave weich auf dem Rim.",
       "playback": {
         "bpm": 118,
         "kit": "Trocken"
@@ -4567,6 +4825,12 @@
       "difficulty": "Fortgeschritten",
       "instruction": "Koordiniere federnde Kick-Offbeats, Rim-Akzente und durchgehende Sechzehntel-Hat.",
       "drumOnly": true,
+      "attribution": "Genreübung",
+      "learningGoals": [
+        "Koordination",
+        "Timing"
+      ],
+      "whyInteresting": "Koordiniere federnde Kick-Offbeats, Rim-Akzente und durchgehende Sechzehntel-Hat.",
       "playback": {
         "bpm": 132,
         "swing": 53,
@@ -4680,6 +4944,12 @@
       "difficulty": "Fortgeschritten",
       "instruction": "Akzentuiere die Hat-Gruppen 3+2 und halte Kick und Snare über den langen Takt stabil.",
       "drumOnly": true,
+      "attribution": "Genreübung",
+      "learningGoals": [
+        "Koordination",
+        "Ungerade Takte"
+      ],
+      "whyInteresting": "Akzentuiere die Hat-Gruppen 3+2 und halte Kick und Snare über den langen Takt stabil.",
       "playback": {
         "bpm": 88,
         "kit": "Studio"
@@ -4769,6 +5039,12 @@
       "difficulty": "Fortgeschritten",
       "instruction": "Führe zwei kurze und eine lange Gruppe auf der Hat; Kick und Snare markieren die Gruppenstarts.",
       "drumOnly": true,
+      "attribution": "Genreübung",
+      "learningGoals": [
+        "Koordination",
+        "Ungerade Takte"
+      ],
+      "whyInteresting": "Führe zwei kurze und eine lange Gruppe auf der Hat; Kick und Snare markieren die Gruppenstarts.",
       "playback": {
         "bpm": 110,
         "kit": "Studio"
@@ -4831,6 +5107,12 @@
       "difficulty": "Leicht",
       "instruction": "Spiele RLRL als gleichmäßige Sechzehntel auf der Snare; jeder Viertelbeginn bleibt entspannt akzentuiert.",
       "drumOnly": true,
+      "attribution": "Genreübung",
+      "learningGoals": [
+        "Grundlagen",
+        "Technik"
+      ],
+      "whyInteresting": "Spiele RLRL als gleichmäßige Sechzehntel auf der Snare; jeder Viertelbeginn bleibt entspannt akzentuiert.",
       "playback": {
         "bpm": 90,
         "kit": "Trocken"
@@ -4838,7 +5120,7 @@
     },
     {
       "id": "drum-double-stroke",
-      "name": "Double-Stroke Roll",
+      "name": "Double-Stroke Orchestrierung",
       "category": "Rudiments & Technik",
       "bpmMin": 45,
       "bpmMax": 180,
@@ -4874,25 +5156,67 @@
         "snare": [
           "accent",
           "normal",
-          "normal",
-          "normal",
+          "mute",
+          "mute",
           "accent",
           "normal",
-          "normal",
-          "normal",
+          "mute",
+          "mute",
           "accent",
           "normal",
-          "normal",
-          "normal",
+          "mute",
+          "mute",
           "accent",
           "normal",
+          "mute",
+          "mute"
+        ],
+        "highTom": [
+          "mute",
+          "mute",
+          "normal",
+          "normal",
+          "mute",
+          "mute",
+          "mute",
+          "mute",
+          "mute",
+          "mute",
+          "normal",
+          "normal",
+          "mute",
+          "mute",
+          "mute",
+          "mute"
+        ],
+        "lowTom": [
+          "mute",
+          "mute",
+          "mute",
+          "mute",
+          "mute",
+          "mute",
+          "normal",
+          "normal",
+          "mute",
+          "mute",
+          "mute",
+          "mute",
+          "mute",
+          "mute",
           "normal",
           "normal"
         ]
       },
       "difficulty": "Mittel",
-      "instruction": "Spiele RRLL mit identischem Zweitschlag und klaren Viertelakzenten.",
+      "instruction": "Spiele RRLL als Paare und verteile die Doppelschläge zwischen Snare, High Tom und Floor Tom.",
       "drumOnly": true,
+      "attribution": "Genreübung",
+      "learningGoals": [
+        "Technik",
+        "Orchestrierung"
+      ],
+      "whyInteresting": "Spiele RRLL als Paare und verteile die Doppelschläge zwischen Snare, High Tom und Floor Tom.",
       "playback": {
         "bpm": 80,
         "kit": "Trocken"
@@ -4991,6 +5315,12 @@
       "difficulty": "Fortgeschritten",
       "instruction": "Spiele RLRR LRLL; Akzente wandern zwischen Snare und Toms, die Kick markiert die Viertel.",
       "drumOnly": true,
+      "attribution": "Genreübung",
+      "learningGoals": [
+        "Koordination",
+        "Technik"
+      ],
+      "whyInteresting": "Spiele RLRR LRLL; Akzente wandern zwischen Snare und Toms, die Kick markiert die Viertel.",
       "playback": {
         "bpm": 78,
         "kit": "Studio"
@@ -5059,6 +5389,12 @@
       "difficulty": "Fortgeschritten",
       "instruction": "Orchestriere Hand–Fuß–Fuß als gleichmäßige Triolen zwischen Tom und Kick.",
       "drumOnly": true,
+      "attribution": "Genreübung",
+      "learningGoals": [
+        "Koordination",
+        "Technik"
+      ],
+      "whyInteresting": "Orchestriere Hand–Fuß–Fuß als gleichmäßige Triolen zwischen Tom und Kick.",
       "playback": {
         "bpm": 76,
         "kit": "Studio"
@@ -5157,6 +5493,12 @@
       "difficulty": "Mittel",
       "instruction": "Spiele jede Kick-Doppelbewegung kurz und gleich laut, während die Hat den Puls sichert.",
       "drumOnly": true,
+      "attribution": "Genreübung",
+      "learningGoals": [
+        "Pocket",
+        "Technik"
+      ],
+      "whyInteresting": "Spiele jede Kick-Doppelbewegung kurz und gleich laut, während die Hat den Puls sichert.",
       "playback": {
         "bpm": 84,
         "kit": "Studio"
@@ -5255,6 +5597,12 @@
       "difficulty": "Fortgeschritten",
       "instruction": "Wechsle Kick und Snare in Sechzehnteln und halte die Handbewegung klein.",
       "drumOnly": true,
+      "attribution": "Genreübung",
+      "learningGoals": [
+        "Koordination",
+        "Timing"
+      ],
+      "whyInteresting": "Wechsle Kick und Snare in Sechzehnteln und halte die Handbewegung klein.",
       "playback": {
         "bpm": 140,
         "kit": "Trocken"
@@ -5353,6 +5701,12 @@
       "difficulty": "Fortgeschritten",
       "instruction": "Halte das klassische Discharge-Kickmuster gegen die versetzte Snare und durchgehende Achtel.",
       "drumOnly": true,
+      "attribution": "Quellenbasierte Übungsrekonstruktion",
+      "learningGoals": [
+        "Koordination",
+        "Timing"
+      ],
+      "whyInteresting": "Halte das klassische Discharge-Kickmuster gegen die versetzte Snare und durchgehende Achtel.",
       "playback": {
         "bpm": 165,
         "kit": "Trocken"
@@ -5382,18 +5736,18 @@
         "accent",
         "normal",
         "normal",
-        "normal",
-        "accent",
-        "normal",
-        "normal",
         "accent",
         "accent",
         "normal",
+        "normal",
+        "accent",
         "accent",
         "normal",
         "accent",
         "normal",
+        "accent",
         "normal",
+        "accent",
         "normal"
       ],
       "drumTracks": {
@@ -5401,7 +5755,7 @@
           "accent",
           "mute",
           "mute",
-          "mute",
+          "accent",
           "mute",
           "mute",
           "mute",
@@ -5412,7 +5766,7 @@
           "mute",
           "mute",
           "mute",
-          "mute",
+          "accent",
           "mute"
         ],
         "snare": [
@@ -5427,11 +5781,11 @@
           "mute",
           "mute",
           "mute",
-          "mute",
+          "ghost",
           "accent",
           "mute",
           "mute",
-          "mute"
+          "ghost"
         ],
         "closedHat": [
           "accent",
@@ -5455,6 +5809,12 @@
       "difficulty": "Fortgeschritten",
       "instruction": "Halte Rock-Backbeat und Kick sauber, während der Trainer automatisch hoch- und wieder herunterfährt.",
       "drumOnly": true,
+      "attribution": "Genreübung",
+      "learningGoals": [
+        "Koordination",
+        "Technik"
+      ],
+      "whyInteresting": "Halte Rock-Backbeat und Kick sauber, während der Trainer automatisch hoch- und wieder herunterfährt.",
       "playback": {
         "bpm": 60,
         "kit": "Studio",

@@ -77,8 +77,9 @@ test("ships a drum-only v2 library with 47 complete patterns", async () => {
   assert.equal(library.patterns.length, 47);
   const ids = new Set();
   const names = new Set();
+  const musicalSignatures = new Set();
   for (const pattern of library.patterns) {
-    for (const field of ["id", "name", "category", "bpmMin", "bpmMax", "meter", "subdivision", "pattern", "drumTracks", "difficulty", "instruction", "drumOnly"]) {
+    for (const field of ["id", "name", "category", "bpmMin", "bpmMax", "meter", "subdivision", "pattern", "drumTracks", "difficulty", "instruction", "drumOnly", "attribution", "learningGoals", "whyInteresting"]) {
       assert.ok(pattern[field] !== undefined, `${pattern.id} lacks ${field}`);
     }
     assert.match(pattern.id, /^drum-[a-z0-9]+(?:-[a-z0-9]+)*$/);
@@ -90,6 +91,10 @@ test("ships a drum-only v2 library with 47 complete patterns", async () => {
     assert.ok(!names.has(pattern.name), `duplicate name ${pattern.name}`);
     ids.add(pattern.id);
     names.add(pattern.name);
+    assert.ok(pattern.attribution.trim().length > 0, `${pattern.id} lacks honest attribution`);
+    assert.ok(Array.isArray(pattern.learningGoals) && pattern.learningGoals.length > 0, `${pattern.id} lacks learning goals`);
+    assert.ok(pattern.whyInteresting.trim().length >= 30, `${pattern.id} lacks a useful rationale`);
+    assert.doesNotMatch(pattern.name, /bill(?:ie|y) jean|back in black/i, `${pattern.id} claims a misleading song preset`);
 
     assert.ok(Number.isFinite(pattern.bpmMin), `${pattern.id} has invalid bpmMin`);
     assert.ok(Number.isFinite(pattern.bpmMax), `${pattern.id} has invalid bpmMax`);
@@ -126,6 +131,9 @@ test("ships a drum-only v2 library with 47 complete patterns", async () => {
       }
     }
     assert.deepEqual(pattern.pattern, mergeDrumTracks(pattern.drumTracks, pattern.pattern.length), `${pattern.id} summary does not match its drum tracks`);
+    const signature = JSON.stringify([pattern.meter, pattern.subdivision, pattern.bars ?? 1, Object.entries(pattern.drumTracks).sort(([a], [b]) => a.localeCompare(b))]);
+    assert.ok(!musicalSignatures.has(signature), `${pattern.id} duplicates another preset exactly`);
+    musicalSignatures.add(signature);
 
     if (pattern.grouping !== undefined) {
       assert.ok(Array.isArray(pattern.grouping) && pattern.grouping.length > 0, `${pattern.id} has invalid grouping`);
@@ -224,4 +232,8 @@ test("includes complete PWA assets", async () => {
   assert.equal(manifest.icons.length, 2);
   assert.match(serviceWorker, /patterns-v1\.json/);
   assert.match(serviceWorker, /caches\.open/);
+  assert.match(serviceWorker, /request\.mode === "navigate"/);
+  assert.match(serviceWorker, /PRECACHE_URLS/);
+  assert.match(serviceWorker, /klangmass-/);
+  assert.doesNotMatch(serviceWorker, /keys\.filter\(\(key\) => key !==/);
 });
