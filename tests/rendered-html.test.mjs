@@ -8,7 +8,7 @@ const FACTOR = { Viertel: 1, Achtel: 2, "16tel": 4, Triolen: 3, Sextolen: 6 };
 const HIT_STATES = new Set(["mute", "ghost", "normal", "accent"]);
 const SUMMARY_STATES = new Set(["mute", "normal", "accent"]);
 const PATTERN_CATEGORIES = new Set([
-  "Rock & Pop", "Punk & Metal", "Funk & Soul", "Hip-Hop", "Dance & Electronic",
+  "Rock & Pop", "Punk & Metal", "Funk & Soul", "Hip-Hop", "Old School Hip-Hop", "Trip-Hop & Downtempo", "Dance & Electronic",
   "Reggae", "Latin & World", "Blues & Shuffle", "Genreübergreifend",
 ]);
 const PATTERN_TYPES = new Set(["Groove", "Break", "Technik"]);
@@ -75,11 +75,11 @@ test("renders the Klangmaß metronome product", async () => {
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape|react-loading-skeleton/i);
 });
 
-test("ships a drum-only v2 library with 52 complete patterns", async () => {
+test("ships a drum-only v2 library with 74 complete patterns", async () => {
   const library = await readLibrary();
   assert.equal(library.version, 2);
-  assert.equal(library.count, 52);
-  assert.equal(library.patterns.length, 52);
+  assert.equal(library.count, 74);
+  assert.equal(library.patterns.length, 74);
   const ids = new Set();
   const names = new Set();
   const musicalSignatures = new Set();
@@ -176,6 +176,51 @@ test("ships a drum-only v2 library with 52 complete patterns", async () => {
       }
     }
   }
+});
+
+test("includes the researched trip-hop and Queensbridge collection", async () => {
+  const patterns = indexedPatterns(await readLibrary());
+  const expected = new Map([
+    ["drum-portishead-glory-box", 60], ["drum-portishead-sour-times", 94],
+    ["drum-massive-attack-teardrop", 77], ["drum-massive-attack-angel", 107],
+    ["drum-nas-ny-state", 84], ["drum-nas-world-is-yours", 87],
+    ["drum-mobb-deep-shook-ones", 94], ["drum-mobb-deep-survival", 95],
+    ["drum-kd-high-noon", 101], ["drum-kd-bedroom-rockers", 86],
+  ]);
+  for (const [id, bpm] of expected) {
+    const pattern = patterns.get(id);
+    assert.ok(pattern, `missing researched pattern ${id}`);
+    assert.equal(pattern.playback?.bpm, bpm, `${id} has the wrong reference tempo`);
+    assert.ok(pattern.source?.url, `${id} lacks its research source`);
+    assert.match(pattern.attribution, /reduktion|rekonstruktion/i, `${id} overstates its transcription accuracy`);
+  }
+  assert.equal(patterns.get("drum-portishead-sour-times").bars, 4);
+  assert.equal(patterns.get("drum-massive-attack-teardrop").bars, 4);
+  assert.ok(patterns.get("drum-massive-attack-teardrop").learningGoals.includes("Double Time"));
+  assert.equal(patterns.get("drum-kd-high-noon").bars, 1);
+  assert.equal(patterns.get("drum-kd-high-noon").originalFeel?.sourceBpm, 100.9);
+});
+
+test("includes the second researched trip-hop and old-school collection", async () => {
+  const patterns = indexedPatterns(await readLibrary());
+  const expected = new Map([
+    ["drum-dj-shadow-building-steam", 82], ["drum-dj-shadow-midnight", 80],
+    ["drum-tricky-hell-corner", 60], ["drum-massive-attack-safe-harm", 82],
+    ["drum-morcheeba-the-sea", 75], ["drum-sneaker-pimps-six-underground", 84],
+    ["drum-run-dmc-sucker-mcs", 109], ["drum-planet-rock", 127],
+    ["drum-beastie-paul-revere", 92], ["drum-gang-starr-mass-appeal", 96],
+    ["drum-atcq-check-rhime", 96], ["drum-wutang-cream", 90],
+  ]);
+  for (const [id, bpm] of expected) {
+    const pattern = patterns.get(id);
+    assert.ok(pattern, `missing second researched pattern ${id}`);
+    assert.equal(pattern.playback?.bpm, bpm, `${id} has the wrong reference tempo`);
+    assert.ok(pattern.source?.url, `${id} lacks its research source`);
+    assert.match(pattern.attribution, /reduktion|rekonstruktion/i, `${id} overstates its transcription accuracy`);
+  }
+  assert.equal(patterns.get("drum-sneaker-pimps-six-underground").bars, 4);
+  assert.equal(patterns.get("drum-run-dmc-sucker-mcs").category, "Old School Hip-Hop");
+  assert.equal(patterns.get("drum-planet-rock").playback?.kit, "808");
 });
 
 test("keeps the signature drum exercises musically consistent", async () => {

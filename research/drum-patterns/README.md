@@ -2,6 +2,7 @@
 
 ## Ergebnis
 
+- `../../public/data/patterns-v1.json`: 74 App-Patterns; darunter 22 klar als Rekonstruktion oder Reduktion bezeichnete Trip-Hop- und Hip-Hop-Presets von Portishead bis Wu-Tang Clan.
 - `generated/reviewed-drum-patterns-v1.json`: 54 eindeutige, geprüfte Patterns.
 - `reviewed-drum-patterns-v1.schema.json`: JSON-Schema inklusive optionalem `originalFeel`.
 - `original/`: unveränderte DeepSeek-Exporte zur Nachvollziehbarkeit.
@@ -27,7 +28,7 @@
 - `timingMs`: frühe oder späte Einsätze je Stimme und Schritt.
 - `velocityMultipliers`: optionale Dynamikunterschiede je Stimme und Schritt.
 
-Die App skaliert Millisekundenwerte proportional zum eingestellten Tempo. „Quantisiert“ ignoriert diesen Layer; „Original Feel“ aktiviert ihn. Der Schalter ist nur verfügbar, wenn belastbare Mess- oder MIDI-Daten hinterlegt sind. Aktuell betrifft das `Funky Drummer`, `Think`, `Apache`, `Impeach the President`, `Ashley’s Roachclip`, `It’s a New Day`, `Express Yourself` und `Cissy Strut`.
+Die App skaliert Millisekundenwerte proportional zum eingestellten Tempo. „Quantisiert“ ignoriert diesen Layer; „Original Feel“ aktiviert ihn. Der Schalter ist nur verfügbar, wenn belastbare Mess- oder MIDI-Daten hinterlegt sind. Aktuell betrifft das `Funky Drummer`, `Think`, `Apache`, `Impeach the President`, `Ashley’s Roachclip`, `It’s a New Day`, `Express Yourself`, `Cissy Strut` und den aus einem lokal bereitgestellten Drum-Stem gemessenen Eintakt-Loop von `High Noon`.
 
 ## Genauigkeitsgrenze
 
@@ -43,6 +44,16 @@ Das Modell besitzt neun Drumspuren, aber keine getrennte Fuß-Hi-Hat, Cowbell, T
 - [DrumsTheWord: Famous Drum Beats eBook](https://www.drumstheword.com/digital-media/Downloads/FamousDrumBeats_eBook.pdf): detaillierte Bonham-Notationen.
 - [DRUM!: Vinnie Colaiuta on Seven Days](https://drummagazine.com/lesson-vinnie-colaiuta-on-stings-seven-days/): 5/4-Kern und zweitaktiger Hi-Hat-Akzentzyklus.
 - [Hudson Music: The Breakbeat Bible sampler](https://hudsonmusic.com/wp-content/uploads/2015/03/Breakbeat-Bible-Sampler.pdf): viertaktiges `Take Me to the Mardi Gras`-Intro bei ungefähr 104 BPM.
+- [Bonedo: Glory Box Drum-Workshop](https://www.bonedo.de/artikel/portishead-glory-box-auf-dem-schlagzeug-lernen-mit-noten-audios/) und [DrumsTheWord: Sour Times](https://www.drumstheword.com/pdf/FamousDrumBeats_eBook.pdf): Portishead-Tempo, Viertaktformen, Ghostnotes, Kick- und Hi-Hat-Details.
+- [One Song: Teardrop](https://podscripts.co/podcasts/one-song/massive-attacks-teardrop) und [Sound On Sound: Mezzanine](https://www.soundonsound.com/techniques/how-got-sound-neil-davidge): Loop-Herkunft, Zusatz-Kick sowie die später zugeschaltete Double-Time-Version durch den MPC-Delay.
+- [DJ Premier über N.Y. State of Mind](https://djpremierblog.com/2011/02/19/dj-premier-tells-all-the-stories-behind-his-classic-records/) und [Pete Rock über The World Is Yours](https://www.complex.com/music/a/daniel-isenberg/interview-pete-rock-classics): Produktions- und Groove-Kontext der Nas-Presets.
+- [Song Exploder: Shook Ones Pt. II](https://songexploder.net/transcripts/mobb-deep-transcript.pdf) und [Complex: The Making of The Infamous](https://www.complex.com/music/a/insanulahmed/the-making-of-mobb-deep-the-infamous): Havocs Drumloop sowie Q-Tips Überarbeitung des Mobb-Deep-Sounds.
+- [Groove: Kruder & Dorfmeister Zeitgeschichte](https://groove.de/2014/11/10/zeitgeschichten-kruder-und-dorfmeister/2/) und [Beatport: K&D-Tempi](https://www.beatport.com/artist/kruder-dorfmeister/52461/tracks): Produktionskontext und Referenztempi der beiden Downtempo-Stilreduktionen.
+- [Tufts University: DJ Shadows MPC-Breakanalyse](https://dl.tufts.edu/downloads/t722hn50h?filename=bk128p23q.pdf) und [Sound On Sound: Midnight in a Perfect World](https://www.soundonsound.com/techniques/classic-tracks-dj-shadow-midnight-perfect-world): Zweitakt-Break, Chopping und dynamisch variierende MPC-Programmierung.
+- [Sound On Sound: Tricky](https://www.soundonsound.com/techniques/classic-tracks-tricky-black-steel), [The Guardian: Safe From Harm](https://www.theguardian.com/music/musicblog/2009/feb/26/sampling-epiphany-massive-attack) und [MusicRadar: Morcheeba](https://www.musicradar.com/news/tech/classic-album-morcheeba-on-big-calm-601271): Bristol-Samplekontext sowie die Ausgangsloops von `Safe From Harm` und `The Sea`.
+- [DrumsTheWord: 6 Underground](https://www.drumstheword.com/pdf/SneakerPimps_6Underground.pdf): vollständige Drum Chart bei 84 BPM mit durchgehend geshuffelten Sechzehnteln.
+- [Larry Smith über Sucker M.C.'s](https://medium.com/@briancoleman/larry-smith-q-a-january-2006-229fd9bd8e91), [Sound On Sound: Planet Rock](https://www.soundonsound.com/techniques/classic-tracks-afrika-bambaataa-soulsonic-force-planet-rock) und [Roland: Paul Revere](https://articles.roland.com/paul-revere-beastie-boys/): DMX-Minimalismus, früher TR-808-Electro und der rückwärts aufgenommene Beastie-Boys-Beat.
+- [BeatTips: Mass Appeal](https://beattips.com/check-this-gang-starr-mass-appeal-2/) und [Beat Production: Boom-Bap-Grooves](https://beatproduction.net/the-beginners-guide-to-making-boom-bap-drum-beats/): Kick-Synkopen, Hat-Swing und Percussion-Kerne von Gang Starr, A Tribe Called Quest und Wu-Tang Clan.
 
 ## Reproduzieren und prüfen
 

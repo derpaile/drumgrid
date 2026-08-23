@@ -4,7 +4,7 @@ const FACTOR = { Viertel: 1, Achtel: 2, "16tel": 4, Triolen: 3, Sextolen: 6 };
 const HIT_STATES = ["ghost", "normal", "accent"];
 const DRUM_VOICES = ["kick", "snare", "closedHat", "openHat", "ride", "crash", "rim", "highTom", "lowTom"];
 const PATTERN_CATEGORIES = new Set([
-  "Rock & Pop", "Punk & Metal", "Funk & Soul", "Hip-Hop", "Dance & Electronic",
+  "Rock & Pop", "Punk & Metal", "Funk & Soul", "Hip-Hop", "Old School Hip-Hop", "Trip-Hop & Downtempo", "Dance & Electronic",
   "Reggae", "Latin & World", "Blues & Shuffle", "Genreübergreifend",
 ]);
 const BREAK_IDS = new Set([
@@ -46,6 +46,28 @@ const sources = {
   mardi: { label: "Hudson Music — The Breakbeat Bible sampler", url: "https://hudsonmusic.com/wp-content/uploads/2015/03/Breakbeat-Bible-Sampler.pdf" },
   bigBeat: { label: "Drumscore — The Big Beat", url: "https://drumscore.com/sheet-music/browse-by-artist/score/7719-billy-squier-the-big-beat-drum-sheet-music-tab" },
   hotPants: { label: "University of Hull — Rebecoming Analogue", url: "https://hull-repository.worktribe.com/output/4218015" },
+  gloryBox: { label: "Bonedo — Glory Box Drum-Workshop", url: "https://www.bonedo.de/artikel/portishead-glory-box-auf-dem-schlagzeug-lernen-mit-noten-audios/" },
+  sourTimes: { label: "DrumsTheWord — Sour Times Drum-Transkription", url: "https://www.drumstheword.com/pdf/FamousDrumBeats_eBook.pdf" },
+  teardrop: { label: "Sound On Sound — Teardrop-Grundloop und Double-Time-Layer", url: "https://www.soundonsound.com/techniques/how-got-sound-neil-davidge" },
+  angel: { label: "Sound On Sound — Neil Davidge über Mezzanine", url: "https://www.soundonsound.com/techniques/how-got-sound-neil-davidge" },
+  nyState: { label: "DJ Premier — Entstehung von N.Y. State of Mind", url: "https://djpremierblog.com/2011/02/19/dj-premier-tells-all-the-stories-behind-his-classic-records/" },
+  worldYours: { label: "Complex — Pete Rock über The World Is Yours", url: "https://www.complex.com/music/a/daniel-isenberg/interview-pete-rock-classics" },
+  shookOnes: { label: "Song Exploder — Havoc über Shook Ones Pt. II", url: "https://songexploder.net/transcripts/mobb-deep-transcript.pdf" },
+  infamous: { label: "Complex — The Making of The Infamous", url: "https://www.complex.com/music/a/insanulahmed/the-making-of-mobb-deep-the-infamous" },
+  highNoon: { label: "Beatport — High Noon, 101 BPM", url: "https://www.beatport.com/de/track/high-noon/259970" },
+  bedroomRockers: { label: "Groove — Kruder & Dorfmeister Zeitgeschichte", url: "https://groove.de/2014/11/10/zeitgeschichten-kruder-und-dorfmeister/2/" },
+  shadowBuilding: { label: "Tufts University — DJ Shadows MPC-Breakanalyse", url: "https://dl.tufts.edu/downloads/t722hn50h?filename=bk128p23q.pdf" },
+  shadowMidnight: { label: "Sound On Sound — DJ Shadow über Midnight in a Perfect World", url: "https://www.soundonsound.com/techniques/classic-tracks-dj-shadow-midnight-perfect-world" },
+  trickyHell: { label: "Sound On Sound — Tricky und Hell Is Round the Corner", url: "https://www.soundonsound.com/techniques/classic-tracks-tricky-black-steel" },
+  safeHarm: { label: "The Guardian — Stratus als Safe-From-Harm-Groove", url: "https://www.theguardian.com/music/musicblog/2009/feb/26/sampling-epiphany-massive-attack" },
+  morcheebaSea: { label: "MusicRadar — Morcheeba über The Sea", url: "https://www.musicradar.com/news/tech/classic-album-morcheeba-on-big-calm-601271" },
+  sixUnderground: { label: "DrumsTheWord — 6 Underground Drum Chart", url: "https://www.drumstheword.com/pdf/SneakerPimps_6Underground.pdf" },
+  suckerMcs: { label: "Larry Smith — Sucker M.C.'s und die Oberheim DMX", url: "https://medium.com/@briancoleman/larry-smith-q-a-january-2006-229fd9bd8e91" },
+  planetRock: { label: "Sound On Sound — Classic Tracks: Planet Rock", url: "https://www.soundonsound.com/techniques/classic-tracks-afrika-bambaataa-soulsonic-force-planet-rock" },
+  paulRevere: { label: "Roland — Paul Revere und der rückwärts aufgenommene 808-Beat", url: "https://articles.roland.com/paul-revere-beastie-boys/" },
+  massAppeal: { label: "BeatTips — DJ Premiers Mass-Appeal-Drums", url: "https://beattips.com/check-this-gang-starr-mass-appeal-2/" },
+  checkRhime: { label: "Beat Production — Check the Rhime Drum-Groove", url: "https://beatproduction.net/the-beginners-guide-to-making-boom-bap-drum-beats/" },
+  cream: { label: "Beat Production — C.R.E.A.M. Drum-Groove", url: "https://beatproduction.net/the-beginners-guide-to-making-boom-bap-drum-beats/" },
 };
 
 function exercise(id, name, category, bpm, instruction, tracks, options = {}) {
@@ -100,12 +122,108 @@ const exercises = [
   exercise("drum-house", "House mit synkopierter Clap", "Dance & Electronic", [110, 145], "Halte die Kick in Vierteln und ergänze die leisen Clap-Vorzieher erst, wenn die offenen Hats stabil liegen.", {
     kick: { accent: quarters16 }, snare: { accent: [4, 12], ghost: [3, 11] }, closedHat: { normal: [0, 4, 8, 12] }, openHat: { accent: [2, 6, 10, 14] }, rim: { normal: [7, 15] },
   }, { playback: { bpm: 126, kit: "Elektronisch" }, source: sources.fourFloor, learningGoals: ["Pocket", "Koordination"] }),
+
+  exercise("drum-portishead-glory-box", "Portishead — Glory Box", "Trip-Hop & Downtempo", [50, 80], "Spiele die viertaktige Kernreduktion sehr leise: stoische Achtel-Hat, umspielende Kick, wechselnde Snare-Synkopen und ein kurzer Tom-Abschluss in Takt zwei und vier.", {
+    kick: { accent: [0, 3, 7, 8, 11, 14, 16, 19, 22, 24, 27, 30, 32, 35, 39, 40, 43, 46, 48, 51, 54, 56, 59, 62] },
+    snare: { accent: [4, 12, 20, 28, 36, 44, 52, 60], normal: [22, 27, 54, 59] },
+    closedHat: { normal: repeated(eighths16, 4, 16), accent: [0, 16, 32, 48] }, highTom: { normal: [30, 62] }, lowTom: { normal: [31, 63] },
+  }, { bars: 4, difficulty: "Fortgeschritten", attribution: "Didaktische Viertakt-Reduktion nach Portishead und Clive Deamer", learningGoals: ["Viertaktform", "Dynamik", "Pocket"], whyInteresting: "Die leise Viertaktform verbindet eine stoische Hip-Hop-Hat mit komplementärer Kick, eigenständigen Snare-Varianten und kurzen Tom-Übergängen.", playback: { bpm: 60, swing: 55, kit: "Vintage" }, source: sources.gloryBox }),
+  exercise("drum-portishead-sour-times", "Portishead — Sour Times", "Trip-Hop & Downtempo", [70, 115], "Spiele die dokumentierte Viertaktform ab 0:11: gerade Achtel-Hat, Backbeats, sehr leise Ghostnotes und die offenen Hats in Takt zwei und vier.", {
+    kick: { accent: [0, 2, 3, 10, 11, 15, 16, 18, 19, 26, 27, 32, 34, 35, 43, 47, 48, 50, 51, 59] },
+    snare: { accent: [4, 12, 20, 28, 36, 44, 52, 60], ghost: [1, 7, 9, 15, 17, 23, 25, 31, 33, 39, 41, 47, 49, 55, 57] },
+    closedHat: { normal: repeated(eighths16, 4, 16).filter((step) => ![26, 58].includes(step)), accent: [0, 16, 32, 48] }, openHat: { accent: [26, 58] },
+  }, { bars: 4, difficulty: "Fortgeschritten", attribution: "Quellenbasierte Viertakt-Rekonstruktion nach Geoff Barrow und Clive Deamer", learningGoals: ["Ghostnotes", "Viertaktform", "Unabhängigkeit"], whyInteresting: "Die vier Takte variieren Kick, Ghostnotes und offene Hi-Hat innerhalb eines konstanten Backbeats und erzeugen so den charakteristischen schwebenden Sog.", playback: { bpm: 94, swing: 50, kit: "Vintage" }, source: sources.sourTimes }),
+  exercise("drum-massive-attack-teardrop", "Massive Attack — Teardrop", "Trip-Hop & Downtempo", [60, 95], "Spiele vier Takte bei 77 BPM: zuerst zweimal den sparsamen Herzschlag-Loop, dann zweimal die später im Song auftauchende Double-Time-Delay-Schicht als leise Sechzehntel-Reduktion.", {
+    kick: { ghost: [33, 37, 41, 45, 49, 53, 57, 61], normal: [8, 24, 40, 56], accent: [0, 3, 10, 16, 19, 26, 32, 35, 42, 48, 51, 58] },
+    rim: { ghost: [34, 38, 42, 46, 50, 54, 58, 62], normal: [4, 12, 20, 28, 36, 44, 52, 60] },
+    closedHat: { ghost: seq(0, 64), normal: [...repeated(quarters16, 2, 16), ...shifted(eighths16, 32), ...shifted(eighths16, 48)], accent: [0, 16, 32, 48] },
+  }, { bars: 4, difficulty: "Fortgeschritten", attribution: "Quellenbasierte Viertakt-Übungsreduktion aus Grundloop und dokumentierter Double-Time-Delay-Schicht", learningGoals: ["Minimalismus", "Double Time", "Formaufbau"], whyInteresting: "Der gesampelte Eintakt-Loop bleibt die ruhige Basis; die später zugeschaltete, vom MPC verzögerte Double-Time-Version zeigt, wie Massive Attack Spannung durch Schichtung statt Patternwechsel erzeugt.", playback: { bpm: 77, swing: 52, kit: "Vintage" }, source: sources.teardrop }),
+  exercise("drum-massive-attack-angel", "Massive Attack — Angel", "Trip-Hop & Downtempo", [80, 125], "Baue den dunklen Zweitakt-Groove langsam auf: schwerer Backbeat, wenige Kicks, trockene Ghostnotes und ein tiefer Tom-Impuls am Taktende.", {
+    kick: { accent: [0, 6, 8, 10, 16, 22, 24, 27, 30] }, snare: { accent: [4, 12, 20, 28], ghost: [11, 19, 27] },
+    closedHat: { normal: repeated(eighths16, 2, 16), accent: [0, 8, 16, 24] }, lowTom: { normal: [15, 31] },
+  }, { bars: 2, difficulty: "Mittel", attribution: "Didaktische Zweitakt-Reduktion nach Massive Attack und Andy Gangadeen", learningGoals: ["Raum", "Dynamik", "Spannungsaufbau"], whyInteresting: "Die Reduktion zeigt, wie ein langsamer, tiefer Live-Groove durch Raum, Ghostnotes und minimale Veränderungen über zwei Takte Spannung aufbaut.", playback: { bpm: 107, swing: 52, kit: "Studio" }, source: sources.angel }),
+
   exercise("drum-boom-bap", "Boom-Bap Pocket", "Hip-Hop", [70, 105], "Lege Kick und Snare leicht hinter den Puls und lasse die Ghostnote vor vier klein.", {
     kick: { accent: [0, 7, 10] }, snare: { accent: [4, 12], ghost: [11] }, closedHat: { normal: eighths16, accent: [0, 8] },
   }, { playback: { bpm: 88, swing: 57, kit: "Trocken" } }),
   exercise("drum-trap", "Trap Half-Time", "Hip-Hop", [55, 85], "Halte die Snare auf drei schwer und spiele die Hat-Rolls kontrolliert gegen die Kick.", {
     kick: { accent: [0, 7, 10, 14] }, snare: { accent: [8] }, closedHat: { normal: sixteenths, accent: [0, 6, 8, 14] },
   }, { difficulty: "Fortgeschritten", playback: { bpm: 72, kit: "Elektronisch" } }),
+  exercise("drum-nas-ny-state", "Nas — N.Y. State of Mind", "Hip-Hop", [70, 105], "Spiele die viertaktige Boom-Bap-Reduktion schwer und leicht geshuffelt; in Takt drei und vier verdichtet die zweite Snare-Farbe den Loop.", {
+    kick: { accent: [0, 3, 10, 14, 16, 19, 26, 30, 32, 35, 42, 46, 48, 51, 58, 62] }, snare: { accent: [4, 12, 20, 28, 36, 44, 52, 60] },
+    rim: { normal: [36, 44, 52, 60] }, closedHat: { normal: repeated(eighths16, 4, 16), accent: [0, 16, 32, 48] },
+  }, { bars: 4, difficulty: "Mittel", attribution: "Didaktische Viertakt-Reduktion nach DJ Premiers Produktion für Nas", learningGoals: ["Boom Bap", "Viertaktform", "Layering"], whyInteresting: "Die schwere, geshuffelte Drum-Basis bleibt zunächst karg und gewinnt in der zweiten Hälfte durch eine zusätzliche Snare-Farbe an Dichte.", playback: { bpm: 84, swing: 58, kit: "Vintage" }, source: sources.nyState }),
+  exercise("drum-nas-world-is-yours", "Nas — The World Is Yours", "Hip-Hop", [70, 105], "Halte Pete Rocks federnden Zweitakt-Pocket: trockener Backbeat, synkopierte Kicks, leise Snare-Vorzieher und offene Hat am Taktende.", {
+    kick: { accent: [0, 3, 7, 10, 16, 18, 23, 26, 30] }, snare: { accent: [4, 12, 20, 28], ghost: [15, 31] },
+    closedHat: { normal: repeated(eighths16, 2, 16).filter((step) => ![14, 30].includes(step)), accent: [0, 8, 16, 24] }, openHat: { normal: [14, 30] },
+  }, { bars: 2, difficulty: "Mittel", attribution: "Didaktische Zweitakt-Reduktion nach Pete Rocks Produktion für Nas", learningGoals: ["Boom Bap", "Synkopen", "Pocket"], whyInteresting: "Der luftigere Illmatic-Groove kontrastiert trockene Backbeats mit federnden Kick-Synkopen und kleinen Übergängen am Ende jedes Takts.", playback: { bpm: 87, swing: 56, kit: "Vintage" }, source: sources.worldYours }),
+  exercise("drum-mobb-deep-shook-ones", "Mobb Deep — Shook Ones Pt. II", "Hip-Hop", [75, 115], "Spiele den bedrohlichen Zweitakt-Pocket trocken: harte Backbeats, wenige synkopierte Kicks und konstant schwere Achtel-Hat.", {
+    kick: { accent: [0, 3, 8, 10, 14, 16, 19, 24, 26, 30] }, snare: { accent: [4, 12, 20, 28] }, rim: { ghost: [7, 23] },
+    closedHat: { normal: repeated(eighths16, 2, 16), accent: [0, 8, 16, 24] },
+  }, { bars: 2, difficulty: "Mittel", attribution: "Didaktische Zweitakt-Reduktion nach Havocs Drumloop für Mobb Deep", learningGoals: ["Boom Bap", "Loop-Pocket", "Raum"], whyInteresting: "Die Wirkung entsteht weniger aus Notendichte als aus einem hart geschnittenen Drumloop, tiefen Kicks und viel Raum für den unheimlichen Sample-Chop.", playback: { bpm: 94, swing: 55, kit: "Vintage" }, source: sources.shookOnes }),
+  exercise("drum-mobb-deep-survival", "Mobb Deep — Survival of the Fittest", "Hip-Hop", [75, 115], "Halte die crispere Zweitakt-Variante präzise: Kicks verschieben den Schwerpunkt, Ghostnotes verbinden die Takte und die Hat bleibt unbeirrbar.", {
+    kick: { accent: [0, 6, 8, 11, 14, 16, 22, 24, 27, 30] }, snare: { accent: [4, 12, 20, 28], ghost: [15, 31] },
+    closedHat: { normal: repeated(eighths16, 2, 16), accent: [0, 8, 16, 24] }, rim: { normal: [10, 26] },
+  }, { bars: 2, difficulty: "Mittel", attribution: "Didaktische Zweitakt-Reduktion nach Havoc und Q-Tips Drum-Überarbeitung", learningGoals: ["Boom Bap", "Synkopen", "Layering"], whyInteresting: "Die versetzten Kicks und zusätzliche trockene Percussion verdichten den Loop, ohne seine klare, kompromisslose Backbeat-Achse zu verlieren.", playback: { bpm: 95, swing: 55, kit: "Vintage" }, source: sources.infamous }),
+  exercise("drum-kd-high-noon", "Kruder & Dorfmeister — High Noon", "Trip-Hop & Downtempo", [75, 125], "Spiele den gemessenen Eintakt-Loop: Kicks auf eins, 2e, drei und 4e, Backbeats auf zwei und vier, trockene Zwischen-Percussion und leise Sechzehntel-Textur.", {
+    kick: { accent: [0, 5, 8, 13] }, snare: { accent: [4, 12] }, rim: { normal: [7, 14] },
+    closedHat: { ghost: sixteenths, normal: [1, 6, 9, 10, 14, 15], accent: [3, 11] },
+  }, { difficulty: "Mittel", attribution: "Stem-basierte Eintakt-Rekonstruktion nach Kruder & Dorfmeister", learningGoals: ["Downtempo", "Breakbeat", "Mikro-Timing"], whyInteresting: "Der wiederkehrende Eintakt-Loop verschiebt die Kicks auf 2e und 4e gegen klare Backbeats; trockene Zwischen-Percussion und leise Sechzehntel halten ihn in Bewegung.", playback: { bpm: 101, swing: 50, kit: "Vintage" }, source: sources.highNoon, originalFeel: {
+    label: "Stem-Messung", note: "Gemessene Abweichungen des wiederkehrenden Drum-Stems; beim Tempo proportional skaliert.", sourceBpm: 100.9,
+    timingMs: { kick: { 0: -4, 5: -10, 8: -17, 13: -3 }, snare: { 4: -10, 12: -9 }, rim: { 7: -3, 14: -9 }, closedHat: { 1: -5, 3: -6, 6: 16, 9: -7, 10: -5, 11: -2, 14: -9, 15: -10 } },
+  } }),
+  exercise("drum-kd-bedroom-rockers", "Kruder & Dorfmeister — Original Bedroom Rockers", "Trip-Hop & Downtempo", [65, 105], "Lass den dubbigen Zweitakt-Loop atmen: tiefe Kick-Synkopen, zurückgenommener Backbeat, offene Hat und einzelne Floor-Tom-Antworten.", {
+    kick: { accent: [0, 7, 10, 16, 23, 26], normal: [14, 30] }, snare: { accent: [4, 12, 20, 28], ghost: [11, 27] }, lowTom: { normal: [9, 25] },
+    closedHat: { normal: repeated(eighths16, 2, 16).filter((step) => ![14, 30].includes(step)), accent: [0, 8, 16, 24] }, openHat: { normal: [14, 30] },
+  }, { bars: 2, difficulty: "Mittel", attribution: "Didaktische Zweitakt-Stilreduktion nach Kruder & Dorfmeister", learningGoals: ["Dub", "Downtempo", "Raum"], whyInteresting: "Die sparsame Drum-Architektur zeigt den K&D-Kern aus Hip-Hop-Pocket, Dub-Raum und wenigen, gezielt gesetzten Antworten im zweiten Takt.", playback: { bpm: 86, swing: 54, kit: "Vintage" }, source: sources.bedroomRockers }),
+
+  exercise("drum-dj-shadow-building-steam", "DJ Shadow — Building Steam with a Grain of Salt", "Trip-Hop & Downtempo", [65, 105], "Spiele die unveränderte Zweitakt-Breakbasis bei 82 BPM; halte die Achtel stabil und behandle Ghostnotes und kurze Tom-Antworten wie einzeln geschnittene MPC-Pads.", {
+    kick: { accent: [0, 3, 6, 10, 16, 19, 22, 27], normal: [14, 30] }, snare: { accent: [4, 12, 20, 28], ghost: [7, 15, 23, 31] },
+    closedHat: { normal: repeated(eighths16, 2, 16), accent: [0, 8, 16, 24] }, highTom: { normal: [13, 29] },
+  }, { bars: 2, difficulty: "Fortgeschritten", attribution: "Quellenbasierte Zweitakt-Reduktion von DJ Shadows unveränderter Breakbasis", learningGoals: ["MPC-Phrasierung", "Breakbeat", "Dynamik"], whyInteresting: "Die Quelle beschreibt einen Zweitakt-Break, den Shadow in Achtelfragmente zerlegte und später bis zu Zweiunddreißigsteln neu orchestrierte.", playback: { bpm: 82, swing: 52, kit: "Vintage" }, source: sources.shadowBuilding }),
+  exercise("drum-dj-shadow-midnight", "DJ Shadow — Midnight in a Perfect World", "Trip-Hop & Downtempo", [60, 100], "Lass die Zweitaktphrase organisch schweben: kein Takt wiederholt exakt dieselbe Kickfolge, und leise Hat- sowie Snare-Schwänze verbinden die Hauptschläge.", {
+    kick: { accent: [0, 6, 10, 16, 23, 26, 30] }, snare: { accent: [4, 12, 20, 28], ghost: [11, 19, 27, 31] },
+    closedHat: { ghost: seq(0, 32), normal: [0, 3, 6, 10, 14, 16, 19, 22, 26, 30], accent: [0, 16] }, ride: { normal: [14, 30] },
+  }, { bars: 2, difficulty: "Mittel", attribution: "Didaktische Zweitakt-Reduktion nach DJ Shadows variierender MPC-Programmierung", learningGoals: ["Dynamik", "MPC-Phrasierung", "Zweitaktform"], whyInteresting: "Shadow beschreibt die Drums als ständig ein- und ausblendende Einzelhits statt starrer Schläge auf jedem Rasterpunkt; die Zweitaktform trainiert genau diesen Fluss.", playback: { bpm: 80, swing: 53, kit: "Vintage" }, source: sources.shadowMidnight }),
+  exercise("drum-tricky-hell-corner", "Tricky — Hell Is Round the Corner", "Trip-Hop & Downtempo", [45, 85], "Halte den extrem langsamen Loop schwer und leer: tiefe Kick-Synkopen, stumpfer Backbeat und nur angedeutete Sechzehntel zwischen den Hauptschlägen.", {
+    kick: { accent: [0, 7, 10, 14] }, snare: { normal: [4, 12] }, rim: { ghost: [11] }, closedHat: { ghost: sixteenths, normal: [0, 3, 6, 8, 10, 14] },
+  }, { difficulty: "Mittel", attribution: "Didaktische Eintakt-Reduktion nach Trickys gesampeltem Bristol-Loop", learningGoals: ["Minimalismus", "Downtempo", "Pocket"], whyInteresting: "Der gemeinsam mit Glory Box aus Ike’s Rap II entwickelte Klangkontext zeigt, wie dieselbe Sample-Idee durch weniger Noten noch bedrohlicher wirken kann.", playback: { bpm: 60, swing: 54, kit: "Vintage" }, source: sources.trickyHell }),
+  exercise("drum-massive-attack-safe-harm", "Massive Attack — Safe From Harm", "Trip-Hop & Downtempo", [65, 105], "Spiele den rollenden Zweitakt-Funkloop mit kräftiger Kick, klaren Backbeats und sehr leisen Snare-Antworten; der zweite Takt öffnet die Hat kurz vor seinem Ende.", {
+    kick: { accent: [0, 3, 7, 10, 14, 16, 19, 23, 26, 30] }, snare: { accent: [4, 12, 20, 28], ghost: [9, 15, 25, 31] },
+    closedHat: { normal: repeated(eighths16, 2, 16).filter((step) => step !== 30), accent: [0, 8, 16, 24] }, openHat: { normal: [30] },
+  }, { bars: 2, difficulty: "Fortgeschritten", attribution: "Didaktische Zweitakt-Reduktion des aus Billy Cobhams Stratus gesampelten Grooves", learningGoals: ["Fusion-Funk", "Ghostnotes", "Zweitaktform"], whyInteresting: "Massive Attack isolierte den treibenden Bass-und-Drums-Kern von Stratus; die Übung erhält die rollende Fusion-Bewegung ohne den kompletten Samplemix zu behaupten.", playback: { bpm: 82, swing: 52, kit: "Vintage" }, source: sources.safeHarm }),
+  exercise("drum-morcheeba-the-sea", "Morcheeba — The Sea", "Trip-Hop & Downtempo", [55, 95], "Lass den weichen Zweitakt-Loop atmen: tiefe synkopierte Kicks, zurückgenommene Backbeats und eine fast durchgehende, sehr leise Sechzehntel-Textur.", {
+    kick: { accent: [0, 7, 10, 16, 23, 26, 30] }, snare: { normal: [4, 12, 20, 28], ghost: [15, 31] },
+    closedHat: { ghost: seq(0, 32), normal: repeated(eighths16, 2, 16), accent: [0, 16] }, rim: { normal: [9, 25] },
+  }, { bars: 2, difficulty: "Mittel", attribution: "Didaktische Zweitakt-Reduktion nach Morcheebas gelooptem Ausgangsbeat", learningGoals: ["Downtempo", "Dynamik", "Loop-Pocket"], whyInteresting: "Paul Godfrey beschreibt The Sea als einen mit den Drums begonnenen Loop; die reduzierte Dynamik verbindet organisches Spiel mit der Wiederholung eines Samplers.", playback: { bpm: 75, swing: 52, kit: "Vintage" }, source: sources.morcheebaSea }),
+  exercise("drum-sneaker-pimps-six-underground", "Sneaker Pimps — 6 Underground", "Trip-Hop & Downtempo", [65, 110], "Spiele die viertaktige Verse-Reduktion bei 84 BPM mit durchgehend geshuffelten Sechzehnteln, stabilen Backbeats und kleinen Kickvarianten je Takt.", {
+    kick: { accent: [0, 3, 7, 10, 14, 16, 19, 23, 26, 30, 32, 35, 39, 42, 46, 48, 51, 55, 58, 62] },
+    snare: { accent: [4, 12, 20, 28, 36, 44, 52, 60], ghost: [15, 31, 47, 63] },
+    closedHat: { ghost: repeated(seq(1, 16, 2), 4, 16), normal: repeated(eighths16, 4, 16), accent: [0, 16, 32, 48] },
+  }, { bars: 4, difficulty: "Fortgeschritten", attribution: "Quellenbasierte Viertakt-Reduktion der notierten Verse-Figur von Dave Westlake", learningGoals: ["Shuffle", "Viertaktform", "Dynamik"], whyInteresting: "Die vollständige Drum Chart nennt 84 BPM und geshuffelte Sechzehntel durch den ganzen Song; die Viertaktform macht die subtilen Kickvarianten übbar.", playback: { bpm: 84, swing: 58, kit: "Vintage" }, source: sources.sixUnderground }),
+
+  exercise("drum-run-dmc-sucker-mcs", "Run-D.M.C. — Sucker M.C.'s", "Old School Hip-Hop", [80, 140], "Spiele den rohen DMX-Viertaktbeat ohne melodische Ablenkung: harte Kick, trockene Snare und kleine Abweichungen erst am Ende jedes Takts.", {
+    kick: { accent: [0, 3, 8, 10, 16, 19, 24, 27, 30, 32, 35, 40, 42, 48, 51, 56, 59, 62] }, snare: { accent: [4, 12, 20, 28, 36, 44, 52, 60] },
+    closedHat: { normal: repeated(eighths16, 4, 16), accent: [0, 16, 32, 48] }, rim: { accent: [12, 28, 44, 60] },
+  }, { bars: 4, difficulty: "Mittel", attribution: "Quellenbasierte Viertakt-Reduktion von Larry Smiths Oberheim-DMX-Beat", learningGoals: ["Drum Machine", "Viertaktform", "Old School"], whyInteresting: "Larry Smith beschreibt die Aufnahme als radikal schlicht: nur Run-D.M.C. und eine Oberheim DMX; gerade diese Leere macht den Viertaktbeat historisch prägend.", playback: { bpm: 109, swing: 50, kit: "Elektronisch" }, source: sources.suckerMcs }),
+  exercise("drum-planet-rock", "Afrika Bambaataa — Planet Rock", "Old School Hip-Hop", [95, 150], "Halte den frühen Electro-Groove maschinell präzise: 808-Kicks, Clap-Backbeats, offene Offbeat-Hats und Rim als Ersatz für die elektronische Zusatzpercussion.", {
+    kick: { accent: [0, 3, 8, 11, 16, 19, 24, 27] }, snare: { accent: [4, 12, 20, 28] }, closedHat: { normal: [0, 4, 8, 12, 16, 20, 24, 28] },
+    openHat: { accent: [2, 6, 10, 14, 18, 22, 26, 30] }, rim: { normal: [3, 7, 11, 15, 19, 23, 27, 31] },
+  }, { bars: 2, difficulty: "Mittel", attribution: "Didaktische Zweitakt-Reduktion des Numbers-inspirierten TR-808-Grooves", learningGoals: ["808", "Electro", "Maschinen-Timing"], whyInteresting: "Die Produktion übertrug Kraftwerks Numbers-Idee auf eine TR-808 und machte die elektronische Drum Machine selbst zum Zentrum eines Hip-Hop-Tracks.", playback: { bpm: 127, swing: 50, kit: "808" }, source: sources.planetRock }),
+  exercise("drum-beastie-paul-revere", "Beastie Boys — Paul Revere", "Old School Hip-Hop", [70, 120], "Spiele den nackten Zweitakt-808-Groove mit viel Raum; die ungewöhnlichen Kick-Enden erinnern an das auf Band umgedrehte Ausgangspattern.", {
+    kick: { accent: [0, 7, 10, 15, 16, 23, 26, 31] }, snare: { accent: [4, 12, 20, 28] }, closedHat: { normal: [2, 6, 10, 14, 18, 22, 26, 30] }, rim: { ghost: [3, 11, 19, 27] },
+  }, { bars: 2, difficulty: "Mittel", attribution: "Didaktische Zweitakt-Reduktion des rückwärts auf Band aufgenommenen TR-808-Grooves", learningGoals: ["808", "Raum", "Reverse-Gefühl"], whyInteresting: "MCA ließ Mike Ds 808-Pattern auf Band aufnehmen, umdrehen und zurücküberspielen; die Reduktion trainiert dessen minimalen, gleitenden Puls.", playback: { bpm: 92, swing: 50, kit: "808" }, source: sources.paulRevere }),
+  exercise("drum-gang-starr-mass-appeal", "Gang Starr — Mass Appeal", "Old School Hip-Hop", [75, 120], "Vermeide die Kick auf dem Loopanfang: starte ihre Bewegung auf den Unds von zwei und drei, während Snare und geshuffelte Hat den Boden halten.", {
+    kick: { accent: [6, 10, 15, 22, 26, 31] }, snare: { accent: [4, 12, 20, 28] },
+    closedHat: { normal: repeated(eighths16, 2, 16).filter((step) => ![14, 30].includes(step)), accent: [0, 8, 16, 24] }, rim: { ghost: [7, 23] },
+  }, { bars: 2, difficulty: "Mittel", attribution: "Quellenbasierte Zweitakt-Reduktion nach DJ Premiers synkopiertem Kickkonzept", learningGoals: ["Boom Bap", "Synkopen", "Loop-Pocket"], whyInteresting: "BeatTips hebt hervor, dass am Loopanfang keine dominante Kick liegt und die Kick zusammen mit der geshuffelten Hat das konstante Tempo steuert.", playback: { bpm: 96, swing: 57, kit: "Vintage" }, source: sources.massAppeal }),
+  exercise("drum-atcq-check-rhime", "A Tribe Called Quest — Check the Rhime", "Old School Hip-Hop", [75, 120], "Halte Kick auf eins und drei sowie Snare auf zwei und vier stabil; Rim-Schläge vertreten die verzahnten Conga- und Shaker-Antworten.", {
+    kick: { accent: [0, 8, 16, 24], normal: [7, 23] }, snare: { accent: [4, 12, 20, 28] }, closedHat: { normal: repeated(eighths16, 2, 16), accent: [0, 8, 16, 24] },
+    rim: { normal: [3, 6, 11, 14, 19, 22, 27, 30] },
+  }, { bars: 2, difficulty: "Mittel", attribution: "Didaktische Zweitakt-Reduktion nach Q-Tips jazzigem Percussion-Groove", learningGoals: ["Boom Bap", "Percussion", "Pocket"], whyInteresting: "Der dokumentierte Kern ist bewusst einfach, gewinnt aber durch Congas und Shaker seine Textur; die Rim-Spur macht diese zweite rhythmische Ebene spielbar.", playback: { bpm: 96, swing: 55, kit: "Vintage" }, source: sources.checkRhime }),
+  exercise("drum-wutang-cream", "Wu-Tang Clan — C.R.E.A.M.", "Old School Hip-Hop", [65, 110], "Spiele den schweren Zweitakt-Loop sparsam: Kick auf eins und drei, raumvolle Backbeats und ein leises Ride-Achtelbett hinter dem Piano-Sample.", {
+    kick: { accent: [0, 8, 16, 24, 30] }, snare: { accent: [4, 12, 20, 28] }, ride: { ghost: repeated(eighths16, 2, 16), normal: [0, 8, 16, 24] }, rim: { ghost: [15, 31] },
+  }, { bars: 2, difficulty: "Leicht", attribution: "Didaktische Zweitakt-Reduktion nach RZAs geräumigem C.R.E.A.M.-Groove", learningGoals: ["Boom Bap", "Raum", "Dynamik"], whyInteresting: "Die Quelle beschreibt tiefe Kicks auf eins und drei, Backbeats und leise Ride-Achtel; die Übung zeigt, wie wenig Noten ein monumentaler Loop benötigt.", playback: { bpm: 90, swing: 52, kit: "Vintage" }, source: sources.cream }),
 
   exercise("drum-amen", "Amen Break — Übungsrekonstruktion", "Dance & Electronic", [80, 180], "Spiele den viertaktigen Coleman-Break: Ride-Achtel tragen die versetzten Kicks, Ghostnotes und späten Snares.", {
     kick: { accent: [0, 2, 10, 11, 16, 18, 26, 27, 32, 34, 42, 50, 51, 58] },

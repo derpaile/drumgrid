@@ -67,7 +67,7 @@ export type PracticeEntry = {
 
 export const SUBDIVISIONS: Subdivision[] = ["Viertel", "Achtel", "16tel", "Triolen", "Sextolen"];
 export const PATTERN_CATEGORIES = [
-  "Rock & Pop", "Punk & Metal", "Funk & Soul", "Hip-Hop", "Dance & Electronic",
+  "Rock & Pop", "Punk & Metal", "Funk & Soul", "Hip-Hop", "Old School Hip-Hop", "Trip-Hop & Downtempo", "Dance & Electronic",
   "Reggae", "Latin & World", "Blues & Shuffle", "Genreübergreifend",
 ] as const;
 export const PATTERN_TYPES: PatternType[] = ["Groove", "Break", "Technik"];
