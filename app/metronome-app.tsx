@@ -5,17 +5,18 @@ import {
   cloneDrumTracks, cycleDrumHit, cycleStep, defaultDrumTracks, defaultGrouping, defaultTempoUnit,
   DRUM_LABELS, DRUM_VOICES, FALLBACK_PATTERNS, firstValidSubdivision, hasExactGrid, HIT_LABELS,
   learningGoalsFor, mergeDrumTracks, normalizedDrumTracks, normalizedSteps, parseMeter, stepsPerBar,
-  SUBDIVISIONS, tempoName, tempoUnitLabel,
+  SUBDIVISIONS,
   type DrumHitState, type DrumKit, type DrumTracks, type DrumVoice, type Meter, type Pattern,
-  type PracticeEntry, type StepState, type Subdivision, type TempoUnit, type TrainerMode,
+  type OriginalFeel, type PracticeEntry, type StepState, type Subdivision, type TempoUnit, type TrainerMode,
 } from "./metronome-core";
 import { clearLocalData, deleteStore, readStore, writeStore } from "./local-store";
 
 type PlaybackPhase = "stopped" | "starting" | "running" | "lifecycle-paused" | "recovering";
-type SessionCheckpoint = { nextStep: number; countRemaining: number; bars: number; bpm: number; trainerDirection: 1 | -1 };
+type SessionCheckpoint = { nextStep: number; bars: number; bpm: number; trainerDirection: 1 | -1 };
 type AppSection = "trainer" | "library" | "mine";
 type SessionKind = "free" | "timing" | "groove" | "speed";
 type PwaStatus = "checking" | "ready" | "offline" | "update" | "error";
+type FeelMode = "quantized" | "original";
 type BeforeInstallPromptEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: "accepted" | "dismissed" }> };
 type MidiInputLike = { onmidimessage: ((event: { data: Uint8Array }) => void) | null };
 type MidiAccessLike = { inputs: Map<string, MidiInputLike>; onstatechange: (() => void) | null };
@@ -47,6 +48,8 @@ export default function MetronomeApp() {
   const [patternInstruction, setPatternInstruction] = useState(FALLBACK_PATTERNS[0].instruction);
   const [patternAttribution, setPatternAttribution] = useState(FALLBACK_PATTERNS[0].attribution || "Genreübung");
   const [patternGoals, setPatternGoals] = useState<string[]>(learningGoalsFor(FALLBACK_PATTERNS[0]));
+  const [originalFeel, setOriginalFeel] = useState<OriginalFeel | null>(FALLBACK_PATTERNS[0].originalFeel || null);
+  const [feelMode, setFeelMode] = useState<FeelMode>("quantized");
   const [currentStep, setCurrentStep] = useState(-1);
   const [sessionBars, setSessionBars] = useState(0);
   const [sessionKind, setSessionKind] = useState<SessionKind>("free");
@@ -54,9 +57,9 @@ export default function MetronomeApp() {
   const [volume, setVolume] = useState(72);
   const [sound, setSound] = useState<DrumKit>("Studio");
   const [swing, setSwing] = useState(50);
-  const [countIn, setCountIn] = useState(1);
   const [timerMinutes, setTimerMinutes] = useState(0);
   const [repeatBars, setRepeatBars] = useState(0);
+  const [sessionExtrasOpen, setSessionExtrasOpen] = useState(false);
   const [timerText, setTimerText] = useState("∞");
   const [trainer, setTrainer] = useState(false);
   const [trainerStep, setTrainerStep] = useState(5);
@@ -105,12 +108,12 @@ export default function MetronomeApp() {
   const subdivisionRef = useRef(subdivision);
   const stepsRef = useRef(steps);
   const drumTracksRef = useRef<DrumTracks | null>(drumTracks);
-  const groupingRef = useRef(grouping);
   const tempoUnitRef = useRef(tempoUnit);
   const volumeRef = useRef(volume);
   const soundRef = useRef<DrumKit>(sound);
   const swingRef = useRef(swing);
-  const countInRef = useRef(countIn);
+  const originalFeelRef = useRef<OriginalFeel | null>(originalFeel);
+  const feelModeRef = useRef<FeelMode>(feelMode);
   const timerMinutesRef = useRef(timerMinutes);
   const trainerRef = useRef(trainer);
   const trainerStepRef = useRef(trainerStep);
@@ -122,11 +125,10 @@ export default function MetronomeApp() {
   const repeatBarsRef = useRef(repeatBars);
   const nextTimeRef = useRef(0);
   const nextStepRef = useRef(0);
-  const countRemainingRef = useRef(0);
   const barsRef = useRef(0);
   const endAtRef = useRef(0);
   const timerRemainingRef = useRef(0);
-  const checkpointRef = useRef<SessionCheckpoint>({ nextStep: 0, countRemaining: 0, bars: 0, bpm, trainerDirection: 1 });
+  const checkpointRef = useRef<SessionCheckpoint>({ nextStep: 0, bars: 0, bpm, trainerDirection: 1 });
   const stopRef = useRef<() => void>(() => undefined);
   const startRef = useRef<(recover?: boolean) => Promise<void>>(async () => undefined);
   const pauseLifecycleRef = useRef<() => void>(() => undefined);
@@ -149,12 +151,12 @@ export default function MetronomeApp() {
   useEffect(() => { subdivisionRef.current = subdivision; }, [subdivision]);
   useEffect(() => { stepsRef.current = steps; }, [steps]);
   useEffect(() => { drumTracksRef.current = drumTracks; }, [drumTracks]);
-  useEffect(() => { groupingRef.current = grouping; }, [grouping]);
   useEffect(() => { tempoUnitRef.current = tempoUnit; }, [tempoUnit]);
   useEffect(() => { volumeRef.current = volume; }, [volume]);
   useEffect(() => { soundRef.current = sound; }, [sound]);
   useEffect(() => { swingRef.current = swing; }, [swing]);
-  useEffect(() => { countInRef.current = countIn; }, [countIn]);
+  useEffect(() => { originalFeelRef.current = originalFeel; }, [originalFeel]);
+  useEffect(() => { feelModeRef.current = feelMode; }, [feelMode]);
   useEffect(() => { timerMinutesRef.current = timerMinutes; }, [timerMinutes]);
   useEffect(() => { trainerRef.current = trainer; }, [trainer]);
   useEffect(() => { trainerStepRef.current = trainerStep; }, [trainerStep]);
@@ -357,7 +359,6 @@ export default function MetronomeApp() {
     setPlaybackPhase("stopped");
     setCurrentStep(-1);
     nextStepRef.current = 0;
-    countRemainingRef.current = 0;
     barsRef.current = 0;
     endAtRef.current = 0;
     timerRemainingRef.current = timerMinutesRef.current * 60_000;
@@ -374,10 +375,11 @@ export default function MetronomeApp() {
     return buffer;
   }, []);
 
-  const scheduleDrumVoice = useCallback((context: AudioContext, when: number, voice: DrumVoice, state: DrumHitState) => {
+  const scheduleDrumVoice = useCallback((context: AudioContext, when: number, voice: DrumVoice, state: DrumHitState, velocityMultiplier = 1) => {
     if (state === "mute") return;
     const output: AudioNode = masterGainRef.current || context.destination;
-    const dynamic = state === "ghost" ? .24 : state === "normal" ? .58 : 1;
+    const baseDynamic = state === "ghost" ? .24 : state === "normal" ? .58 : 1;
+    const dynamic = Math.max(.08, Math.min(1.35, baseDynamic * velocityMultiplier));
     const volumeLevel = volumeRef.current / 100;
     const kit = soundRef.current;
     const track = (source: AudioScheduledSourceNode) => registerSource(source);
@@ -483,7 +485,6 @@ export default function MetronomeApp() {
     clearRuntime(false);
     const checkpoint = checkpointRef.current;
     nextStepRef.current = checkpoint.nextStep;
-    countRemainingRef.current = checkpoint.countRemaining;
     barsRef.current = checkpoint.bars;
     bpmRef.current = checkpoint.bpm;
     trainerDirectionRef.current = checkpoint.trainerDirection;
@@ -517,13 +518,11 @@ export default function MetronomeApp() {
       sessionStartedAtRef.current = Date.now();
       sessionStartBpmRef.current = bpmRef.current;
       nextStepRef.current = 0;
-      countRemainingRef.current = countInRef.current * stepsPerBar(meterRef.current, subdivisionRef.current);
       trainerDirectionRef.current = 1;
       timerRemainingRef.current = timerMinutesRef.current * 60_000;
       setTimerText(timerMinutesRef.current ? `${timerMinutesRef.current}:00` : "∞");
       checkpointRef.current = {
         nextStep: nextStepRef.current,
-        countRemaining: countRemainingRef.current,
         bars: barsRef.current,
         bpm: bpmRef.current,
         trainerDirection: trainerDirectionRef.current,
@@ -614,34 +613,23 @@ export default function MetronomeApp() {
         ) / barSteps;
         const stepIndex = nextStepRef.current;
         const stepInBar = stepIndex % barSteps;
-        const isCountIn = countRemainingRef.current > 0;
-        if (isCountIn) {
-          const unitSteps = barSteps / currentMeter.beats;
-          let units = 0;
-          const groupStarts = groupingRef.current.map((size) => {
-            const start = Math.round(units * unitSteps);
-            units += size;
-            return start;
-          });
-          const state: DrumHitState = groupStarts.includes(stepInBar) ? (stepInBar === 0 ? "accent" : "normal") : "mute";
-          scheduleDrumVoice(context, nextTimeRef.current, "rim", state);
-        } else if (drumTracksRef.current) {
+        if (drumTracksRef.current) {
           for (const voice of DRUM_VOICES) {
             const state = drumTracksRef.current[voice]?.[stepIndex] || "mute";
-            scheduleDrumVoice(context, nextTimeRef.current, voice, state);
+            const feel = feelModeRef.current === "original" ? originalFeelRef.current : null;
+            const timingMs = feel?.timingMs?.[voice]?.[stepIndex] ?? 0;
+            const velocityMultiplier = feel?.velocityMultipliers?.[voice]?.[stepIndex] ?? 1;
+            const tempoScale = feel?.sourceBpm ? feel.sourceBpm / bpmRef.current : 1;
+            const feelTime = Math.max(context.currentTime, nextTimeRef.current + timingMs * tempoScale / 1000);
+            scheduleDrumVoice(context, feelTime, voice, state, velocityMultiplier);
           }
         } else {
           scheduleDrumVoice(context, nextTimeRef.current, "rim", stepsRef.current[stepIndex] || "normal");
         }
 
         const visualDelay = Math.max(0, (nextTimeRef.current - context.currentTime) * 1000);
-        if (isCountIn) {
-          countRemainingRef.current -= 1;
-          nextStepRef.current = (stepIndex + 1) % barSteps;
-          if (countRemainingRef.current === 0) nextStepRef.current = 0;
-        } else {
-          nextStepRef.current = (stepIndex + 1) % cycleSteps;
-          if (stepInBar + 1 === barSteps) {
+        nextStepRef.current = (stepIndex + 1) % cycleSteps;
+        if (stepInBar + 1 === barSteps) {
             barsRef.current += 1;
             if (trainerRef.current && barsRef.current % trainerEveryRef.current === 0) {
               let nextBpm = bpmRef.current + trainerStepRef.current;
@@ -665,12 +653,10 @@ export default function MetronomeApp() {
               visualTimersRef.current.add(stopTimer);
               stopAfterStep = true;
             }
-          }
         }
 
         const checkpoint: SessionCheckpoint = {
           nextStep: nextStepRef.current,
-          countRemaining: countRemainingRef.current,
           bars: barsRef.current,
           bpm: bpmRef.current,
           trainerDirection: trainerDirectionRef.current,
@@ -680,7 +666,7 @@ export default function MetronomeApp() {
           if (generationRef.current !== token || phaseRef.current !== "running") return;
           checkpointRef.current = checkpoint;
           setBpm(checkpoint.bpm);
-          setCurrentStep(isCountIn ? -1 : stepIndex);
+          setCurrentStep(stepIndex);
           setSessionBars(checkpoint.bars);
         }, visualDelay);
         visualTimersRef.current.add(timerId);
@@ -825,7 +811,6 @@ export default function MetronomeApp() {
     const nextTempoUnit = defaultTempoUnit(nextMeter, nextGrouping);
     meterRef.current = nextMeter;
     subdivisionRef.current = nextSubdivision;
-    groupingRef.current = nextGrouping;
     tempoUnitRef.current = nextTempoUnit;
     setMeterState(nextMeter);
     setSubdivisionState(nextSubdivision);
@@ -837,6 +822,10 @@ export default function MetronomeApp() {
     drumTracksRef.current = nextTracks;
     setStepsState(nextSteps);
     setDrumTracks(nextTracks);
+    originalFeelRef.current = null;
+    feelModeRef.current = "quantized";
+    setOriginalFeel(null);
+    setFeelMode("quantized");
     setPatternName("Eigenes Drum-Pattern");
   };
 
@@ -851,6 +840,10 @@ export default function MetronomeApp() {
     drumTracksRef.current = nextTracks;
     setStepsState(nextSteps);
     setDrumTracks(nextTracks);
+    originalFeelRef.current = null;
+    feelModeRef.current = "quantized";
+    setOriginalFeel(null);
+    setFeelMode("quantized");
     setPatternName("Eigenes Drum-Pattern");
   };
 
@@ -858,6 +851,10 @@ export default function MetronomeApp() {
     const next = stepsRef.current.map((step, stepIndex) => stepIndex === index ? cycleStep(step) : step);
     stepsRef.current = next;
     setStepsState(next);
+    originalFeelRef.current = null;
+    feelModeRef.current = "quantized";
+    setOriginalFeel(null);
+    setFeelMode("quantized");
     setPatternName("Eigenes Pattern");
   };
 
@@ -882,6 +879,10 @@ export default function MetronomeApp() {
     stepsRef.current = summary;
     setDrumTracks(next);
     setStepsState(summary);
+    originalFeelRef.current = null;
+    feelModeRef.current = "quantized";
+    setOriginalFeel(null);
+    setFeelMode("quantized");
     setPatternName("Eigenes Drum-Pattern");
   };
 
@@ -988,19 +989,16 @@ export default function MetronomeApp() {
     const nextSwing = playback.swing ?? 50;
     const nextTimerMinutes = playback.timerMinutes ?? 0;
     const nextRepeatBars = playback.repeatBars ?? 0;
-    const nextCountIn = playback.countIn ?? 1;
     const nextKit = playback.kit ?? "Studio";
     const nextTrainer = playback.trainer;
     meterRef.current = nextMeter;
     subdivisionRef.current = pattern.subdivision;
     stepsRef.current = nextSteps;
     drumTracksRef.current = nextTracks;
-    groupingRef.current = nextGrouping;
     tempoUnitRef.current = nextTempoUnit;
     swingRef.current = nextSwing;
     timerMinutesRef.current = nextTimerMinutes;
     repeatBarsRef.current = nextRepeatBars;
-    countInRef.current = nextCountIn;
     soundRef.current = nextKit;
     trainerRef.current = Boolean(nextTrainer);
     trainerModeRef.current = nextTrainer?.mode ?? "up";
@@ -1020,7 +1018,6 @@ export default function MetronomeApp() {
     setTimerMinutes(nextTimerMinutes);
     setTimerText(nextTimerMinutes ? `${nextTimerMinutes}:00` : "∞");
     setRepeatBars(nextRepeatBars);
-    setCountIn(nextCountIn);
     setSound(nextKit);
     setTrainer(Boolean(nextTrainer));
     setTrainerMode(nextTrainer?.mode ?? "up");
@@ -1033,6 +1030,10 @@ export default function MetronomeApp() {
     setPatternInstruction(pattern.instruction);
     setPatternAttribution(pattern.attribution || (pattern.source ? "Quellenbasierte Übungsrekonstruktion" : "Genreübung"));
     setPatternGoals(learningGoalsFor(pattern));
+    originalFeelRef.current = pattern.originalFeel || null;
+    feelModeRef.current = "quantized";
+    setOriginalFeel(pattern.originalFeel || null);
+    setFeelMode("quantized");
     if (playback.bpm !== undefined) updateBpm(playback.bpm);
     else if (bpmRef.current < pattern.bpmMin || bpmRef.current > pattern.bpmMax) updateBpm(Math.round((pattern.bpmMin + pattern.bpmMax) / 2));
     setRecent((current) => {
@@ -1078,7 +1079,6 @@ export default function MetronomeApp() {
       playback: {
         bpm,
         swing,
-        countIn,
         kit: sound,
         ...(timerMinutes ? { timerMinutes } : {}),
         ...(repeatBars ? { repeatBars } : {}),
@@ -1157,10 +1157,12 @@ export default function MetronomeApp() {
   }), [library, search, category]);
 
   const resetControls = () => {
-    volumeRef.current = 72; soundRef.current = "Studio"; swingRef.current = 50; countInRef.current = 1; timerMinutesRef.current = 0;
+    volumeRef.current = 72; soundRef.current = "Studio"; swingRef.current = 50; timerMinutesRef.current = 0;
     repeatBarsRef.current = 0; trainerRef.current = false; trainerModeRef.current = "up"; trainerMinRef.current = 20; trainerMaxRef.current = 300; trainerDirectionRef.current = 1;
     timerRemainingRef.current = 0;
-    setVolume(72); setSound("Studio"); setSwing(50); setCountIn(1); setTimerMinutes(0); setTimerText("∞"); setRepeatBars(0); setTrainer(false); setTrainerMode("up"); setTrainerMin(20); setTrainerMax(300);
+    feelModeRef.current = "quantized";
+    setVolume(72); setSound("Studio"); setSwing(50); setTimerMinutes(0); setTimerText("∞"); setRepeatBars(0); setTrainer(false); setTrainerMode("up"); setTrainerMin(20); setTrainerMax(300);
+    setFeelMode("quantized");
     showToast("Einstellungen zurückgesetzt");
   };
 
@@ -1170,11 +1172,11 @@ export default function MetronomeApp() {
       timerMinutesRef.current = 0; trainerRef.current = false;
       setTimerMinutes(0); setTimerText("∞"); setTrainer(false);
     } else if (kind === "timing") {
-      timerMinutesRef.current = 5; trainerRef.current = false; countInRef.current = 1;
-      setTimerMinutes(5); setTimerText("5:00"); setTrainer(false); setCountIn(1);
+      timerMinutesRef.current = 5; trainerRef.current = false;
+      setTimerMinutes(5); setTimerText("5:00"); setTrainer(false);
     } else if (kind === "groove") {
-      timerMinutesRef.current = 10; trainerRef.current = false; countInRef.current = 1;
-      setTimerMinutes(10); setTimerText("10:00"); setTrainer(false); setCountIn(1);
+      timerMinutesRef.current = 10; trainerRef.current = false;
+      setTimerMinutes(10); setTimerText("10:00"); setTrainer(false);
     } else {
       timerMinutesRef.current = 10; trainerRef.current = true; trainerModeRef.current = "pyramid";
       trainerMinRef.current = bpmRef.current; trainerMaxRef.current = Math.min(300, bpmRef.current + 30);
@@ -1252,18 +1254,12 @@ export default function MetronomeApp() {
               <div className="goal-tags">{patternGoals.map((goal) => <span key={goal}>{goal}</span>)}</div>
               <div className="session-progress" aria-live="polite"><span>{sessionBars} Takte</span><span>{timerText === "∞" ? "freie Session" : `${timerText} verbleibend`}</span></div>
             </div>
-            <div className="tempo-stage">
-              <div className="tempo-caption">Schläge pro Minute · {tempoUnitLabel[tempoUnit]}</div>
-              <div className="tempo-line">
-                <button className="nudge" onClick={() => updateBpm(bpm - 1)} aria-label="Tempo um eins verringern">−</button>
-                <input className="bpm-input" type="number" min="20" max="300" value={bpm} onChange={(event) => updateBpm(Number(event.target.value))} aria-label="Tempo in BPM" />
-                <button className="nudge" onClick={() => updateBpm(bpm + 1)} aria-label="Tempo um eins erhöhen">+</button>
-              </div>
-              <span className="tempo-name">{tempoName(bpm)}</span>
-              <div className="range-wrap">
-                <input className="tempo-range" type="range" min="20" max="300" value={bpm} onChange={(event) => updateBpm(Number(event.target.value))} aria-label="Tempo-Regler" />
-                <div className="range-ticks"><span>20</span><span>80</span><span>140</span><span>200</span><span>260</span><span>300</span></div>
-              </div>
+            <div className="tempo-toolbar" aria-label="Tempo">
+              <button className="tap-compact" onClick={tapTempo}>TAP</button>
+              <button className="nudge" onClick={() => updateBpm(bpm - 1)} aria-label="Tempo um eins verringern">−</button>
+              <label className="bpm-compact"><input type="number" min="20" max="300" value={bpm} onChange={(event) => updateBpm(Number(event.target.value))} aria-label="Tempo in BPM" /><span>BPM</span></label>
+              <button className="nudge" onClick={() => updateBpm(bpm + 1)} aria-label="Tempo um eins erhöhen">+</button>
+              <input className="tempo-range" type="range" min="20" max="300" value={bpm} onChange={(event) => updateBpm(Number(event.target.value))} aria-label="Tempo-Regler" />
             </div>
 
             <div className="beat-strip">
@@ -1284,8 +1280,7 @@ export default function MetronomeApp() {
               </div>}
             </div>
 
-            <div className="transport">
-              <button className="tap-button" onClick={tapTempo}>TAP TEMPO</button>
+            <div className="transport compact-transport">
               <button className="play-button" onClick={togglePlayback} aria-label={isPlaying ? "Wiedergabe stoppen" : "Abspielen"}>{isPlaying ? "Ⅱ" : "▶"}</button>
               <div className="transport-note">{timerText === "∞" ? "Ohne Zeitlimit" : `Restzeit ${timerText}`}<br />{repeatBars ? `${repeatBars} Takte` : "Endlos wiederholen"}</div>
             </div>
@@ -1297,6 +1292,14 @@ export default function MetronomeApp() {
             <div className="control-group compact-sound">
               <div className="control-label"><span>Klang</span><span>{volume}%</span></div>
               <div className="select-row"><select className="field-select" value={sound} onChange={(event) => { const value = event.target.value as DrumKit; soundRef.current = value; setSound(value); }} aria-label="Drumkit"><option>Studio</option><option>Trocken</option><option>Elektronisch</option></select><input type="range" min="0" max="100" value={volume} onChange={(event) => setVolume(Number(event.target.value))} aria-label="Lautstärke" /></div>
+            </div>
+            <div className="control-group">
+              <div className="control-label"><span>Spielweise</span><span>{feelMode === "original" ? originalFeel?.label || "Original Feel" : "Raster"}</span></div>
+              <div className="segmented feel-toggle">
+                <button className={feelMode === "quantized" ? "active" : ""} aria-pressed={feelMode === "quantized"} onClick={() => { feelModeRef.current = "quantized"; setFeelMode("quantized"); }}>Quantisiert</button>
+                <button className={feelMode === "original" ? "active" : ""} aria-pressed={feelMode === "original"} disabled={!originalFeel} title={originalFeel?.note || "Keine belegten Mikro-Timing-Daten vorhanden"} onClick={() => { if (!originalFeel) return; feelModeRef.current = "original"; setFeelMode("original"); }}>Original Feel</button>
+              </div>
+              <small className="feel-note">{originalFeel ? (feelMode === "original" ? originalFeel.note : "Gerades Raster; Dynamikstufen bleiben erhalten.") : "Keine belegte Performance-Variante hinterlegt."}</small>
             </div>
             <div className="control-group">
               <div className="control-label"><span>Takt</span><span>{meterLabel}</span></div>
@@ -1318,12 +1321,13 @@ export default function MetronomeApp() {
               <div className="slider-row"><span className="slider-icon">0</span><input type="range" min="0" max="50" value={(swing - 50) * 2} onChange={(event) => { const value = 50 + Number(event.target.value) / 2; swingRef.current = value; setSwing(value); }} aria-label="Swing von null bis fünfzig Prozent" /><span>50</span></div>
             </div>
             <div className="control-group">
-              <div className="control-label"><span>Count-in</span><span>{countIn || "aus"}</span></div>
-              <div className="segmented compact">{[0, 1, 2].map((value) => <button key={value} className={countIn === value ? "active" : ""} aria-pressed={countIn === value} onClick={() => { countInRef.current = value; setCountIn(value); }}>{value || "aus"}</button>)}</div>
-              <div className="control-label sub-label"><span>Timer</span><span>{timerMinutes ? `${timerMinutes}m` : "aus"}</span></div>
-              <div className="segmented compact four">{[0, 5, 10, 20].map((value) => <button key={value} className={timerMinutes === value ? "active" : ""} aria-pressed={timerMinutes === value} onClick={() => { timerMinutesRef.current = value; setTimerMinutes(value); setTimerText(value ? `${value}:00` : "∞"); }}>{value || "aus"}</button>)}</div>
-              <div className="control-label sub-label"><span>Wiederholen</span><span>{repeatBars || "∞"}</span></div>
-              <div className="segmented compact five">{[0, 4, 8, 16, 32].map((value) => <button key={value} className={repeatBars === value ? "active" : ""} aria-pressed={repeatBars === value} onClick={() => { repeatBarsRef.current = value; setRepeatBars(value); }}>{value || "∞"}</button>)}</div>
+              <button className="session-extras-toggle" onClick={() => setSessionExtrasOpen((open) => !open)} aria-expanded={sessionExtrasOpen}><span>Zeit & Ende</span><small>{timerMinutes ? `${timerMinutes} Min.` : "ohne Timer"}{repeatBars ? ` · ${repeatBars} Takte` : ""}</small><b>{sessionExtrasOpen ? "−" : "+"}</b></button>
+              {sessionExtrasOpen && <div className="session-extras">
+                <div className="control-label sub-label"><span>Timer</span><span>{timerMinutes ? `${timerMinutes}m` : "aus"}</span></div>
+                <div className="segmented compact four">{[0, 5, 10, 20].map((value) => <button key={value} className={timerMinutes === value ? "active" : ""} aria-pressed={timerMinutes === value} onClick={() => { timerMinutesRef.current = value; setTimerMinutes(value); setTimerText(value ? `${value}:00` : "∞"); }}>{value || "aus"}</button>)}</div>
+                <div className="control-label sub-label"><span>Wiederholen</span><span>{repeatBars || "∞"}</span></div>
+                <div className="segmented compact five">{[0, 4, 8, 16, 32].map((value) => <button key={value} className={repeatBars === value ? "active" : ""} aria-pressed={repeatBars === value} onClick={() => { repeatBarsRef.current = value; setRepeatBars(value); }}>{value || "∞"}</button>)}</div>
+              </div>}
             </div>
             <div className="trainer-card">
               <div className="toggle-row"><div><strong>{trainerMode === "pyramid" ? "Tempo-Pyramide" : "Tempo-Trainer"}</strong><small>{trainerMode === "pyramid" ? "Automatisch hoch und wieder herunter" : "Automatisch schneller werden"}</small></div><button className={`switch ${trainer ? "on" : ""}`} onClick={() => { const value = !trainer; trainerRef.current = value; setTrainer(value); }} aria-label="Tempo-Trainer umschalten" aria-pressed={trainer} /></div>
@@ -1344,7 +1348,7 @@ export default function MetronomeApp() {
               <article className="pattern-card" key={pattern.id}>
                 <div className="card-top"><div><div className="card-category">{pattern.category} · {pattern.attribution || (pattern.source ? "Übungsrekonstruktion" : "Genreübung")}</div><h3>{pattern.name}</h3></div><button className={`favorite ${favorites.includes(pattern.id) ? "on" : ""}`} onClick={() => toggleFavorite(pattern.id)} aria-label={favorites.includes(pattern.id) ? "Aus Favoriten entfernen" : "Zu Favoriten hinzufügen"} aria-pressed={favorites.includes(pattern.id)}>{favorites.includes(pattern.id) ? "♥" : "♡"}</button></div>
                 <div className="mini-pattern">{pattern.pattern.slice(0, 32).map((step, index) => <span key={index} className={`mini-step ${step}`} />)}</div>
-                <div className="card-footer"><div className="card-meta"><span>{pattern.meter}</span><span>{pattern.subdivision}</span><span>{pattern.bpmMin}–{pattern.bpmMax}</span>{(pattern.bars || 1) > 1 && <span>{pattern.bars}T</span>}{(pattern.playback?.swing ?? 50) > 50 && <span>Swing {Math.round(((pattern.playback?.swing ?? 50) - 50) * 2)}%</span>}<span>{pattern.difficulty}</span>{pattern.source && <a className="source-link" href={pattern.source.url} target="_blank" rel="noreferrer" title={pattern.source.label}>Quelle</a>}</div><div className="card-actions"><button className="secondary-small" onClick={() => loadPattern(pattern)}>Laden</button><button className="start-small" onClick={() => loadPattern(pattern, true)}>▶</button></div></div>
+                <div className="card-footer"><div className="card-meta"><span>{pattern.meter}</span><span>{pattern.subdivision}</span><span>{pattern.bpmMin}–{pattern.bpmMax}</span>{(pattern.bars || 1) > 1 && <span>{pattern.bars}T</span>}{(pattern.playback?.swing ?? 50) > 50 && <span>Swing {Math.round(((pattern.playback?.swing ?? 50) - 50) * 2)}%</span>}{pattern.originalFeel && <span>Original Feel</span>}<span>{pattern.difficulty}</span>{pattern.source && <a className="source-link" href={pattern.source.url} target="_blank" rel="noreferrer" title={pattern.source.label}>Quelle</a>}</div><div className="card-actions"><button className="secondary-small" onClick={() => loadPattern(pattern)}>Laden</button><button className="start-small" onClick={() => loadPattern(pattern, true)}>▶</button></div></div>
               </article>
             ))}
             {!filteredPatterns.length && <div className="empty-state">Kein Pattern passt zu diesen Filtern. Ändere Suche oder Auswahl.</div>}

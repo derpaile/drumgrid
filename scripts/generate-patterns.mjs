@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 
 const FACTOR = { Viertel: 1, Achtel: 2, "16tel": 4, Triolen: 3, Sextolen: 6 };
 const HIT_STATES = ["ghost", "normal", "accent"];
+const DRUM_VOICES = ["kick", "snare", "closedHat", "openHat", "ride", "crash", "rim", "highTom", "lowTom"];
 
 const seq = (start, end, step = 1) => Array.from(
   { length: Math.max(0, Math.ceil((end - start) / step)) },
@@ -23,6 +24,12 @@ const sources = {
   dbeat: { label: "D-beat notation and history", url: "https://en.wikipedia.org/wiki/D-beat" },
   fourFloor: { label: "Four on the floor", url: "https://en.wikipedia.org/wiki/Four_on_the_floor_(music)" },
   boDiddley: { label: "Drums Database — Bo Diddley Beat", url: "https://www.drumsdatabase.com/bodiddley.htm" },
+  microtiming: { label: "ZGMTH — Microtiming in Early Funk", url: "https://www.gmth.de/zeitschrift/artikel/1224.aspx" },
+  nativeBreaks: { label: "Native Instruments — drum-break recreations and MIDI", url: "https://blog.native-instruments.com/best-drum-breaks/" },
+  synthetic: { label: "Goodhertz — Synthetic Substitution", url: "https://goodhertz.com/funklet/synthetic-substitution/" },
+  mardi: { label: "Hudson Music — The Breakbeat Bible sampler", url: "https://hudsonmusic.com/wp-content/uploads/2015/03/Breakbeat-Bible-Sampler.pdf" },
+  bigBeat: { label: "Drumscore — The Big Beat", url: "https://drumscore.com/sheet-music/browse-by-artist/score/7719-billy-squier-the-big-beat-drum-sheet-music-tab" },
+  hotPants: { label: "University of Hull — Rebecoming Analogue", url: "https://hull-repository.worktribe.com/output/4218015" },
 };
 
 function exercise(id, name, category, bpm, instruction, tracks, options = {}) {
@@ -38,7 +45,7 @@ function exercise(id, name, category, bpm, instruction, tracks, options = {}) {
     attribution: options.attribution || (options.source ? "Quellenbasierte Übungsrekonstruktion" : "Genreübung"),
     learningGoals,
     whyInteresting: options.whyInteresting || instruction,
-    playback: options.playback, source: options.source, drumOnly: true,
+    playback: options.playback, source: options.source, originalFeel: options.originalFeel, drumOnly: true,
   };
 }
 
@@ -89,28 +96,51 @@ const exercises = [
     ride: { normal: [...repeated(eighths16, 3, 16), ...shifted([0, 2, 4, 6, 8, 12, 14], 48)], accent: [0, 16, 32, 48] },
     openHat: { accent: [58] }, crash: { accent: [0] },
   }, { bars: 4, difficulty: "Fortgeschritten", playback: { bpm: 137, swing: 52, kit: "Studio" }, source: sources.amen }),
-  exercise("drum-funky-drummer", "Funky Drummer", "Legendäre Breaks", [70, 120], "Isoliere zuerst Clydes einhändige Sechzehntel-Hat; ergänze danach Kick, Backbeat und sehr leise Ghostnotes.", {
-    kick: { accent: [0, 2, 6, 10, 13] }, snare: { accent: [4, 12], ghost: [7, 9, 11, 15] },
-    closedHat: { normal: [0, 1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 14, 15], accent: [0, 4, 8, 12] }, openHat: { accent: [7, 13] },
-  }, { difficulty: "Fortgeschritten", playback: { bpm: 101, swing: 55, kit: "Trocken" }, source: sources.funky }),
-  exercise("drum-impeach", "Impeach the President", "Legendäre Breaks", [70, 110], "Halte den trockenen Boom-Bap-Kern stabil; die versetzten Kicks geben dem Break seinen Zug.", {
-    kick: { accent: [0, 7, 8, 14] }, snare: { accent: [4, 12] }, closedHat: { normal: [0, 2, 4, 6, 7, 8, 12, 14] }, openHat: { accent: [10] },
-  }, { playback: { bpm: 96, kit: "Trocken" }, source: sources.breaks }),
-  exercise("drum-think-break", "Think Break — Reduktion", "Legendäre Breaks", [75, 150], "Übe die Drumset-Basis des Jabo-Starks-Breaks; Vocal- und Percussion-Hits sind bewusst weggelassen.", {
-    kick: { accent: [0, 3, 9] }, snare: { accent: [4, 12] }, closedHat: { normal: sixteenths.filter((step) => step !== 8), accent: [0, 4, 12] }, openHat: { accent: [8] },
-  }, { playback: { bpm: 113, swing: 53, kit: "Trocken" }, source: sources.breaks }),
-  exercise("drum-apache", "Apache Break — Reduktion", "Legendäre Breaks", [80, 145], "Übertrage den bongo-geprägten B-Boy-Break auf Kick, Snare und Hats, ohne die Synkopen zu begradigen.", {
-    kick: { accent: [0, 3, 6, 8, 11, 14] }, snare: { accent: [4, 12] }, closedHat: { normal: eighths16.filter((step) => step !== 10) }, openHat: { accent: [10] },
-  }, { playback: { bpm: 115, kit: "Studio" }, source: sources.breaks }),
+  exercise("drum-funky-drummer", "Funky Drummer — Zweitaktausschnitt", "Legendäre Breaks", [70, 120], "Spiele die ersten zwei Takte des achttaktigen Solos: einhändige Sechzehntel-Hat, Backbeat, Öffnungen und sehr leise Ghostnotes.", {
+    kick: { accent: [0, 2, 10, 13, 16, 18, 26, 29] }, snare: { accent: [4, 12, 20, 28], ghost: [7, 9, 11, 15, 23, 25, 27, 31] },
+    closedHat: { normal: seq(0, 32).filter((step) => ![5, 7, 13, 21, 29].includes(step)), accent: [0, 4, 8, 12, 16, 20, 24, 28] }, openHat: { accent: [5, 7, 13, 21, 29] },
+  }, { bars: 2, difficulty: "Fortgeschritten", playback: { bpm: 101, swing: 50, kit: "Trocken" }, source: sources.funky, originalFeel: {
+    label: "MIDI-Rekonstruktion", note: "Timing und Dynamik der zweitaktigen Native-Instruments-MIDI-Rekonstruktion.", sourceBpm: 101,
+    timingMs: { kick: { 13: -6, 29: -6 }, snare: { 7: 15, 9: 15, 11: 15, 15: 15, 23: 15, 25: 15, 27: 15, 31: 15 }, closedHat: Object.fromEntries(seq(1, 32, 2).map((step) => [step, 6])), openHat: { 5: 9, 7: 9, 13: 9, 21: 9, 29: 9 } },
+    velocityMultipliers: { kick: { 0: .77, 2: 1, 10: .77, 13: .77, 16: .77, 18: .95, 26: .8, 29: .58 }, closedHat: Object.fromEntries(seq(0, 32).map((step) => [step, step % 2 ? ([5, 7, 9, 11, 21, 23, 25, 27].includes(step) ? .44 : .76) : 1])) },
+  } }),
+  exercise("drum-impeach", "Impeach the President — Takt 1", "Legendäre Breaks", [70, 110], "Spiele den ersten dokumentierten Break-Takt; der Kick auf 2a liegt im Original deutlich spät.", {
+    kick: { accent: [0, 7, 8, 10, 14] }, snare: { accent: [4, 12] }, closedHat: { normal: [0, 2, 4, 6, 7, 8, 12, 14] }, openHat: { accent: [10] },
+  }, { playback: { bpm: 94, swing: 50, kit: "Trocken" }, source: sources.microtiming, originalFeel: { label: "Originalmessung", note: "Gemessene Abweichungen des ersten Break-Takts; beim Tempo proportional skaliert.", sourceBpm: 93.9464, timingMs: { kick: { 7: 52, 8: 12, 14: 4 }, snare: { 4: 16, 12: 19 }, closedHat: { 0: 15, 2: 7, 6: 21, 7: 31, 8: 11, 10: 7, 14: 12 } } } }),
+  exercise("drum-think-break", "Think Break — Takt 23", "Legendäre Breaks", [75, 150], "Spiele den dokumentierten Kern aus Takt 23: Kick nur auf eins, Backbeats und drei Ghostnotes; Tamburin und Vocals sind weggelassen.", {
+    kick: { accent: [0] }, snare: { accent: [4, 12], ghost: [7, 9, 10] }, closedHat: { normal: [0, 2, 4, 6, 8, 10, 12] }, openHat: { accent: [14] },
+  }, { playback: { bpm: 114, swing: 50, kit: "Trocken" }, source: sources.microtiming, originalFeel: { label: "Originalmessung", note: "Gemessene Abweichungen von Takt 23; beim Tempo proportional skaliert.", sourceBpm: 113.2922, timingMs: { snare: { 4: 15, 9: 15, 12: -2 }, openHat: { 14: -1 } } } }),
+  exercise("drum-apache", "Apache — Takt 7", "Legendäre Breaks", [80, 145], "Spiele Takt 7 der dokumentierten Break-Passage; die Bongo-Schicht bleibt außerhalb des Drumset-Rasters.", {
+    kick: { accent: [0, 2, 10] }, snare: { accent: [4, 12], ghost: [9, 15] }, closedHat: { normal: eighths16 },
+  }, { playback: { bpm: 119, swing: 50, kit: "Studio" }, source: sources.microtiming, originalFeel: { label: "Originalmessung", note: "Gemessene Abweichungen von Takt 7; beim Tempo proportional skaliert.", sourceBpm: 118.7702, timingMs: { kick: { 10: -11 }, snare: { 4: -4, 9: 14, 12: 4, 15: 30 }, closedHat: { 6: 7, 8: 2, 10: -4, 14: 7 } } } }),
   exercise("drum-big-beat", "The Big Beat — Reduktion", "Legendäre Breaks", [70, 125], "Lass viel Luft zwischen Kick und geflammter Snare; der Break lebt von Raum statt Hi-Hat-Dichte.", {
     kick: { accent: [0, 3, 6, 8] }, snare: { accent: [4, 12], ghost: [13] }, crash: { accent: [0] },
-  }, { playback: { bpm: 108, kit: "Studio" }, source: sources.breaks }),
-  exercise("drum-synthetic-substitution", "Synthetic Substitution", "Legendäre Breaks", [70, 125], "Halte Purdies synkopierte Kickfolge gegen die knappen Snare-Akzente und geraden Hats.", {
-    kick: { accent: [0, 2, 7, 9, 10, 11, 15] }, snare: { accent: [4, 8] }, closedHat: { normal: eighths16, accent: [0, 8] },
-  }, { difficulty: "Fortgeschritten", playback: { bpm: 98, swing: 53, kit: "Trocken" }, source: sources.breaks }),
-  exercise("drum-roachclip", "Ashley’s Roachclip", "Legendäre Breaks", [65, 115], "Spiele den offenen Hat-Akzent nach drei und halte die Kick-Doppelfigur kompakt.", {
-    kick: { accent: [0, 2, 6, 8, 9] }, snare: { accent: [4, 12] }, closedHat: { normal: [0, 2, 4, 6, 8, 12, 14] }, openHat: { accent: [10] },
-  }, { playback: { bpm: 95, kit: "Trocken" }, source: sources.breaks }),
+  }, { playback: { bpm: 108, kit: "Studio" }, source: sources.bigBeat }),
+  exercise("drum-synthetic-substitution", "Synthetic Substitution — Zweitaktform", "Legendäre Breaks", [70, 125], "Spiele die dokumentierte zweitaktige Kickfolge gegen vier Backbeats; die Hat-Akzente bilden Purdies Dynamik ab.", {
+    kick: { accent: [2, 7, 10, 11, 16, 18, 23, 26, 27], normal: [0, 9, 15, 25], ghost: [31] }, snare: { accent: [4, 12, 20, 28] }, closedHat: { accent: [0, 2, 6, 8, 14, 18, 22, 24, 30], normal: [4, 10, 12, 16, 20, 26, 28] },
+  }, { bars: 2, difficulty: "Fortgeschritten", playback: { bpm: 93, swing: 50, kit: "Trocken" }, source: sources.synthetic }),
+  exercise("drum-roachclip", "Ashley’s Roachclip — Zweitaktform", "Legendäre Breaks", [65, 115], "Spiele die zweitaktige MIDI-Rekonstruktion; die Sechzehntel werden nicht auf ein Achtelpattern reduziert.", {
+    kick: { accent: [0, 3, 6, 9, 10, 13, 16, 19, 22, 25, 26, 29] }, snare: { accent: [4, 12, 20, 28], ghost: [15, 31] }, closedHat: { normal: seq(0, 32) },
+  }, { bars: 2, difficulty: "Fortgeschritten", playback: { bpm: 95, swing: 50, kit: "Trocken" }, source: sources.nativeBreaks, originalFeel: {
+    label: "MIDI-Rekonstruktion", note: "Mikro-Timing und Dynamik der Native-Instruments-MIDI-Rekonstruktion.", sourceBpm: 95,
+    timingMs: { kick: { 3: -26, 19: -26 }, closedHat: Object.fromEntries(seq(1, 32, 2).map((step) => [step, -16])), snare: { 15: 16 } },
+    velocityMultipliers: { closedHat: { 0: .8, 1: .56, 2: .8, 3: 1, 4: .56, 5: .8, 6: 1, 7: .8, 8: .56, 9: .8, 10: .8, 11: 1, 12: .56, 13: .8, 14: 1, 15: .8, 16: 1, 17: .56, 18: .8, 19: .56, 20: 1, 21: .8, 22: .8, 23: .56, 24: 1, 25: .56, 26: .8, 27: 1, 28: .56, 29: .8, 30: 1, 31: .56 } },
+  } }),
+  exercise("drum-its-a-new-day", "It’s a New Day — Drum Break", "Legendäre Breaks", [70, 125], "Spiele die zwei wissenschaftlich dokumentierten Break-Takte; besonders die späten Kicks auf 3&, 3a und 4a prägen das Feel.", {
+    kick: { accent: [0, 2, 10, 11, 15, 16, 18, 26, 27, 31] }, snare: { accent: [4, 12, 20, 28] }, closedHat: { normal: repeated(eighths16, 2, 16) },
+  }, { bars: 2, difficulty: "Fortgeschritten", playback: { bpm: 96, swing: 50, kit: "Trocken" }, source: sources.microtiming, attribution: "Quellenbasierte Rekonstruktion (George Bragg, Skull Snaps)", originalFeel: { label: "Originalmessung", note: "Gemessene Abweichungen beider Break-Takte; beim Tempo proportional skaliert.", sourceBpm: 95.88, timingMs: { kick: { 2: -1, 10: 26, 11: 44, 15: 42, 18: 22, 26: 6, 27: 29, 31: 25 }, snare: { 4: -14, 12: 13, 20: 8, 28: 7 }, closedHat: { 0: -7, 2: -6, 4: -19, 6: -22, 8: -5, 10: 10, 12: 1, 14: 11, 16: -7, 18: -2, 20: -6, 22: 7, 24: 4, 28: -2, 30: 3 } } } }),
+  exercise("drum-express-yourself", "Express Yourself — Zweitaktform", "Legendäre Breaks", [70, 120], "Spiele die zweitaktige MIDI-Rekonstruktion von James Gadsons Groove; Mikro-Timing bleibt in der Feel-Variante erhalten.", {
+    kick: { accent: [0, 3, 8, 11, 14, 16, 19, 24, 27, 30] }, snare: { accent: [4, 9, 13, 20, 25, 28], ghost: [7, 11, 15, 23, 27] }, closedHat: { normal: seq(0, 30) }, openHat: { accent: [30] },
+  }, { bars: 2, difficulty: "Fortgeschritten", playback: { bpm: 92, swing: 50, kit: "Trocken" }, source: sources.nativeBreaks, attribution: "MIDI-basierte Rekonstruktion (James Gadson)", originalFeel: { label: "MIDI-Rekonstruktion", note: "Timing und Dynamik der Native-Instruments-MIDI-Rekonstruktion.", sourceBpm: 92, timingMs: { kick: { 3: 14, 11: 14, 19: 14, 27: 14 }, snare: { 7: 14, 9: 14, 11: 14, 13: 14, 15: 14, 23: 14, 25: 14, 27: 14 }, closedHat: Object.fromEntries(seq(1, 30, 2).map((step) => [step, 14])) }, velocityMultipliers: { closedHat: { 0: .88, 1: .62, 2: 1, 3: .62, 4: .88, 5: .5, 6: .88, 7: .5, 8: .88, 9: .5, 10: .88, 11: .5, 12: .88, 13: .5, 14: .88, 15: .5, 16: .88, 17: .62, 18: 1, 19: .62, 20: .88, 21: .5, 22: .88, 23: .5, 24: .88, 25: .5, 26: .88, 27: .5, 28: .88, 29: .5 } } } }),
+  exercise("drum-hot-pants", "Hot Pants (Bonus Beats) — Stilreduktion", "Legendäre Breaks", [75, 120], "Halte das Tamburin-Ersatzraster gerade und übe die belegte Vorverlagerung einzelner Vierer-Backbeats auf 3&; keine Volltranskription.", {
+    kick: { accent: [0, 16] }, snare: { accent: [4, 12, 20, 26] }, closedHat: { normal: seq(0, 32) },
+  }, { bars: 2, difficulty: "Fortgeschritten", playback: { bpm: 96, swing: 50, kit: "Trocken" }, source: sources.hotPants, attribution: "Stilreduktion (John “Jabo” Starks, Bobby Byrd)" }),
+  exercise("drum-mardi-gras", "Take Me to the Mardi Gras — Introreduktion", "Legendäre Breaks", [70, 125], "Übe die viertaktige Introform bei 104 BPM. Ride ersetzt Cowbell; die Snare-Doppelschläge auf 3e–3& stehen in Takt 1 und 3.", {
+    kick: { accent: [0, 7, 10, 16, 23, 26, 32, 39, 42, 48, 55, 58] }, snare: { accent: [4, 12, 20, 28, 36, 44, 52, 60], ghost: [9, 10, 41, 42] }, ride: { normal: seq(0, 64, 4) },
+  }, { bars: 4, difficulty: "Fortgeschritten", playback: { bpm: 104, swing: 50, kit: "Studio" }, source: sources.mardi, attribution: "Didaktische Reduktion (Steve Gadd, Bob James)" }),
+  exercise("drum-god-made-me-funky", "God Made Me Funky — Linearübung", "Legendäre Breaks", [70, 125], "Spiele eine Mike-Clark-inspirierte Linearübung. Sie ist ausdrücklich keine Transkription des Originalbreaks.", {
+    kick: { accent: [0, 7, 15, 16, 23, 31] }, snare: { accent: [6, 13, 22, 29] }, closedHat: { normal: [1, 3, 5, 8, 10, 12, 14, 17, 19, 21, 24, 26, 28, 30] },
+  }, { bars: 2, difficulty: "Fortgeschritten", playback: { bpm: 98, swing: 50, kit: "Trocken" }, attribution: "Mike-Clark-inspirierte Stilübung" }),
   exercise("drum-cold-sweat", "Cold Sweat — Zweitaktgroove", "Legendäre Breaks", [75, 135], "Verbinde beide Takte des frühen Funkgrooves; Ghostnotes bleiben deutlich unter dem Backbeat.", {
     kick: { accent: [0, 8, 10, 18, 24, 26, 30] }, snare: { accent: [4, 14, 20, 28], ghost: [7, 17, 23, 25] },
     closedHat: { normal: [...[0, 2, 4, 6, 8, 12, 14], ...shifted(eighths16, 16)] }, openHat: { accent: [10] },
@@ -118,16 +148,15 @@ const exercises = [
   exercise("drum-rock-steady", "Rock Steady", "Legendäre Breaks", [65, 125], "Kontrolliere die weiten Hi-Hat-Öffnungen und Purdies leise Snare-Füllstimmen.", {
     kick: { accent: [2, 4, 7, 10, 12] }, snare: { accent: [4, 12], ghost: [1, 5, 7, 9, 13, 15] }, closedHat: { normal: [0, 4, 6, 8, 12, 14] }, openHat: { accent: [2, 10] },
   }, { difficulty: "Fortgeschritten", playback: { bpm: 105, swing: 57, kit: "Studio" }, source: sources.famous }),
-  exercise("drum-levee", "When the Levee Breaks", "Legendäre Breaks", [45, 95], "Spiele Bonhams schweren Raumgroove: die Kick-Doppelschläge bleiben kurz, die Snare landet breit auf zwei und vier.", {
-    kick: { accent: [0, 7, 10, 11], ghost: [1] }, snare: { accent: [4, 12] }, closedHat: { normal: eighths16, accent: quarters16 },
+  exercise("drum-levee", "When the Levee Breaks", "Legendäre Breaks", [45, 95], "Spiele Bonhams Raumgroove; die Ghost-Kick auf 1e simuliert nur das Bandecho und ist kein zusätzlich gespielter Downbeat.", {
+    kick: { accent: [0, 10, 11], ghost: [1] }, snare: { accent: [4, 12] }, closedHat: { normal: eighths16, accent: quarters16 },
   }, { playback: { bpm: 72, kit: "Studio" }, source: sources.famous }),
   exercise("drum-superstition", "Superstition — Drumgroove", "Legendäre Grooves", [70, 125], "Halte den federnden Sechzehntelfluss und die Hat-Akzente gegen den geraden Backbeat.", {
     kick: { accent: quarters16 }, snare: { accent: [4, 12] }, closedHat: { normal: [0, 2, 4, 6, 7, 8, 9, 10, 12, 14, 15], accent: quarters16 },
   }, { playback: { bpm: 101, swing: 58, kit: "Trocken" }, source: sources.famous }),
-  exercise("drum-cissy-strut", "Cissy Strut — B-Teil", "Legendäre Grooves", [60, 115], "Lerne den viertaktigen New-Orleans-Funk in kleinen Phrasen und halte die Ghostnotes unter den Kicks.", {
-    kick: { accent: [0, 3, 5, 9, 11, 12, 14, 16, 19, 23, 25, 27, 28, 30, 32, 36, 39, 41, 43, 44, 46, 48, 52, 55, 57, 59, 60, 62] },
-    snare: { accent: [4, 8, 24, 36, 48, 56], ghost: [10, 11, 18, 21, 22, 25, 34, 37, 38, 41, 50, 53, 57] }, closedHat: { normal: [12, 14, 28, 30, 44, 46, 60, 62] },
-  }, { bars: 4, difficulty: "Fortgeschritten", playback: { bpm: 90, swing: 55, kit: "Trocken" }, source: sources.famous }),
+  exercise("drum-cissy-strut", "Cissy Strut — Takte 3–4", "Legendäre Grooves", [60, 115], "Spiele die zwei dokumentierten Hauptgroove-Takte mit der charakteristischen verzahnten Kick-, Snare- und Hi-Hat-Figur.", {
+    kick: { accent: [0, 3, 5, 8, 9, 11, 13, 16, 19, 21, 24, 25, 27, 29] }, snare: { accent: [4, 12, 14, 20, 28, 30] }, closedHat: { normal: [1, 2, 4, 7, 9, 10, 12, 14, 17, 18, 20, 23, 25, 26, 28, 30] },
+  }, { bars: 2, difficulty: "Fortgeschritten", playback: { bpm: 89, swing: 50, kit: "Trocken" }, source: sources.microtiming, attribution: "Quellenbasierte Rekonstruktion (Zigaboo Modeliste)", originalFeel: { label: "Originalmessung", note: "Gemessene Abweichungen der Takte 3–4; beim Tempo proportional skaliert.", sourceBpm: 89.2, timingMs: { kick: { 3: 10, 5: 1, 8: -10, 9: 3, 11: 5, 13: 17, 19: 8, 21: -5, 24: -1, 25: 12, 27: 10, 29: 17 }, snare: { 4: -22, 12: -22, 14: -20, 20: -15, 28: -11, 30: -16 }, closedHat: { 1: 25, 2: -1, 7: 4, 9: -6, 10: -13, 12: -26, 17: 14, 18: 1, 23: 17 } } } }),
   exercise("drum-walk-this-way", "Walk This Way — Groove", "Legendäre Grooves", [70, 125], "Setze die offene Hat auf eins deutlich und halte Kramers synkopierte Kickfigur trocken.", {
     kick: { accent: [0, 7, 8, 10] }, snare: { accent: [4, 12] }, closedHat: { normal: [2, 4, 6, 8, 10, 12, 14] }, openHat: { accent: [0] },
   }, { playback: { bpm: 108, kit: "Studio" }, source: sources.famous }),
@@ -240,12 +269,28 @@ function mergeTracks(drumTracks, length) {
   });
 }
 
+function validateOriginalFeel(id, length, feel) {
+  if (!feel) return;
+  if (!(feel.sourceBpm > 0)) throw new Error(`${id} has invalid originalFeel.sourceBpm`);
+  for (const [field, ranges] of [["timingMs", [-250, 250]], ["velocityMultipliers", [.05, 2]]]) {
+    for (const [voice, values] of Object.entries(feel[field] || {})) {
+      if (!DRUM_VOICES.includes(voice)) throw new Error(`${id} has unknown original-feel voice ${voice}`);
+      for (const [rawIndex, value] of Object.entries(values)) {
+        const index = Number(rawIndex);
+        if (!Number.isInteger(index) || index < 0 || index >= length) throw new Error(`${id} originalFeel ${voice}[${rawIndex}] outside ${length}-step grid`);
+        if (!Number.isFinite(value) || value < ranges[0] || value > ranges[1]) throw new Error(`${id} originalFeel ${field} ${voice}[${rawIndex}] invalid`);
+      }
+    }
+  }
+}
+
 const patterns = exercises.map((entry) => {
   const { beats, denominator } = parseMeter(entry.meter);
   const grouping = entry.grouping || defaultGrouping(beats, denominator);
   const length = entry.bars * beats * 4 / denominator * FACTOR[entry.subdivision];
   if (!Number.isInteger(length)) throw new Error(`${entry.id} has a fractional grid`);
   if (grouping.reduce((sum, size) => sum + size, 0) !== beats) throw new Error(`${entry.id} has invalid grouping`);
+  validateOriginalFeel(entry.id, length, entry.originalFeel);
   const drumTracks = Object.fromEntries(Object.entries(entry.tracks).map(([voice, specification]) => [voice, buildTrack(length, specification)]));
   return {
     id: entry.id, name: entry.name, category: entry.category,
@@ -257,6 +302,7 @@ const patterns = exercises.map((entry) => {
     attribution: entry.attribution, learningGoals: entry.learningGoals, whyInteresting: entry.whyInteresting,
     ...(entry.playback ? { playback: entry.playback } : {}),
     ...(entry.source ? { source: entry.source } : {}),
+    ...(entry.originalFeel ? { originalFeel: entry.originalFeel } : {}),
   };
 });
 

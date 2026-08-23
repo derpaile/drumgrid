@@ -1,5 +1,5 @@
 const CACHE_PREFIX = "klangmass-";
-const CACHE = `${CACHE_PREFIX}v5`;
+const CACHE = `${CACHE_PREFIX}v6`;
 const CORE = ["/", "/manifest.webmanifest", "/data/patterns-v1.json", "/icon-192.png", "/icon-512.png"];
 
 async function putIfUsable(cache, request, response) {

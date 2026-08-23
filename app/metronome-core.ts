@@ -9,11 +9,19 @@ export type DrumKit = "Studio" | "Trocken" | "Elektronisch";
 export const DRUM_VOICES = ["kick", "snare", "closedHat", "openHat", "ride", "crash", "rim", "highTom", "lowTom"] as const;
 export type DrumVoice = typeof DRUM_VOICES[number];
 export type DrumTracks = Partial<Record<DrumVoice, DrumHitState[]>>;
+export type PerHitValues = Partial<Record<DrumVoice, Record<string, number>>>;
+
+export type OriginalFeel = {
+  label: string;
+  note: string;
+  sourceBpm: number;
+  timingMs?: PerHitValues;
+  velocityMultipliers?: PerHitValues;
+};
 
 export type PlaybackDefaults = {
   bpm?: number;
   swing?: number;
-  countIn?: number;
   timerMinutes?: number;
   repeatBars?: number;
   kit?: DrumKit;
@@ -41,6 +49,7 @@ export type Pattern = {
   whyInteresting?: string;
   playback?: PlaybackDefaults;
   source?: { label: string; url: string };
+  originalFeel?: OriginalFeel;
 };
 
 export type PracticeEntry = {

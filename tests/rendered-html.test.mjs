@@ -65,16 +65,16 @@ test("renders the Klangmaß metronome product", async () => {
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
   const html = await response.text();
   assert.match(html, /KLANGMASS/i);
-  assert.match(html, /TAP TEMPO/);
+  assert.match(html, />TAP</);
   assert.match(html, /manifest\.webmanifest/);
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape|react-loading-skeleton/i);
 });
 
-test("ships a drum-only v2 library with 47 complete patterns", async () => {
+test("ships a drum-only v2 library with 52 complete patterns", async () => {
   const library = await readLibrary();
   assert.equal(library.version, 2);
-  assert.equal(library.count, 47);
-  assert.equal(library.patterns.length, 47);
+  assert.equal(library.count, 52);
+  assert.equal(library.patterns.length, 52);
   const ids = new Set();
   const names = new Set();
   const musicalSignatures = new Set();
@@ -153,6 +153,21 @@ test("ships a drum-only v2 library with 47 complete patterns", async () => {
         assert.ok(Number.isFinite(trainer.min) && Number.isFinite(trainer.max) && trainer.min <= trainer.max, `${pattern.id} has invalid trainer bounds`);
       }
     }
+    if (pattern.originalFeel !== undefined) {
+      assert.ok(pattern.originalFeel.label?.trim(), `${pattern.id} has no original-feel label`);
+      assert.ok(pattern.originalFeel.note?.trim(), `${pattern.id} has no original-feel note`);
+      assert.ok(pattern.originalFeel.sourceBpm > 0, `${pattern.id} has invalid original-feel BPM`);
+      for (const [field, range] of [["timingMs", [-250, 250]], ["velocityMultipliers", [.05, 2]]]) {
+        for (const [voice, values] of Object.entries(pattern.originalFeel[field] || {})) {
+          assert.ok(DRUM_VOICES.has(voice), `${pattern.id} has unknown original-feel voice ${voice}`);
+          for (const [rawIndex, value] of Object.entries(values)) {
+            const index = Number(rawIndex);
+            assert.ok(Number.isInteger(index) && index >= 0 && index < expectedLength, `${pattern.id} ${field} index ${rawIndex} is outside the grid`);
+            assert.ok(Number.isFinite(value) && value >= range[0] && value <= range[1], `${pattern.id} ${field} value is invalid`);
+          }
+        }
+      }
+    }
   }
 });
 
@@ -175,7 +190,17 @@ test("keeps the signature drum exercises musically consistent", async () => {
 
   const funkyDrummer = get("drum-funky-drummer");
   assert.ok(stateIndices(funkyDrummer.drumTracks.snare, "ghost").length > 0, "Funky Drummer needs snare ghostnotes");
-  assert.ok((funkyDrummer.playback?.swing ?? 50) > 50, "Funky Drummer must enable swing");
+  assert.equal(funkyDrummer.bars, 2);
+  assert.equal(funkyDrummer.playback?.swing, 50);
+  assert.ok(funkyDrummer.originalFeel?.timingMs, "Funky Drummer needs its MIDI feel layer");
+
+  const think = get("drum-think-break");
+  assert.deepEqual(audibleIndices(think.drumTracks.kick), [0]);
+  assert.deepEqual(stateIndices(think.drumTracks.snare, "ghost"), [7, 9, 10]);
+
+  const impeach = get("drum-impeach");
+  assert.deepEqual(audibleIndices(impeach.drumTracks.kick), [0, 7, 8, 10, 14]);
+  assert.equal(impeach.originalFeel?.timingMs?.kick?.[7], 52);
 
   const purdie = get("drum-purdie-shuffle");
   assert.equal(purdie.meter, "12/8");
