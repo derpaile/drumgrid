@@ -312,7 +312,7 @@ button:disabled { cursor: not-allowed; opacity: .38; }
 .card-meta { display: flex; flex-wrap: wrap; gap: 3px 7px; color: #56945a; font-family: var(--mono); font-size: .47rem; }
 .source-link { color: #8b8ed0; }
 .card-actions { display: flex; gap: 4px; }
-.secondary-small, .start-small {
+.start-small {
   min-height: 25px; border: 1px solid #111217; border-radius: 0; background: linear-gradient(180deg, #777a89, #40424e); box-shadow: var(--raised);
   color: white; padding: 0 7px; font-size: .52rem; text-shadow: 1px 1px #111; cursor: pointer;
 }
