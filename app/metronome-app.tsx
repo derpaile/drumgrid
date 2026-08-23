@@ -51,7 +51,6 @@ export default function MetronomeApp() {
   const [sessionBars, setSessionBars] = useState(0);
   const [sessionKind, setSessionKind] = useState<SessionKind>("free");
   const [section, setSection] = useState<AppSection>("trainer");
-  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [volume, setVolume] = useState(72);
   const [sound, setSound] = useState<DrumKit>("Studio");
   const [swing, setSwing] = useState(50);
@@ -72,11 +71,7 @@ export default function MetronomeApp() {
   const [practiceHistory, setPracticeHistory] = useState<PracticeEntry[]>([]);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("Alle");
-  const [goalFilter, setGoalFilter] = useState("Alle Ziele");
-  const [meterFilter, setMeterFilter] = useState("Alle Takte");
-  const [difficultyFilter, setDifficultyFilter] = useState("Alle Stufen");
-  const [subdivisionFilter, setSubdivisionFilter] = useState("Alle Unterteilungen");
-  const [visibleCount, setVisibleCount] = useState(9);
+  const [visibleCount, setVisibleCount] = useState(18);
   const [editorOpen, setEditorOpen] = useState(false);
   const [presetName, setPresetName] = useState("Mein Pattern");
   const [presetCategory, setPresetCategory] = useState("Eigene Presets");
@@ -85,7 +80,7 @@ export default function MetronomeApp() {
   const [editorSteps, setEditorSteps] = useState<StepState[]>([]);
   const [editorHistory, setEditorHistory] = useState<DrumTracks[]>([]);
   const [toast, setToast] = useState("");
-  const [online, setOnline] = useState(() => typeof navigator === "undefined" ? true : navigator.onLine);
+  const [online, setOnline] = useState(true);
   const [libraryStatus, setLibraryStatus] = useState<"loading" | "ready" | "fallback">("loading");
   const [pwaStatus, setPwaStatus] = useState<PwaStatus>("checking");
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
@@ -202,6 +197,7 @@ export default function MetronomeApp() {
     window.addEventListener("offline", offlineHandler);
     window.addEventListener("beforeinstallprompt", installHandler);
     window.addEventListener("appinstalled", installedHandler);
+    queueMicrotask(() => { if (!navigator.onLine) offlineHandler(); });
     document.addEventListener("visibilitychange", visibilityHandler);
     window.addEventListener("pagehide", pageHideHandler);
     window.addEventListener("pageshow", pageShowHandler);
@@ -1154,17 +1150,11 @@ export default function MetronomeApp() {
   };
 
   const categories = useMemo(() => ["Alle", ...Array.from(new Set(library.map((item) => item.category)))], [library]);
-  const meterOptions = useMemo(() => Array.from(new Set(library.map((item) => item.meter))), [library]);
-  const goalOptions = useMemo(() => ["Alle Ziele", ...Array.from(new Set(library.flatMap(learningGoalsFor)))], [library]);
   const filteredPatterns = useMemo(() => library.filter((pattern) => {
     const query = search.toLocaleLowerCase("de");
     return (!query || `${pattern.name} ${pattern.category} ${pattern.instruction} ${learningGoalsFor(pattern).join(" ")}`.toLocaleLowerCase("de").includes(query))
-      && (category === "Alle" || pattern.category === category)
-      && (goalFilter === "Alle Ziele" || learningGoalsFor(pattern).includes(goalFilter))
-      && (meterFilter === "Alle Takte" || pattern.meter === meterFilter)
-      && (difficultyFilter === "Alle Stufen" || pattern.difficulty === difficultyFilter)
-      && (subdivisionFilter === "Alle Unterteilungen" || pattern.subdivision === subdivisionFilter);
-  }), [library, search, category, goalFilter, meterFilter, difficultyFilter, subdivisionFilter]);
+      && (category === "Alle" || pattern.category === category);
+  }), [library, search, category]);
 
   const resetControls = () => {
     volumeRef.current = 72; soundRef.current = "Studio"; swingRef.current = 50; countInRef.current = 1; timerMinutesRef.current = 0;
@@ -1236,32 +1226,20 @@ export default function MetronomeApp() {
   return (
     <main className="app-shell">
       <div className="app-content">
-      <header className="topbar">
-        <button className="brand" onClick={() => navigateTo("trainer")} aria-label="Zum Drum-Trainer">
-          <span className="brand-mark" aria-hidden="true" />
-          KLANGMASS
-        </button>
-        <nav className="nav" aria-label="Hauptnavigation">
-          <button className={section === "trainer" ? "active" : ""} aria-current={section === "trainer" ? "page" : undefined} onClick={() => navigateTo("trainer")}>Üben</button>
-          <button className={section === "library" ? "active" : ""} aria-current={section === "library" ? "page" : undefined} onClick={() => navigateTo("library")}>Bibliothek</button>
-          <button className={section === "mine" ? "active" : ""} aria-current={section === "mine" ? "page" : undefined} onClick={() => navigateTo("mine")}>Meine Grooves</button>
-        </nav>
-        <button className={`status-pill ${pwaStatus}`} onClick={pwaStatus === "update" ? applyUpdate : installPrompt ? installApp : undefined} title={pwaLabel}>
-          <span className="status-dot" /><span>{installPrompt && pwaStatus === "ready" ? "Installieren" : pwaLabel}</span>
-        </button>
-      </header>
-
       <div className="page">
-        <section className="session-launch" id="trainer" aria-labelledby="page-title">
-          <div><div className="hero-kicker">Drumgrooves präzise trainieren</div><h1 id="page-title">Was möchtest du heute üben?</h1><p>Wähle einen Rahmen oder starte direkt frei. Alles bleibt lokal auf diesem Gerät.</p></div>
+        <section className="practice-bar" id="trainer" aria-label="Training wählen">
+          <h1 className="sr-only">Klangmaß Drum-Trainer</h1>
+          <nav className="desktop-nav" aria-label="Hauptnavigation">
+            <button className={section === "trainer" ? "active" : ""} onClick={() => navigateTo("trainer")}>Üben</button>
+            <button className={section === "library" ? "active" : ""} onClick={() => navigateTo("library")}>Patterns</button>
+            <button className={section === "mine" ? "active" : ""} onClick={() => navigateTo("mine")}>Meine</button>
+          </nav>
           <div className="session-options" aria-label="Session wählen">
             {([
-              ["free", "Freies Training", "Ohne Zeitlimit"],
-              ["timing", "5 Min. Timing", "Konstanz zuerst"],
-              ["groove", "10 Min. Groove", "Pocket vertiefen"],
-              ["speed", "Tempo-Pyramide", "Kontrolliert steigern"],
-            ] as Array<[SessionKind, string, string]>).map(([kind, title, copy]) => <button key={kind} className={sessionKind === kind ? "active" : ""} aria-pressed={sessionKind === kind} onClick={() => chooseSession(kind)}><strong>{title}</strong><span>{copy}</span></button>)}
+              ["free", "Frei"], ["timing", "5m Timing"], ["groove", "10m Groove"], ["speed", "Pyramide"],
+            ] as Array<[SessionKind, string]>).map(([kind, title]) => <button key={kind} className={sessionKind === kind ? "active" : ""} aria-pressed={sessionKind === kind} onClick={() => chooseSession(kind)}>{title}</button>)}
           </div>
+          <button className={`status-pill ${pwaStatus}`} onClick={pwaStatus === "update" ? applyUpdate : installPrompt ? installApp : undefined} title={pwaLabel} aria-label={pwaLabel}><span className="status-dot" /><span>{installPrompt && pwaStatus === "ready" ? "Installieren" : pwaLabel}</span></button>
         </section>
         <section className="workspace" aria-label="Drum-Groove-Trainer">
           <div className="panel metronome-panel">
@@ -1314,27 +1292,19 @@ export default function MetronomeApp() {
             <div className="shortcut-hint">Leertaste: Start/Stop · T: Tap Tempo · +/−: BPM</div>
           </div>
 
-          <aside className={`panel controls-panel ${advancedOpen ? "advanced-open" : ""}`} aria-label="Drum-Trainer-Einstellungen">
-            <div className="panel-title-row"><h2 className="panel-title">Session & Klang</h2><button className="reset-button" onClick={resetControls}>Zurücksetzen</button></div>
-            <div className="quick-settings">
-              <div className="control-group"><div className="control-label"><span>Drumkit & Lautstärke</span><span>{volume}%</span></div><div className="select-row"><select className="field-select" value={sound} onChange={(event) => { const value = event.target.value as DrumKit; soundRef.current = value; setSound(value); }} aria-label="Drumkit"><option>Studio</option><option>Trocken</option><option>Elektronisch</option></select><input type="range" min="0" max="100" value={volume} onChange={(event) => setVolume(Number(event.target.value))} aria-label="Lautstärke" /></div></div>
-              <div className="control-group"><div className="control-label"><span>Session</span><span>{timerText}</span></div><div className="select-row"><select className="field-select" value={countIn} onChange={(event) => { const value = Number(event.target.value); countInRef.current = value; setCountIn(value); }} aria-label="Einzähltakte"><option value="0">Ohne Count-in</option><option value="1">1 Takt Count-in</option><option value="2">2 Takte Count-in</option></select><select className="field-select" value={timerMinutes} onChange={(event) => { const value = Number(event.target.value); timerMinutesRef.current = value; setTimerMinutes(value); setTimerText(value ? `${value}:00` : "∞"); }} aria-label="Timer"><option value="0">Timer: aus</option><option value="5">5 Minuten</option><option value="10">10 Minuten</option><option value="20">20 Minuten</option></select></div></div>
-              <button className="advanced-toggle" onClick={() => setAdvancedOpen((value) => !value)} aria-expanded={advancedOpen}>{advancedOpen ? "Weniger Einstellungen" : "Takt, Swing & Trainer"}</button>
-              <button className="midi-button" onClick={enableMidi} disabled={midiStatus === "connected"}>{midiStatus === "connected" ? "MIDI-Pedal verbunden" : midiStatus === "unsupported" ? "MIDI nicht unterstützt" : midiStatus === "denied" ? "MIDI-Zugriff abgelehnt" : "MIDI-Pedal verbinden"}</button>
+          <aside className="panel controls-panel" aria-label="Drum-Trainer-Einstellungen">
+            <div className="panel-title-row"><h2 className="panel-title">Einstellungen</h2><button className="reset-button" onClick={resetControls}>Reset</button></div>
+            <div className="control-group compact-sound">
+              <div className="control-label"><span>Klang</span><span>{volume}%</span></div>
+              <div className="select-row"><select className="field-select" value={sound} onChange={(event) => { const value = event.target.value as DrumKit; soundRef.current = value; setSound(value); }} aria-label="Drumkit"><option>Studio</option><option>Trocken</option><option>Elektronisch</option></select><input type="range" min="0" max="100" value={volume} onChange={(event) => setVolume(Number(event.target.value))} aria-label="Lautstärke" /></div>
             </div>
-            <div className={`advanced-settings ${advancedOpen ? "open" : ""}`}>
             <div className="control-group">
-              <div className="control-label"><span>Taktart</span><span>{meterLabel}</span></div>
-              <div className="segmented">
-                {[2, 3, 4, 6].map((beats) => <button key={beats} className={meter.beats === beats ? "active" : ""} aria-pressed={meter.beats === beats} onClick={() => changeMeter(beats)}>{beats}/{meter.denominator}</button>)}
-              </div>
-              <div className="select-row" style={{ marginTop: 8 }}>
-                <select className="field-select" value={meter.beats} onChange={(event) => changeMeter(Number(event.target.value))} aria-label="Anzahl Schläge">
-                  {Array.from({ length: 16 }, (_, index) => index + 1).map((value) => <option key={value} value={value}>{value} Schläge</option>)}
-                </select>
-                <select className="field-select" value={meter.denominator} onChange={(event) => changeMeter(meter.beats, Number(event.target.value))} aria-label="Notenwert">
-                  {[4, 8, 16].map((value) => <option key={value} value={value}>/{value}</option>)}
-                </select>
+              <div className="control-label"><span>Takt</span><span>{meterLabel}</span></div>
+              <div className="meter-compact">
+                <button onClick={() => changeMeter(Math.max(1, meter.beats - 1))} aria-label="Einen Schlag weniger">−</button>
+                <input type="number" min="1" max="16" value={meter.beats} onChange={(event) => changeMeter(Number(event.target.value))} aria-label="Schläge pro Takt" />
+                <button onClick={() => changeMeter(Math.min(16, meter.beats + 1))} aria-label="Einen Schlag mehr">+</button>
+                <div className="segmented denominator">{[4, 8, 16].map((value) => <button key={value} className={meter.denominator === value ? "active" : ""} aria-pressed={meter.denominator === value} onClick={() => changeMeter(meter.beats, value)}>/{value}</button>)}</div>
               </div>
             </div>
             <div className="control-group">
@@ -1344,57 +1314,42 @@ export default function MetronomeApp() {
               </div>
             </div>
             <div className="control-group">
-              <div className="control-label"><span>Swing</span><span>{swing}%</span></div>
-              <div className="slider-row"><span className="slider-icon">↔</span><input type="range" min="50" max="75" value={swing} onChange={(event) => { const value = Number(event.target.value); swingRef.current = value; setSwing(value); }} aria-label="Swing-Anteil" /><span>{swing}</span></div>
+              <div className="control-label"><span>Swing</span><span>{Math.round((swing - 50) * 2)}%</span></div>
+              <div className="slider-row"><span className="slider-icon">0</span><input type="range" min="0" max="50" value={(swing - 50) * 2} onChange={(event) => { const value = 50 + Number(event.target.value) / 2; swingRef.current = value; setSwing(value); }} aria-label="Swing von null bis fünfzig Prozent" /><span>50</span></div>
             </div>
             <div className="control-group">
-              <div className="control-label"><span>Drumkit & Lautstärke</span><span>{volume}%</span></div>
-              <div className="select-row">
-                <select className="field-select" value={sound} onChange={(event) => { const value = event.target.value as DrumKit; soundRef.current = value; setSound(value); }} aria-label="Drumkit"><option>Studio</option><option>Trocken</option><option>Elektronisch</option></select>
-                <input type="range" min="0" max="100" value={volume} onChange={(event) => setVolume(Number(event.target.value))} aria-label="Lautstärke" />
-              </div>
-            </div>
-            <div className="control-group">
-              <div className="control-label"><span>Session</span><span>{timerText}</span></div>
-              <div className="select-row">
-                <select className="field-select" value={countIn} onChange={(event) => { const value = Number(event.target.value); countInRef.current = value; setCountIn(value); }} aria-label="Einzähltakte"><option value="0">Ohne Count-in</option><option value="1">1 Takt Count-in</option><option value="2">2 Takte Count-in</option></select>
-                <select className="field-select" value={timerMinutes} onChange={(event) => { const value = Number(event.target.value); timerMinutesRef.current = value; setTimerMinutes(value); setTimerText(value ? `${value}:00` : "∞"); }} aria-label="Timer"><option value="0">Timer: aus</option><option value="5">5 Minuten</option><option value="10">10 Minuten</option><option value="20">20 Minuten</option></select>
-                <select className="field-select" value={repeatBars} onChange={(event) => { const value = Number(event.target.value); repeatBarsRef.current = value; setRepeatBars(value); }} aria-label="Wiederholungen"><option value="0">Endlos</option><option value="4">4 Takte</option><option value="8">8 Takte</option><option value="16">16 Takte</option><option value="32">32 Takte</option></select>
-              </div>
+              <div className="control-label"><span>Count-in</span><span>{countIn || "aus"}</span></div>
+              <div className="segmented compact">{[0, 1, 2].map((value) => <button key={value} className={countIn === value ? "active" : ""} aria-pressed={countIn === value} onClick={() => { countInRef.current = value; setCountIn(value); }}>{value || "aus"}</button>)}</div>
+              <div className="control-label sub-label"><span>Timer</span><span>{timerMinutes ? `${timerMinutes}m` : "aus"}</span></div>
+              <div className="segmented compact four">{[0, 5, 10, 20].map((value) => <button key={value} className={timerMinutes === value ? "active" : ""} aria-pressed={timerMinutes === value} onClick={() => { timerMinutesRef.current = value; setTimerMinutes(value); setTimerText(value ? `${value}:00` : "∞"); }}>{value || "aus"}</button>)}</div>
+              <div className="control-label sub-label"><span>Wiederholen</span><span>{repeatBars || "∞"}</span></div>
+              <div className="segmented compact five">{[0, 4, 8, 16, 32].map((value) => <button key={value} className={repeatBars === value ? "active" : ""} aria-pressed={repeatBars === value} onClick={() => { repeatBarsRef.current = value; setRepeatBars(value); }}>{value || "∞"}</button>)}</div>
             </div>
             <div className="trainer-card">
               <div className="toggle-row"><div><strong>{trainerMode === "pyramid" ? "Tempo-Pyramide" : "Tempo-Trainer"}</strong><small>{trainerMode === "pyramid" ? "Automatisch hoch und wieder herunter" : "Automatisch schneller werden"}</small></div><button className={`switch ${trainer ? "on" : ""}`} onClick={() => { const value = !trainer; trainerRef.current = value; setTrainer(value); }} aria-label="Tempo-Trainer umschalten" aria-pressed={trainer} /></div>
               {trainer && <div className="trainer-settings"><select value={trainerMode} onChange={(event) => { const value = event.target.value as TrainerMode; trainerModeRef.current = value; setTrainerMode(value); }} aria-label="Trainer-Modus"><option value="up">Steigern</option><option value="pyramid">Pyramide</option></select><select value={trainerStep} onChange={(event) => { const value = Number(event.target.value); trainerStepRef.current = value; setTrainerStep(value); }} aria-label="Tempo-Schritt"><option value="2">{trainerMode === "pyramid" ? "±2" : "+2"} BPM</option><option value="5">{trainerMode === "pyramid" ? "±5" : "+5"} BPM</option><option value="10">{trainerMode === "pyramid" ? "±10" : "+10"} BPM</option></select><select value={trainerEvery} onChange={(event) => { const value = Number(event.target.value); trainerEveryRef.current = value; setTrainerEvery(value); }} aria-label="Intervall"><option value="4">alle 4 Takte</option><option value="8">alle 8 Takte</option><option value="16">alle 16 Takte</option></select><label>Start<input type="number" min="20" max="300" value={trainerMin} onChange={(event) => setTrainerMin(Number(event.target.value))} /></label><label>Ziel<input type="number" min="20" max="300" value={trainerMax} onChange={(event) => setTrainerMax(Number(event.target.value))} /></label><p>{bpm} BPM → {trainerMode === "pyramid" ? `${trainerMax} → ${trainerMin}` : trainerMax} · alle {trainerEvery} Takte</p></div>}
             </div>
-            <button className="advanced-toggle advanced-close" onClick={() => setAdvancedOpen(false)}>Weniger Einstellungen</button>
-            </div>
+            <button className="midi-button" onClick={enableMidi} disabled={midiStatus === "connected"}>{midiStatus === "connected" ? "MIDI verbunden" : midiStatus === "unsupported" ? "Kein MIDI" : midiStatus === "denied" ? "MIDI abgelehnt" : "MIDI verbinden"}</button>
           </aside>
         </section>
 
         <section className="section" id="bibliothek">
-          <div className="section-head"><div><div className="section-eyebrow">Drum-Bibliothek · {libraryStatus === "loading" ? "lädt …" : libraryStatus === "fallback" ? "Fallback" : `${library.length} Übungen`}</div><h2>Finde deinen<br />nächsten Groove.</h2></div><p className="section-copy">Nach Lernziel, Schwierigkeit und Stil filtern. Quellenbasierte Rekonstruktionen sind klar von Genreübungen getrennt.</p></div>
-          <div className="learning-paths" aria-label="Lernpfade">{[["Grundlagen","Erster Backbeat"],["Pocket","Pocket & Dynamik"],["Fußtechnik","Kick-Kontrolle"],["Ungerade Takte","Odd Meter"]].map(([goal,title]) => <button key={goal} onClick={() => { setGoalFilter(goal); setVisibleCount(9); }}><span>{goal}</span><strong>{title}</strong></button>)}</div>
-          <div className="category-chips" aria-label="Kategorien">{categories.map((item) => <button key={item} className={`chip ${category === item ? "active" : ""}`} aria-pressed={category === item} onClick={() => { setCategory(item); setVisibleCount(9); }}>{item}</button>)}</div>
-          <div className="filters">
-            <label className="search-field"><input className="text-field" placeholder="Pattern, Genre oder Übungsziel suchen …" value={search} onChange={(event) => setSearch(event.target.value)} aria-label="Bibliothek durchsuchen" /></label>
-            <select className="field-select" value={goalFilter} onChange={(event) => setGoalFilter(event.target.value)} aria-label="Nach Übungsziel filtern">{goalOptions.map((item) => <option key={item}>{item}</option>)}</select>
-            <select className="field-select" value={meterFilter} onChange={(event) => setMeterFilter(event.target.value)} aria-label="Nach Taktart filtern"><option>Alle Takte</option>{meterOptions.map((item) => <option key={item}>{item}</option>)}</select>
-            <select className="field-select" value={difficultyFilter} onChange={(event) => setDifficultyFilter(event.target.value)} aria-label="Nach Schwierigkeit filtern"><option>Alle Stufen</option><option>Leicht</option><option>Mittel</option><option>Fortgeschritten</option></select>
-            <select className="field-select" value={subdivisionFilter} onChange={(event) => setSubdivisionFilter(event.target.value)} aria-label="Nach Unterteilung filtern"><option>Alle Unterteilungen</option>{SUBDIVISIONS.map((item) => <option key={item}>{item}</option>)}</select>
+          <div className="library-bar">
+            <h2>Patterns <span>{libraryStatus === "loading" ? "…" : library.length}</span></h2>
+            <label className="search-field"><input className="text-field" placeholder="Name, Stil, Ziel …" value={search} onChange={(event) => setSearch(event.target.value)} aria-label="Patterns durchsuchen" /></label>
           </div>
+          <div className="category-chips" aria-label="Kategorien">{categories.map((item) => <button key={item} className={`chip ${category === item ? "active" : ""}`} aria-pressed={category === item} onClick={() => { setCategory(item); setVisibleCount(18); }}>{item}</button>)}</div>
           <div className="pattern-grid">
             {filteredPatterns.slice(0, visibleCount).map((pattern) => (
               <article className="pattern-card" key={pattern.id}>
                 <div className="card-top"><div><div className="card-category">{pattern.category} · {pattern.attribution || (pattern.source ? "Übungsrekonstruktion" : "Genreübung")}</div><h3>{pattern.name}</h3></div><button className={`favorite ${favorites.includes(pattern.id) ? "on" : ""}`} onClick={() => toggleFavorite(pattern.id)} aria-label={favorites.includes(pattern.id) ? "Aus Favoriten entfernen" : "Zu Favoriten hinzufügen"} aria-pressed={favorites.includes(pattern.id)}>{favorites.includes(pattern.id) ? "♥" : "♡"}</button></div>
-                <p className="card-instruction">{pattern.instruction}</p>
-                <div className="goal-tags">{learningGoalsFor(pattern).map((goal) => <span key={goal}>{goal}</span>)}</div>
                 <div className="mini-pattern">{pattern.pattern.slice(0, 32).map((step, index) => <span key={index} className={`mini-step ${step}`} />)}</div>
-                <div className="card-footer"><div className="card-meta"><span>{pattern.meter}</span><span>{pattern.subdivision}</span><span>{pattern.bpmMin}–{pattern.bpmMax}</span>{(pattern.bars || 1) > 1 && <span>{pattern.bars} Takte</span>}{(pattern.playback?.swing ?? 50) > 50 && <span>Swing {pattern.playback?.swing}%</span>}<span>{pattern.difficulty}</span>{pattern.source && <a className="source-link" href={pattern.source.url} target="_blank" rel="noreferrer" title={pattern.source.label}>Quelle ↗</a>}</div><div className="card-actions"><button className="secondary-small" onClick={() => loadPattern(pattern)}>Laden</button><button className="start-small" onClick={() => loadPattern(pattern, true)}>Üben</button></div></div>
+                <div className="card-footer"><div className="card-meta"><span>{pattern.meter}</span><span>{pattern.subdivision}</span><span>{pattern.bpmMin}–{pattern.bpmMax}</span>{(pattern.bars || 1) > 1 && <span>{pattern.bars}T</span>}{(pattern.playback?.swing ?? 50) > 50 && <span>Swing {Math.round(((pattern.playback?.swing ?? 50) - 50) * 2)}%</span>}<span>{pattern.difficulty}</span>{pattern.source && <a className="source-link" href={pattern.source.url} target="_blank" rel="noreferrer" title={pattern.source.label}>Quelle</a>}</div><div className="card-actions"><button className="secondary-small" onClick={() => loadPattern(pattern)}>Laden</button><button className="start-small" onClick={() => loadPattern(pattern, true)}>▶</button></div></div>
               </article>
             ))}
             {!filteredPatterns.length && <div className="empty-state">Kein Pattern passt zu diesen Filtern. Ändere Suche oder Auswahl.</div>}
           </div>
-          {visibleCount < filteredPatterns.length && <button className="load-more" onClick={() => setVisibleCount((count) => count + 9)}>Mehr Patterns anzeigen</button>}
+          {visibleCount < filteredPatterns.length && <button className="load-more" onClick={() => setVisibleCount((count) => count + 18)}>Weitere Patterns</button>}
         </section>
 
         <section className="section mine-section" id="meine-grooves">
