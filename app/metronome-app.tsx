@@ -9,6 +9,10 @@ import {
   type DrumHitState, type DrumKit, type DrumTracks, type DrumVoice, type Meter, type Pattern,
   type OriginalFeel, type PracticeEntry, type StepState, type Subdivision, type TempoUnit, type TrainerMode,
 } from "./metronome-core";
+import {
+  DRUM_KIT_OPTIONS, drumHitLevel, drumPlaybackRate, drumSampleFor, primeDrumKit,
+  type DrumSampleCache,
+} from "./drum-synthesis";
 import { clearLocalData, deleteStore, readStore, writeStore } from "./local-store";
 
 type PlaybackPhase = "stopped" | "starting" | "running" | "lifecycle-paused" | "recovering";
@@ -22,6 +26,7 @@ type MidiInputLike = { onmidimessage: ((event: { data: Uint8Array }) => void) | 
 type MidiAccessLike = { inputs: Map<string, MidiInputLike>; onstatechange: (() => void) | null };
 
 type WakeLockHandle = { release: () => Promise<void> };
+type OpenHatHandle = { source: AudioBufferSourceNode; gain: GainNode; level: number; endAt: number };
 
 const withAudioTimeout = <T,>(promise: Promise<T>, milliseconds = 2500): Promise<T> => new Promise((resolve, reject) => {
   const timer = window.setTimeout(() => reject(new Error("Audio transition timed out")), milliseconds);
@@ -97,7 +102,9 @@ export default function MetronomeApp() {
   const scheduledSourcesRef = useRef<Set<AudioScheduledSourceNode>>(new Set());
   const masterGainRef = useRef<GainNode | null>(null);
   const compressorRef = useRef<DynamicsCompressorNode | null>(null);
-  const noiseBufferRef = useRef<AudioBuffer | null>(null);
+  const drumSampleCacheRef = useRef<DrumSampleCache>(new Map());
+  const openHatSourcesRef = useRef<Set<OpenHatHandle>>(new Set());
+  const drumHitCounterRef = useRef(0);
   const wakeLockRef = useRef<WakeLockHandle | null>(null);
   const phaseRef = useRef<PlaybackPhase>("stopped");
   const wantsPlaybackRef = useRef(false);
@@ -298,10 +305,11 @@ export default function MetronomeApp() {
     setPhase(next);
   }, []);
 
-  const registerSource = useCallback((source: AudioScheduledSourceNode) => {
+  const registerSource = useCallback((source: AudioScheduledSourceNode, cleanup?: () => void) => {
     scheduledSourcesRef.current.add(source);
     source.onended = () => {
       scheduledSourcesRef.current.delete(source);
+      cleanup?.();
       try { source.disconnect(); } catch { /* Already disconnected. */ }
     };
   }, []);
@@ -317,11 +325,13 @@ export default function MetronomeApp() {
       try { source.disconnect(); } catch { /* The source may already be detached. */ }
     });
     scheduledSourcesRef.current.clear();
+    openHatSourcesRef.current.clear();
     try { masterGainRef.current?.disconnect(); } catch { /* Already disconnected. */ }
     try { compressorRef.current?.disconnect(); } catch { /* Already disconnected. */ }
     masterGainRef.current = null;
     compressorRef.current = null;
-    noiseBufferRef.current = null;
+    drumSampleCacheRef.current.clear();
+    drumHitCounterRef.current = 0;
     wakeLockRef.current?.release().catch(() => undefined);
     wakeLockRef.current = null;
     const context = audioRef.current;
@@ -367,114 +377,44 @@ export default function MetronomeApp() {
   }, [clearRuntime, persistStore, setPlaybackPhase]);
   useEffect(() => { stopRef.current = stopPlayback; }, [stopPlayback]);
 
-  const noiseBufferFor = useCallback((context: AudioContext) => {
-    if (noiseBufferRef.current) return noiseBufferRef.current;
-    const buffer = context.createBuffer(1, context.sampleRate, context.sampleRate);
-    const channel = buffer.getChannelData(0);
-    for (let index = 0; index < channel.length; index += 1) channel[index] = Math.random() * 2 - 1;
-    noiseBufferRef.current = buffer;
-    return buffer;
-  }, []);
-
   const scheduleDrumVoice = useCallback((context: AudioContext, when: number, voice: DrumVoice, state: DrumHitState, velocityMultiplier = 1) => {
     if (state === "mute") return;
     const output: AudioNode = masterGainRef.current || context.destination;
-    const baseDynamic = state === "ghost" ? .24 : state === "normal" ? .58 : 1;
-    const dynamic = Math.max(.08, Math.min(1.35, baseDynamic * velocityMultiplier));
-    const volumeLevel = volumeRef.current / 100;
     const kit = soundRef.current;
-    const track = (source: AudioScheduledSourceNode) => registerSource(source);
-
-    if (voice === "kick") {
-      const oscillator = context.createOscillator();
-      const gain = context.createGain();
-      oscillator.type = kit === "Elektronisch" ? "sine" : "triangle";
-      const startFrequency = kit === "Elektronisch" ? 185 : kit === "Trocken" ? 125 : 155;
-      oscillator.frequency.setValueAtTime(startFrequency, when);
-      oscillator.frequency.exponentialRampToValueAtTime(46, when + (kit === "Trocken" ? .11 : .18));
-      gain.gain.setValueAtTime(Math.max(.0001, .95 * dynamic * volumeLevel), when);
-      gain.gain.exponentialRampToValueAtTime(.0001, when + (kit === "Elektronisch" ? .28 : .22));
-      oscillator.connect(gain).connect(output);
-      track(oscillator);
-      oscillator.start(when);
-      oscillator.stop(when + .3);
-      return;
-    }
-
-    if (voice === "snare") {
-      const noise = context.createBufferSource();
-      const filter = context.createBiquadFilter();
-      const gain = context.createGain();
-      noise.buffer = noiseBufferFor(context);
-      filter.type = kit === "Elektronisch" ? "bandpass" : "highpass";
-      filter.frequency.value = kit === "Trocken" ? 1450 : 1050;
-      filter.Q.value = kit === "Elektronisch" ? 1.8 : .7;
-      const duration = kit === "Trocken" ? .09 : kit === "Elektronisch" ? .16 : .13;
-      gain.gain.setValueAtTime(Math.max(.0001, .62 * dynamic * volumeLevel), when);
-      gain.gain.exponentialRampToValueAtTime(.0001, when + duration);
-      noise.connect(filter).connect(gain).connect(output);
-      track(noise);
-      noise.start(when);
-      noise.stop(when + duration + .02);
-      const tone = context.createOscillator();
-      const toneGain = context.createGain();
-      tone.type = "triangle";
-      tone.frequency.setValueAtTime(kit === "Elektronisch" ? 205 : 178, when);
-      toneGain.gain.setValueAtTime(Math.max(.0001, .25 * dynamic * volumeLevel), when);
-      toneGain.gain.exponentialRampToValueAtTime(.0001, when + .075);
-      tone.connect(toneGain).connect(output);
-      track(tone);
-      tone.start(when);
-      tone.stop(when + .09);
-      return;
-    }
-
-    if (["closedHat", "openHat", "ride", "crash"].includes(voice)) {
-      const noise = context.createBufferSource();
-      const filter = context.createBiquadFilter();
-      const gain = context.createGain();
-      noise.buffer = noiseBufferFor(context);
-      filter.type = voice === "ride" ? "bandpass" : "highpass";
-      filter.frequency.value = voice === "crash" ? 3900 : voice === "ride" ? 6100 : kit === "Elektronisch" ? 8200 : 6800;
-      filter.Q.value = voice === "ride" ? 2.4 : .8;
-      const duration = voice === "closedHat" ? .045 : voice === "openHat" ? .3 : voice === "ride" ? .2 : .58;
-      const baseLevel = voice === "closedHat" ? .22 : voice === "openHat" ? .28 : voice === "ride" ? .24 : .34;
-      gain.gain.setValueAtTime(Math.max(.0001, baseLevel * dynamic * volumeLevel), when);
-      gain.gain.exponentialRampToValueAtTime(.0001, when + duration);
-      noise.connect(filter).connect(gain).connect(output);
-      track(noise);
-      noise.start(when);
-      noise.stop(when + duration + .02);
-      return;
-    }
-
-    if (voice === "rim") {
-      const oscillator = context.createOscillator();
-      const gain = context.createGain();
-      oscillator.type = "square";
-      oscillator.frequency.setValueAtTime(kit === "Elektronisch" ? 1850 : 1320, when);
-      gain.gain.setValueAtTime(Math.max(.0001, .24 * dynamic * volumeLevel), when);
-      gain.gain.exponentialRampToValueAtTime(.0001, when + .035);
-      oscillator.connect(gain).connect(output);
-      track(oscillator);
-      oscillator.start(when);
-      oscillator.stop(when + .045);
-      return;
-    }
-
-    const oscillator = context.createOscillator();
     const gain = context.createGain();
-    oscillator.type = "sine";
-    const startFrequency = voice === "highTom" ? 235 : 125;
-    oscillator.frequency.setValueAtTime(startFrequency, when);
-    oscillator.frequency.exponentialRampToValueAtTime(startFrequency * .68, when + .16);
-    gain.gain.setValueAtTime(Math.max(.0001, .56 * dynamic * volumeLevel), when);
-    gain.gain.exponentialRampToValueAtTime(.0001, when + .2);
-    oscillator.connect(gain).connect(output);
-    track(oscillator);
-    oscillator.start(when);
-    oscillator.stop(when + .22);
-  }, [noiseBufferFor, registerSource]);
+    const source = context.createBufferSource();
+    const hitCounter = drumHitCounterRef.current;
+    drumHitCounterRef.current += 1;
+    const variant = (hitCounter + DRUM_VOICES.indexOf(voice)) & 1;
+    const level = drumHitLevel(voice, state, velocityMultiplier, volumeRef.current);
+    source.buffer = drumSampleFor(context, drumSampleCacheRef.current, kit, voice, variant);
+    source.playbackRate.setValueAtTime(drumPlaybackRate(kit, voice, state, hitCounter), when);
+    gain.gain.setValueAtTime(level, when);
+    source.connect(gain).connect(output);
+
+    if (voice === "closedHat") {
+      for (const openHat of openHatSourcesRef.current) {
+        if (openHat.endAt <= when) continue;
+        openHat.gain.gain.cancelScheduledValues(when);
+        openHat.gain.gain.setValueAtTime(openHat.level, when);
+        openHat.gain.gain.exponentialRampToValueAtTime(.0001, when + .028);
+        try { openHat.source.stop(when + .035); } catch { /* The open hat may already have ended. */ }
+      }
+    }
+
+    const endAt = when + source.buffer.duration / source.playbackRate.value + .02;
+    let openHatHandle: OpenHatHandle | null = null;
+    if (voice === "openHat") {
+      openHatHandle = { source, gain, level, endAt };
+      openHatSourcesRef.current.add(openHatHandle);
+    }
+    registerSource(source, () => {
+      if (openHatHandle) openHatSourcesRef.current.delete(openHatHandle);
+      try { gain.disconnect(); } catch { /* The hit gain may already be detached. */ }
+    });
+    source.start(when);
+    source.stop(endAt);
+  }, [registerSource]);
 
   const pauseForLifecycle = useCallback(() => {
     if (!wantsPlaybackRef.current) return;
@@ -573,6 +513,7 @@ export default function MetronomeApp() {
     master.connect(compressor).connect(context.destination);
     masterGainRef.current = master;
     compressorRef.current = compressor;
+    primeDrumKit(context, drumSampleCacheRef.current, soundRef.current, DRUM_VOICES);
     nextTimeRef.current = context.currentTime + .07;
     endAtRef.current = timerRemainingRef.current ? Date.now() + timerRemainingRef.current : 0;
     let lastContextTime = context.currentTime;
@@ -1294,7 +1235,7 @@ export default function MetronomeApp() {
             <div className="panel-title-row"><h2 className="panel-title">Einstellungen</h2><button className="reset-button" onClick={resetControls}>Reset</button></div>
             <div className="control-group compact-sound">
               <div className="control-label"><span>Klang</span><span>{volume}%</span></div>
-              <div className="select-row"><select className="field-select" value={sound} onChange={(event) => { const value = event.target.value as DrumKit; soundRef.current = value; setSound(value); }} aria-label="Drumkit"><option>Studio</option><option>Trocken</option><option>Elektronisch</option></select><input type="range" min="0" max="100" value={volume} onChange={(event) => setVolume(Number(event.target.value))} aria-label="Lautstärke" /></div>
+              <div className="select-row"><select className="field-select" value={sound} title={DRUM_KIT_OPTIONS.find((kit) => kit.value === sound)?.description} onChange={(event) => { const value = event.target.value as DrumKit; soundRef.current = value; setSound(value); }} aria-label="Drumkit">{DRUM_KIT_OPTIONS.map((kit) => <option key={kit.value} value={kit.value}>{kit.label}</option>)}</select><input type="range" min="0" max="100" value={volume} onChange={(event) => setVolume(Number(event.target.value))} aria-label="Lautstärke" /></div>
             </div>
             <div className="control-group">
               <div className="control-label"><span>Spielweise</span><span>{feelMode === "original" ? originalFeel?.label || "Original Feel" : "Raster"}</span></div>
