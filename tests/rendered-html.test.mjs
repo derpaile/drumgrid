@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir, stat } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
@@ -300,6 +300,24 @@ test("ties the pause symbol to a running audio engine and recovers page lifecycl
   assert.match(source, /withAudioTimeout\(context\.resume\(\), 2500\)/);
   assert.match(source, /checkpointRef\.current = checkpoint/);
   assert.doesNotMatch(source, /setIsPlaying/);
+});
+
+test("ships a compact recorded drum sample bank without procedural fallback", async () => {
+  const audioRoot = new URL("../public/audio/drums/", import.meta.url);
+  const kitFolders = ["80s", "jungle", "lofi", "garage"];
+  const files = (await Promise.all(kitFolders.map(async (kit) =>
+    (await readdir(new URL(`${kit}/`, audioRoot))).map((name) => new URL(`${kit}/${name}`, audioRoot)),
+  ))).flat();
+  const sizes = await Promise.all(files.map(async (file) => (await stat(file)).size));
+  assert.equal(files.length, 36);
+  assert.ok(files.every((file) => file.pathname.endsWith(".mp3")));
+  assert.ok(sizes.every((size) => size > 0));
+  assert.ok(sizes.reduce((sum, size) => sum + size, 0) < 400_000, "drum samples exceed the 400 KB budget");
+
+  const engine = await readFile(new URL("../app/drum-synthesis.ts", import.meta.url), "utf8");
+  assert.match(engine, /decodeAudioData/);
+  assert.match(engine, /\/audio\/drums/);
+  assert.doesNotMatch(engine, /createBuffer|createOscillator|seededNoise|Math\.sin/);
 });
 
 test("includes complete PWA assets", async () => {

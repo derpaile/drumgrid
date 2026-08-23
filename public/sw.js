@@ -65,7 +65,7 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  if (["script", "style", "font", "image"].includes(request.destination) || url.pathname.startsWith("/data/")) {
+  if (["script", "style", "font", "image", "audio"].includes(request.destination) || url.pathname.startsWith("/data/") || url.pathname.startsWith("/audio/")) {
     event.respondWith((async () => {
       const cache = await caches.open(CACHE);
       const cached = await cache.match(request);

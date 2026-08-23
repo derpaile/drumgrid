@@ -39,3 +39,6 @@ yarn-error.log*
 /.wrangler/
 /outputs/
 /work/
+
+# local source packs; the app ships only curated files from public/audio/
+/samples/

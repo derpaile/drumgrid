@@ -10,7 +10,7 @@ import {
   type OriginalFeel, type PracticeEntry, type StepState, type Subdivision, type TempoUnit, type TrainerMode,
 } from "./metronome-core";
 import {
-  DRUM_KIT_OPTIONS, drumHitLevel, drumPlaybackRate, drumSampleFor, primeDrumKit,
+  DRUM_KIT_OPTIONS, drumHitLevel, drumKitLabel, drumPlaybackRate, drumSampleFor, normalizeDrumKit, primeDrumKit,
   type DrumSampleCache,
 } from "./drum-synthesis";
 import { clearLocalData, deleteStore, readStore, writeStore } from "./local-store";
@@ -330,7 +330,6 @@ export default function MetronomeApp() {
     try { compressorRef.current?.disconnect(); } catch { /* Already disconnected. */ }
     masterGainRef.current = null;
     compressorRef.current = null;
-    drumSampleCacheRef.current.clear();
     drumHitCounterRef.current = 0;
     wakeLockRef.current?.release().catch(() => undefined);
     wakeLockRef.current = null;
@@ -381,13 +380,15 @@ export default function MetronomeApp() {
     if (state === "mute") return;
     const output: AudioNode = masterGainRef.current || context.destination;
     const kit = soundRef.current;
-    const gain = context.createGain();
-    const source = context.createBufferSource();
     const hitCounter = drumHitCounterRef.current;
     drumHitCounterRef.current += 1;
     const variant = (hitCounter + DRUM_VOICES.indexOf(voice)) & 1;
+    const sampleBuffer = drumSampleFor(drumSampleCacheRef.current, kit, voice, variant);
+    if (!sampleBuffer) return;
+    const gain = context.createGain();
+    const source = context.createBufferSource();
     const level = drumHitLevel(voice, state, velocityMultiplier, volumeRef.current);
-    source.buffer = drumSampleFor(context, drumSampleCacheRef.current, kit, voice, variant);
+    source.buffer = sampleBuffer;
     source.playbackRate.setValueAtTime(drumPlaybackRate(kit, voice, state, hitCounter), when);
     gain.gain.setValueAtTime(level, when);
     source.connect(gain).connect(output);
@@ -415,6 +416,21 @@ export default function MetronomeApp() {
     source.start(when);
     source.stop(endAt);
   }, [registerSource]);
+
+  const changeDrumKit = useCallback(async (kit: DrumKit) => {
+    const nextKit = normalizeDrumKit(kit);
+    const context = audioRef.current;
+    if (context && context.state !== "closed") {
+      try {
+        await withAudioTimeout(primeDrumKit(context, drumSampleCacheRef.current, nextKit, DRUM_VOICES), 8000);
+      } catch {
+        showToast("Das Drumkit konnte nicht geladen werden.");
+        return;
+      }
+    }
+    soundRef.current = nextKit;
+    setSound(nextKit);
+  }, [showToast]);
 
   const pauseForLifecycle = useCallback(() => {
     if (!wantsPlaybackRef.current) return;
@@ -502,6 +518,13 @@ export default function MetronomeApp() {
     }
     if (context.state !== "running") return fail("Audio bleibt pausiert. Tippe zum Fortsetzen auf ▶.");
 
+    try {
+      await withAudioTimeout(primeDrumKit(context, drumSampleCacheRef.current, soundRef.current, DRUM_VOICES), 8000);
+    } catch {
+      return fail("Drum-Samples konnten nicht geladen werden. Prüfe deine Verbindung und tippe erneut auf ▶.");
+    }
+    if (generationRef.current !== token || !wantsPlaybackRef.current || document.hidden || audioRef.current !== context) return;
+
     const master = context.createGain();
     const compressor = context.createDynamicsCompressor();
     master.gain.value = .9;
@@ -513,7 +536,6 @@ export default function MetronomeApp() {
     master.connect(compressor).connect(context.destination);
     masterGainRef.current = master;
     compressorRef.current = compressor;
-    primeDrumKit(context, drumSampleCacheRef.current, soundRef.current, DRUM_VOICES);
     nextTimeRef.current = context.currentTime + .07;
     endAtRef.current = timerRemainingRef.current ? Date.now() + timerRemainingRef.current : 0;
     let lastContextTime = context.currentTime;
@@ -931,7 +953,7 @@ export default function MetronomeApp() {
     const nextSwing = playback.swing ?? 50;
     const nextTimerMinutes = playback.timerMinutes ?? 0;
     const nextRepeatBars = playback.repeatBars ?? 0;
-    const nextKit = playback.kit ?? "Studio";
+    const nextKit = normalizeDrumKit(playback.kit ?? "Studio");
     const nextTrainer = playback.trainer;
     meterRef.current = nextMeter;
     subdivisionRef.current = pattern.subdivision;
@@ -1173,6 +1195,13 @@ export default function MetronomeApp() {
     <main className="app-shell">
       <div className="app-content">
       <div className="page">
+        <header className="app-titlebar">
+          <span className="brand-glyph" aria-hidden="true">◆</span>
+          <span className="title-rail" aria-hidden="true" />
+          <div className="app-brand"><strong>KLANGMASS</strong><small>DRUM GROOVE WORKSTATION</small></div>
+          <span className="title-rail" aria-hidden="true" />
+          <span className="title-version">V2.0</span>
+        </header>
         <section className="practice-bar" id="trainer" aria-label="Training wählen">
           <h1 className="sr-only">Klangmaß Drum-Trainer</h1>
           <nav className="desktop-nav" aria-label="Hauptnavigation">
@@ -1191,7 +1220,7 @@ export default function MetronomeApp() {
           <div className="panel metronome-panel">
             <div className="meter-head">
               <div className="live-label"><span className={`live-pulse ${isPlaying ? "playing" : ""}`} />{phaseLabel}</div>
-              <div className="sound-label">{sound} · {volume}%</div>
+              <div className="sound-label">{drumKitLabel(sound)} · {volume}%</div>
             </div>
             <div className="session-context">
               <div><span className="authenticity-badge">{patternAttribution}</span><strong>{patternInstruction}</strong></div>
@@ -1204,6 +1233,7 @@ export default function MetronomeApp() {
               <label className="bpm-compact"><input type="number" min="20" max="300" value={bpm} onChange={(event) => updateBpm(Number(event.target.value))} aria-label="Tempo in BPM" /><span>BPM</span></label>
               <button className="nudge" onClick={() => updateBpm(bpm + 1)} aria-label="Tempo um eins erhöhen">+</button>
               <input className="tempo-range" type="range" min="20" max="300" value={bpm} onChange={(event) => updateBpm(Number(event.target.value))} aria-label="Tempo-Regler" />
+              <div className={`spectrum ${isPlaying ? "playing" : ""}`} aria-hidden="true">{Array.from({ length: 18 }, (_, index) => <i key={index} />)}</div>
             </div>
 
             <div className="beat-strip">
@@ -1235,7 +1265,7 @@ export default function MetronomeApp() {
             <div className="panel-title-row"><h2 className="panel-title">Einstellungen</h2><button className="reset-button" onClick={resetControls}>Reset</button></div>
             <div className="control-group compact-sound">
               <div className="control-label"><span>Klang</span><span>{volume}%</span></div>
-              <div className="select-row"><select className="field-select" value={sound} title={DRUM_KIT_OPTIONS.find((kit) => kit.value === sound)?.description} onChange={(event) => { const value = event.target.value as DrumKit; soundRef.current = value; setSound(value); }} aria-label="Drumkit">{DRUM_KIT_OPTIONS.map((kit) => <option key={kit.value} value={kit.value}>{kit.label}</option>)}</select><input type="range" min="0" max="100" value={volume} onChange={(event) => setVolume(Number(event.target.value))} aria-label="Lautstärke" /></div>
+              <div className="select-row"><select className="field-select" value={sound} title={DRUM_KIT_OPTIONS.find((kit) => kit.value === sound)?.description} onChange={(event) => void changeDrumKit(event.target.value as DrumKit)} aria-label="Drumkit">{DRUM_KIT_OPTIONS.map((kit) => <option key={kit.value} value={kit.value}>{kit.label}</option>)}</select><input type="range" min="0" max="100" value={volume} onChange={(event) => setVolume(Number(event.target.value))} aria-label="Lautstärke" /></div>
             </div>
             <div className="control-group">
               <div className="control-label"><span>Spielweise</span><span>{feelMode === "original" ? originalFeel?.label || "Original Feel" : "Raster"}</span></div>
@@ -1314,7 +1344,7 @@ export default function MetronomeApp() {
           <div className="local-data-note"><div><strong>Privat und lokal</strong><span>Keine Aufnahme, kein Konto, keine Telemetrie.</span></div><button className="danger" onClick={() => { if (window.confirm("Alle Favoriten, Presets und Übungsverläufe auf diesem Gerät löschen?")) void clearAllLocalData(); }}>Lokale Daten löschen</button></div>
         </section>
 
-        <footer className="footer"><span>KLANGMASS · Synthetische Drumkits</span><span>Installierbar · Offline · Keine Samples · Keine Aufnahme</span></footer>
+        <footer className="footer"><span>KLANGMASS · Kuratierte Sample-Kits</span><span>Installierbar · Offline · Kompakt · Keine Aufnahme</span></footer>
       </div>
       <nav className="mobile-nav" aria-label="Mobile Hauptnavigation"><button className={section === "trainer" ? "active" : ""} onClick={() => navigateTo("trainer")}><span>●</span>Üben</button><button className={section === "library" ? "active" : ""} onClick={() => navigateTo("library")}><span>⌕</span>Bibliothek</button><button className="mobile-play" onClick={togglePlayback} aria-label={isPlaying ? "Wiedergabe stoppen" : "Abspielen"}>{isPlaying ? "Ⅱ" : "▶"}</button><button className={section === "mine" ? "active" : ""} onClick={() => navigateTo("mine")}><span>♥</span>Meine</button></nav>
       </div>

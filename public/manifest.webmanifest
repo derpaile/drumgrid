@@ -1,7 +1,7 @@
 {
   "name": "Klangmaß — Drum-Groove-Trainer",
   "short_name": "Klangmaß",
-  "description": "47 Drum-Grooves mit synthetischen Drumkits, präzisem Timing und Offline-Modus.",
+  "description": "Kuratierte Drum-Grooves mit kompakten Sample-Kits, präzisem Timing und Offline-Modus.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f4f0e8",
