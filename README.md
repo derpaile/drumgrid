@@ -8,7 +8,7 @@ gekennzeichnet; Genreübungen geben keine falsche Transkriptionsgenauigkeit vor.
 ## Enthalten
 
 - Web-Audio-Scheduler mit Tempo, Taktart, Unterteilungen und Swing
-- vier kompakte Sample-Kits mit Kick, Snare, Hats, Toms, Rim und Crash
+- neun kompakte Sample-Kits mit Kick, Snare, Hats, Toms, Rim und Crash
 - mehrspuriges Groove-Raster mit Ghostnotes und Akzenten
 - pro Pattern umschaltbar zwischen quantisiertem Raster und belegtem Original-Feel mit Mikro-Timing/Dynamik
 - Session-Start für freies Üben, 5-Minuten-Timing, 10-Minuten-Groove und Tempo-Pyramide

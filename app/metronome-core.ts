@@ -4,7 +4,7 @@ export type Subdivision = "Viertel" | "Achtel" | "16tel" | "Triolen" | "Sextolen
 export type TempoUnit = "quarter" | "eighth" | "dotted-quarter";
 export type TrainerMode = "up" | "pyramid";
 export type Meter = { beats: number; denominator: number };
-export type DrumKit = "Studio" | "Trocken" | "Vintage" | "Besen" | "Elektronisch" | "808";
+export type DrumKit = "Studio" | "Trocken" | "Vintage" | "Besen" | "Elektronisch" | "707" | "808" | "808 Deep" | "909" | "PSS-795";
 export type PatternType = "Groove" | "Break" | "Technik";
 
 export const DRUM_VOICES = ["kick", "snare", "closedHat", "openHat", "ride", "crash", "rim", "highTom", "lowTom"] as const;

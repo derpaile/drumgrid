@@ -52,7 +52,7 @@
           "properties": {
             "bpm": { "type": "number", "exclusiveMinimum": 0 },
             "swing": { "type": "number", "minimum": 50, "maximum": 75 },
-            "kit": { "enum": ["Studio", "Trocken", "Elektronisch"] }
+            "kit": { "enum": ["Studio", "Trocken", "Vintage", "Besen", "Elektronisch", "707", "808", "808 Deep", "909", "PSS-795"] }
           },
           "additionalProperties": true
         },

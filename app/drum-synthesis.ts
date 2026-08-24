@@ -1,6 +1,6 @@
 import type { DrumHitState, DrumKit, DrumVoice } from "./metronome-core";
 
-type PlayableDrumKit = "Studio" | "Trocken" | "Vintage" | "Elektronisch";
+type PlayableDrumKit = "Studio" | "Trocken" | "Vintage" | "Elektronisch" | "707" | "808" | "808 Deep" | "909" | "PSS-795";
 type SampleManifest = Record<DrumVoice, readonly string[]>;
 
 export const DRUM_KIT_OPTIONS: ReadonlyArray<{ value: PlayableDrumKit; label: string; description: string }> = [
@@ -8,11 +8,27 @@ export const DRUM_KIT_OPTIONS: ReadonlyArray<{ value: PlayableDrumKit; label: st
   { value: "Trocken", label: "Future Garage", description: "Kurze, reduzierte One-Shots aus dem Future-Garage-Projekt" },
   { value: "Vintage", label: "Lo-Fi", description: "Warme Kicks, Snares und Hats aus dem bereitgestellten Lo-Fi-Kit" },
   { value: "Elektronisch", label: "80s", description: "Komplettes elektronisches Kit aus den bereitgestellten 80s-Samples" },
+  { value: "707", label: "707", description: "Klassisches digitales Roland-Drum-Machine-Kit" },
+  { value: "808", label: "808", description: "Tiefe analoge Kick und prägnante elektronische Percussion" },
+  { value: "808 Deep", label: "808 Deep", description: "Lange Sub-Kick, ausklingende Snare und breite Cymbals" },
+  { value: "909", label: "909", description: "Druckvolles Dance- und Techno-Drum-Machine-Kit" },
+  { value: "PSS-795", label: "PSS-795", description: "Lo-Fi-PCM-Drums aus dem Yamaha PSS-795" },
 ];
 
 const AUDIO_ROOT = "/audio/drums";
 const sample = (kit: string, name: string) => `${AUDIO_ROOT}/${kit}/${name}.mp3`;
 const shared80s = (name: string) => [sample("80s", name)];
+const completeKit = (kit: string): SampleManifest => ({
+  kick: [sample(kit, "kick")],
+  snare: [sample(kit, "snare")],
+  closedHat: [sample(kit, "closed-hat")],
+  openHat: [sample(kit, "open-hat")],
+  ride: [sample(kit, "ride")],
+  crash: [sample(kit, "crash")],
+  rim: [sample(kit, "rim")],
+  highTom: [sample(kit, "high-tom")],
+  lowTom: [sample(kit, "low-tom")],
+});
 
 const SAMPLE_MANIFESTS: Record<PlayableDrumKit, SampleManifest> = {
   Studio: {
@@ -59,7 +75,15 @@ const SAMPLE_MANIFESTS: Record<PlayableDrumKit, SampleManifest> = {
     highTom: shared80s("high-tom"),
     lowTom: shared80s("low-tom"),
   },
+  "707": completeKit("707"),
+  "808": completeKit("808"),
+  "808 Deep": completeKit("808-deep"),
+  "909": completeKit("909"),
+  "PSS-795": completeKit("pss795"),
 };
+
+const PLAYABLE_KITS = new Set<PlayableDrumKit>(DRUM_KIT_OPTIONS.map((option) => option.value));
+const FIXED_PITCH_KITS = new Set<PlayableDrumKit>(["Elektronisch", "707", "808", "808 Deep", "909", "PSS-795"]);
 
 const VOICE_LEVELS: Record<DrumVoice, number> = {
   kick: .94,
@@ -91,10 +115,8 @@ const clamp = (value: number, minimum: number, maximum: number) => Math.min(maxi
 export type DrumSampleCache = Map<string, AudioBuffer>;
 
 export function normalizeDrumKit(kit: DrumKit | null | undefined): PlayableDrumKit {
-  if (kit === "Trocken") return "Trocken";
-  if (kit === "Vintage" || kit === "Besen") return "Vintage";
-  if (kit === "Elektronisch" || kit === "808") return "Elektronisch";
-  return "Studio";
+  if (kit === "Besen") return "Vintage";
+  return kit && PLAYABLE_KITS.has(kit as PlayableDrumKit) ? kit as PlayableDrumKit : "Studio";
 }
 
 export function drumKitLabel(kit: DrumKit) {
@@ -144,7 +166,7 @@ export function drumHitLevel(voice: DrumVoice, state: DrumHitState, velocityMult
 }
 
 export function drumPlaybackRate(kit: DrumKit, voice: DrumVoice, state: DrumHitState, hitCounter: number) {
-  if (normalizeDrumKit(kit) === "Elektronisch") return 1;
+  if (FIXED_PITCH_KITS.has(normalizeDrumKit(kit))) return 1;
   const cycle = ((hitCounter * 5 + VOICE_INDEX[voice] * 3) % 9) - 4;
   const dynamicDetune = state === "ghost" ? .004 : state === "accent" ? -.002 : 0;
   return 1 + cycle * .0008 + dynamicDetune;
