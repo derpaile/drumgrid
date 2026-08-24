@@ -1,6 +1,6 @@
 # Klangmaß
 
-Installierbarer Drum-Groove-Trainer mit 52 kuratierten Schlagzeugübungen und
+Installierbarer Drum-Groove-Trainer mit 120 kuratierten Schlagzeugübungen und
 kompakten Drum-Sample-Kits. Die App funktioniert ohne Konto und nach dem ersten
 Aufruf vollständig offline. Songbezogene Grooves sind als Übungsrekonstruktion
 gekennzeichnet; Genreübungen geben keine falsche Transkriptionsgenauigkeit vor.

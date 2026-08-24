@@ -5,11 +5,11 @@ const HIT_STATES = ["ghost", "normal", "accent"];
 const DRUM_VOICES = ["kick", "snare", "closedHat", "openHat", "ride", "crash", "rim", "highTom", "lowTom"];
 const PATTERN_CATEGORIES = new Set([
   "Rock & Pop", "Punk & Metal", "Funk & Soul", "Hip-Hop", "Old School Hip-Hop", "Trip-Hop & Downtempo", "Dance & Electronic",
-  "Reggae", "Latin & World", "Blues & Shuffle", "Genreübergreifend",
+  "Jungle & Drum and Bass", "Reggae", "Latin & World", "Blues & Shuffle", "Genreübergreifend",
 ]);
 const BREAK_IDS = new Set([
   "drum-amen", "drum-apache", "drum-big-beat", "drum-express-yourself", "drum-funky-drummer",
-  "drum-hot-pants", "drum-impeach", "drum-its-a-new-day", "drum-roachclip",
+  "drum-hot-pants", "drum-i-got-you", "drum-funky-president", "drum-come-dancing", "drum-impeach", "drum-its-a-new-day", "drum-roachclip",
   "drum-synthetic-substitution", "drum-think-break",
 ]);
 const TECHNIQUE_IDS = new Set([
@@ -42,6 +42,7 @@ const sources = {
   boDiddley: { label: "Drums Database — Bo Diddley Beat", url: "https://www.drumsdatabase.com/bodiddley.htm" },
   microtiming: { label: "ZGMTH — Microtiming in Early Funk", url: "https://www.gmth.de/zeitschrift/artikel/1224.aspx" },
   nativeBreaks: { label: "Native Instruments — drum-break recreations and MIDI", url: "https://blog.native-instruments.com/best-drum-breaks/" },
+  simonV: { label: "Simon V — Drum & Bass patterns (MIDI)", url: "https://www.simonv.com/tutorials/drum_patterns.php" },
   synthetic: { label: "Goodhertz — Synthetic Substitution", url: "https://goodhertz.com/funklet/synthetic-substitution/" },
   mardi: { label: "Hudson Music — The Breakbeat Bible sampler", url: "https://hudsonmusic.com/wp-content/uploads/2015/03/Breakbeat-Bible-Sampler.pdf" },
   bigBeat: { label: "Drumscore — The Big Beat", url: "https://drumscore.com/sheet-music/browse-by-artist/score/7719-billy-squier-the-big-beat-drum-sheet-music-tab" },
@@ -90,6 +91,14 @@ function exercise(id, name, category, bpm, instruction, tracks, options = {}) {
 
 function difficultyGoal(difficulty) {
   return difficulty === "Leicht" ? "Grundlagen" : difficulty === "Fortgeschritten" ? "Koordination" : "Pocket";
+}
+
+function styleExercise(id, name, category, bpm, instruction, tracks, options = {}) {
+  return exercise(id, name, category, bpm, instruction, tracks, {
+    ...options,
+    attribution: "Eigenständige Stilübung",
+    whyInteresting: options.whyInteresting || `Diese eigenständige Übung isoliert den ${name}-Charakter, ohne einen konkreten Song zu kopieren.`,
+  });
 }
 
 const eighths16 = seq(0, 16, 2);
@@ -224,6 +233,176 @@ const exercises = [
   exercise("drum-wutang-cream", "Wu-Tang Clan — C.R.E.A.M.", "Old School Hip-Hop", [65, 110], "Spiele den schweren Zweitakt-Loop sparsam: Kick auf eins und drei, raumvolle Backbeats und ein leises Ride-Achtelbett hinter dem Piano-Sample.", {
     kick: { accent: [0, 8, 16, 24, 30] }, snare: { accent: [4, 12, 20, 28] }, ride: { ghost: repeated(eighths16, 2, 16), normal: [0, 8, 16, 24] }, rim: { ghost: [15, 31] },
   }, { bars: 2, difficulty: "Leicht", attribution: "Didaktische Zweitakt-Reduktion nach RZAs geräumigem C.R.E.A.M.-Groove", learningGoals: ["Boom Bap", "Raum", "Dynamik"], whyInteresting: "Die Quelle beschreibt tiefe Kicks auf eins und drei, Backbeats und leise Ride-Achtel; die Übung zeigt, wie wenig Noten ein monumentaler Loop benötigt.", playback: { bpm: 90, swing: 52, kit: "Vintage" }, source: sources.cream }),
+
+  exercise("drum-i-got-you", "I Got You — Zweitakt-Break", "Funk & Soul", [95, 180], "Spiele den frei verfügbaren Zweitakt-MIDI-Break: klare Backbeats, wechselnde Kick-Antworten und kurze Beckenakzente auf den Achtel-Offbeats.", {
+    kick: { accent: [0, 10, 18, 22, 26, 30] }, snare: { accent: [4, 12, 20, 28] },
+    closedHat: { normal: [0, 4, 6, 8, 12, 14, 16, 20, 22, 24, 28, 30] }, crash: { accent: [2, 10, 18, 26] },
+  }, { bars: 2, difficulty: "Mittel", attribution: "MIDI-basierte Zweitakt-Rekonstruktion", learningGoals: ["Funk", "Zweitaktform", "Beckenakzente"], whyInteresting: "Der geradlinige Backbeat wird im zweiten Takt durch zusätzliche Kicks verdichtet, während die Beckenakzente die Phrase offenhalten.", playback: { bpm: 145, swing: 50, kit: "Trocken" }, source: sources.nativeBreaks, originalFeel: {
+    label: "MIDI-Dynamik", note: "Dynamik der kostenlosen Native-Instruments-MIDI-Rekonstruktion.", sourceBpm: 145,
+    velocityMultipliers: { closedHat: { 0: 1, 4: 1, 6: .76, 8: 1, 12: 1, 14: .76, 16: 1, 20: 1, 22: .76, 24: 1, 28: 1, 30: .76 } },
+  } }),
+  exercise("drum-funky-president", "Funky President — Zweitakt-Break", "Funk & Soul", [70, 135], "Halte die Achtel-Hat stabil und platziere die synkopierten Kicks bewusst spät; die leisen Öffnungen am Taktende bleiben klein.", {
+    kick: { accent: [0, 3, 7, 10, 16, 19, 23, 26], normal: [9, 25] }, snare: { accent: [4, 12, 20, 28] },
+    closedHat: { normal: [0, 2, 6, 8, 12, 14, 18, 22, 24, 28, 30], accent: [10, 16, 26] }, openHat: { ghost: [15, 31] }, rim: { normal: [4, 20] },
+  }, { bars: 2, difficulty: "Fortgeschritten", attribution: "MIDI-basierte Zweitakt-Rekonstruktion", learningGoals: ["Mikro-Timing", "Kick-Synkopen", "Dynamik"], whyInteresting: "Mehrere Kicks liegen hörbar hinter dem Raster; genau diese kleinen Verzögerungen geben der wiederholten Zweitaktphrase ihr Gewicht.", playback: { bpm: 105, swing: 50, kit: "Trocken" }, source: sources.nativeBreaks, originalFeel: {
+    label: "MIDI-Rekonstruktion", note: "Timing und Dynamik der kostenlosen Native-Instruments-MIDI-Rekonstruktion.", sourceBpm: 105,
+    timingMs: { kick: { 3: 43, 7: 39, 9: 33, 19: 43, 23: 39, 25: 33 }, openHat: { 15: 48, 31: 39 } },
+    velocityMultipliers: { kick: { 0: .91, 3: .91, 7: .91, 9: .72, 10: .91, 16: 1, 19: .91, 23: .91, 25: .72, 26: .91 }, closedHat: { 0: .82, 2: .82, 6: .82, 8: .82, 10: 1, 12: .82, 14: .82, 16: .91, 18: .82, 22: .82, 24: .82, 26: 1, 28: .82, 30: .82 } },
+  } }),
+  exercise("drum-come-dancing", "Come Dancing — Zweitakt-Break", "Funk & Soul", [65, 125], "Spiele den rollenden Zweitakt-Break mit Ride-Achteln, kräftigen Kick-Antworten und einer Snare-Linie aus Backbeats und leisen Zwischenstimmen.", {
+    kick: { accent: [0, 7, 8, 15, 16, 18, 21, 23, 24, 31] },
+    snare: { ghost: [1, 6, 9, 14, 29], normal: [2, 5, 10, 13, 17, 21], accent: [4, 12, 20, 25, 28, 30] },
+    ride: { normal: [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30], ghost: [7] },
+  }, { bars: 2, difficulty: "Fortgeschritten", attribution: "MIDI-basierte Zweitakt-Rekonstruktion", learningGoals: ["Ghostnotes", "Mikro-Timing", "Zweitaktform"], whyInteresting: "Die dichte Snare-Linie wechselt Haupt- und Füllstimmen, während späte Kicks den ansonsten stabilen Ride-Puls elastisch machen.", playback: { bpm: 97, swing: 50, kit: "Studio" }, source: sources.nativeBreaks, originalFeel: {
+    label: "MIDI-Rekonstruktion", note: "Timing und Dynamik der kostenlosen Native-Instruments-MIDI-Rekonstruktion.", sourceBpm: 97,
+    timingMs: { kick: { 7: 52, 8: 26, 15: 52, 16: 26, 21: 52, 23: 52, 24: 26, 31: 52 }, ride: { 7: 26 }, snare: { 1: 45, 2: 14, 4: 14, 5: 45, 6: 14, 9: 45, 10: 14, 12: 14, 13: 45, 14: 14, 17: 45, 20: 14, 21: 45, 25: 45, 28: 14, 29: 45, 30: 14 } },
+    velocityMultipliers: { snare: { 1: .46, 2: .75, 4: 1, 5: .6, 6: .47, 9: .4, 10: .75, 12: 1, 13: .6, 14: .46, 17: .6, 20: 1, 21: .6, 25: 1, 28: 1, 29: .46, 30: .85 } },
+  } }),
+
+  exercise("drum-simonv-basic", "Simon V — DnB Basic", "Jungle & Drum and Bass", [115, 210], "Halte die Achtelpulse auf Ride und Hat, setze die Snare versetzt zur Kick und behandle das Ride als Ersatz für die Tamburinspur der Vorlage.", {
+    kick: { accent: [0, 6, 16, 22] }, snare: { accent: [4, 10, 20, 26], ghost: [13, 29] },
+    closedHat: { accent: [2, 6, 10, 12, 14, 18, 22, 26, 28, 30] }, ride: { normal: seq(0, 32, 2) }, crash: { accent: [16] },
+  }, { bars: 2, difficulty: "Mittel", attribution: "MIDI-basierte DnB-Grundübung nach Simon V", learningGoals: ["DnB", "Zweitaktform", "Ghostnotes"], whyInteresting: "Der frühe DnB-Grundbeat verzahnt zwei Snarepositionen pro Takt mit wenigen Kicks und einer konstanten Tamburin-Ersatzspur.", playback: { bpm: 175, swing: 50, kit: "Elektronisch" }, source: sources.simonV, originalFeel: { label: "MIDI-Feel", note: "Kleine Snare-Abweichungen aus Simon Vs MIDI-Datei.", sourceBpm: 175, timingMs: { snare: { 13: 9, 29: 9 } } } }),
+  exercise("drum-simonv-two-step", "Simon V — 2-Step", "Jungle & Drum and Bass", [120, 220], "Spiele die Viertaktphrase mit leisem Sechzehntel-Ride, stabilen Backbeats und den beiden Beckenvarianten erst nach sicherer Kick-Snare-Koordination.", {
+    kick: { accent: [0, 10, 16, 26, 32, 42, 48, 58] }, snare: { accent: [4, 12, 20, 28, 36, 44, 52, 60], ghost: [7, 23, 25, 39, 55, 57] },
+    closedHat: { accent: [2, 6, 8, 14, 18, 22, 24, 30, 34, 38, 40, 46, 50, 54, 56, 62] },
+    ride: { normal: seq(0, 64, 2), ghost: seq(1, 64, 2) }, crash: { normal: [52], accent: [58] },
+  }, { bars: 4, difficulty: "Fortgeschritten", attribution: "MIDI-basierte Viertakt-Rekonstruktion nach Simon V", learningGoals: ["DnB", "Viertaktform", "Dynamik"], whyInteresting: "Die ersten drei Takte etablieren das Zweischritt-Raster; erst der vierte Takt öffnet die Phrase mit zusätzlichen Beckenfarben.", playback: { bpm: 175, swing: 50, kit: "Elektronisch" }, source: sources.simonV, originalFeel: { label: "MIDI-Feel", note: "Leise Sechzehntel und Ghostnotes liegen minimal spät.", sourceBpm: 175, timingMs: { ride: Object.fromEntries(seq(1, 64, 2).map((step) => [step, 9])), snare: { 7: 9, 23: 9, 25: 9, 39: 9, 55: 9, 57: 9 } } } }),
+  exercise("drum-simonv-swing", "Simon V — Swing Groove", "Jungle & Drum and Bass", [115, 205], "Lass jeden zweiten Achtelimpuls leicht spät liegen; Kick, Backbeat und Ghostnotes müssen gegen diesen kleinen Versatz stabil bleiben.", {
+    kick: { accent: [0, 6, 16, 22] }, snare: { accent: [4, 12, 20, 28], ghost: [6, 14, 30] },
+    closedHat: { accent: [0, 2, 6, 8, 16, 18, 22, 24], normal: [4, 10, 12, 14, 20, 26, 28, 30] }, ride: { normal: seq(0, 32, 2) }, crash: { accent: [26] },
+  }, { bars: 2, difficulty: "Fortgeschritten", attribution: "MIDI-basierte Zweitakt-Rekonstruktion nach Simon V", learningGoals: ["Swing", "Mikro-Timing", "DnB"], whyInteresting: "Der kleine, regelmäßig wiederkehrende Achtelversatz erzeugt Bewegung, ohne den schnellen Grundpuls in ein grobes Shuffle zu verwandeln.", playback: { bpm: 175, swing: 50, kit: "Elektronisch" }, source: sources.simonV, originalFeel: { label: "MIDI-Swing", note: "Die verzögerten Achtel stammen direkt aus Simon Vs MIDI-Datei.", sourceBpm: 175, timingMs: { kick: { 6: 12, 22: 12 }, snare: { 6: 12, 14: 12, 30: 12 }, closedHat: Object.fromEntries([2, 6, 10, 14, 18, 22, 26, 30].map((step) => [step, 12])), ride: Object.fromEntries([2, 6, 10, 14, 18, 22, 26, 30].map((step) => [step, 12])) } } }),
+  exercise("drum-simonv-cosmic-tree", "4hero — Cosmic Tree", "Jungle & Drum and Bass", [120, 220], "Spiele die zweittaktige MIDI-Reduktion: erst der klare Breakkern, dann die lange leise Snare-Kette im zweiten Takt.", {
+    kick: { accent: [0, 6, 16, 19, 22] }, snare: { accent: [4, 10, 20, 26], ghost: [13, 15, 17, 19, 23, 25, 27, 29, 31] },
+    closedHat: { accent: [0, 4, 6, 10, 12, 16, 30], normal: [14, 18, 22, 24, 28] }, crash: { accent: [20] },
+  }, { bars: 2, difficulty: "Fortgeschritten", attribution: "MIDI-basierte Zweitakt-Rekonstruktion nach Simon V", learningGoals: ["Ghostnotes", "Breakbeat", "Dynamik"], whyInteresting: "Der zweite Takt kippt von einem klaren Breakkern in eine lange, dynamisch abgestufte Snare-Kette und trainiert feine Kontrolle.", playback: { bpm: 175, swing: 50, kit: "Elektronisch" }, source: sources.simonV, originalFeel: { label: "MIDI-Feel", note: "Ghostnotes und eine Kick liegen leicht hinter dem Raster.", sourceBpm: 175, timingMs: { kick: { 19: 9 }, snare: { 13: 9, 15: 9, 17: 9, 19: 9, 23: 9, 25: 9, 27: 9, 29: 9, 31: 9 } } } }),
+  exercise("drum-simonv-quadrant-six", "Dom & Optical — Quadrant 6", "Jungle & Drum and Bass", [120, 220], "Halte den harten Zweitaktkern trocken; die Beckenstöße im zweiten Takt ersetzen zusätzliche elektronische Klangschichten.", {
+    kick: { accent: [0, 6, 12, 16, 22, 28] }, snare: { accent: [4, 10, 20, 26], ghost: [13, 15] },
+    closedHat: { accent: [0, 4, 10, 16, 20, 22, 26], normal: [2, 12, 14, 18, 24, 28, 30] }, crash: { accent: [16, 22, 28], normal: [20, 26] },
+  }, { bars: 2, difficulty: "Fortgeschritten", attribution: "MIDI-basierte Zweitakt-Rekonstruktion nach Simon V", learningGoals: ["Techstep", "Synkopen", "Zweitaktform"], whyInteresting: "Die Beckenfolge des zweiten Takts verschiebt den Schwerpunkt über einem sehr festen Kick-Snare-Gerüst und erzeugt technische Härte.", playback: { bpm: 175, swing: 50, kit: "Elektronisch" }, source: sources.simonV, originalFeel: { label: "MIDI-Feel", note: "Zwei leise Snare-Schläge liegen minimal spät.", sourceBpm: 175, timingMs: { snare: { 13: 6, 15: 6 } } } }),
+  exercise("drum-simonv-leafy-lane", "Kirsty Hawkshaw — Leafy Lane (Matrix Remix)", "Jungle & Drum and Bass", [120, 220], "Verbinde die durchgehenden Hat-Achtel mit den leisen Zwischenimpulsen; die Snare wandert über beide Takte.", {
+    kick: { accent: [0, 10, 20, 26] }, snare: { accent: [6, 12, 16, 22, 28], ghost: [23, 25] },
+    closedHat: { accent: seq(0, 32, 2), ghost: [3, 5, 9, 11, 15, 19, 21, 25, 27, 31] }, crash: { accent: [0] },
+  }, { bars: 2, difficulty: "Fortgeschritten", attribution: "MIDI-basierte Zweitakt-Rekonstruktion nach Simon V", learningGoals: ["DnB", "Unabhängigkeit", "Dynamik"], whyInteresting: "Die Snarepositionen wechseln über die Taktgrenze, während eine zweistufige Hat-Dynamik den schnellen Puls durchgehend zusammenhält.", playback: { bpm: 175, swing: 50, kit: "Elektronisch" }, source: sources.simonV, originalFeel: { label: "MIDI-Feel", note: "Leise Hat- und Snare-Zwischenimpulse liegen leicht spät.", sourceBpm: 175, timingMs: { closedHat: Object.fromEntries([3, 5, 9, 11, 15, 19, 21, 25, 27, 31].map((step) => [step, 9])), snare: { 23: 9, 25: 9 } } } }),
+  exercise("drum-simonv-datalife", "Matrix — Datalife", "Jungle & Drum and Bass", [120, 220], "Spiele die achttaktige Form in Abschnitten: drei verwandte Zweitaktgruppen, dann den geraden Hat-Fill im letzten Takt.", {
+    kick: { accent: [0, 10, 20, 26, 32, 42, 52, 58, 64, 74, 84, 90, 96, 106, 112, 118, 124, 125], normal: [14, 25, 46, 57, 78, 89, 110] },
+    snare: { accent: [6, 12, 16, 22, 28, 38, 44, 48, 54, 60, 70, 76, 80, 86, 92, 102, 108, 116, 122], ghost: [15, 21, 27, 47, 53, 59, 79, 85, 91, 111] },
+    ride: { accent: [...seq(0, 30, 2), ...seq(32, 62, 2), ...seq(64, 94, 2), ...seq(96, 112, 2)], normal: [30, 62, 94] },
+    closedHat: { normal: [2, 34, 66, 98], ghost: [4, 36, 68, 100], accent: [112, 114, 116, 118, 120, 122, 124, 125, 126, 127] },
+    crash: { accent: [30, 48, 54, 60, 94], normal: [52, 58] },
+  }, { bars: 8, difficulty: "Fortgeschritten", attribution: "MIDI-basierte Achttakt-Rekonstruktion nach Simon V", learningGoals: ["Achttaktform", "Breakbeat", "Fill"], whyInteresting: "Die lange Form wiederholt keinen bloßen Eintaktloop: Beckenfarben, Ghostnotes und ein abschließender gerader Hat-Fill entwickeln die Phrase.", playback: { bpm: 175, swing: 50, kit: "Elektronisch" }, source: sources.simonV, originalFeel: { label: "MIDI-Feel", note: "Leise Zwischenstimmen und der Schlussfill behalten ihre kleinen MIDI-Abweichungen.", sourceBpm: 175, timingMs: { kick: { 25: 6, 57: 6, 89: 6, 125: 6 }, snare: { 15: 6, 21: 6, 27: 6, 47: 6, 53: 6, 59: 6, 79: 6, 85: 6, 91: 6, 111: 6 }, closedHat: { 125: 6, 127: 6 } } } }),
+  exercise("drum-simonv-moving-808s", "Optical — Moving 808s", "Jungle & Drum and Bass", [120, 220], "Halte die wechselnden Ride-Stärken über der sparsamen Kickfolge; der zweite Takt endet mit einer leisen Snare-Antwort.", {
+    kick: { accent: [0, 10, 16, 24], normal: [26] }, snare: { accent: [4, 14, 20, 28], ghost: [27] },
+    closedHat: { accent: [2, 8, 12, 18, 22, 25], normal: [6, 30] }, ride: { normal: [0, 8, 14, 16, 24, 28], ghost: [2, 6, 12, 18, 22, 30], accent: [4, 10, 20, 26] },
+  }, { bars: 2, difficulty: "Fortgeschritten", attribution: "MIDI-basierte Zweitakt-Rekonstruktion nach Simon V", learningGoals: ["Dynamik", "808", "Zweitaktform"], whyInteresting: "Mehrere Ride-Stärken zeichnen eine zweite Rhythmuslinie über den Kicks; die leise Snare-Antwort verbindet beide Ebenen am Schluss.", playback: { bpm: 175, swing: 50, kit: "Elektronisch" }, source: sources.simonV, originalFeel: { label: "MIDI-Feel", note: "Leise Schlussstimmen liegen minimal spät.", sourceBpm: 175, timingMs: { snare: { 27: 6 }, closedHat: { 25: 6 } } } }),
+
+  styleExercise("drum-dusty-eighth-pocket", "Dusty Eighth Pocket", "Hip-Hop", [65, 110], "Halte die Achtel-Hat trocken und lasse die Kickfolge zwischen eins und vier viel Raum.", {
+    kick: { accent: [0, 3, 10, 14] }, snare: { accent: [4, 12] }, closedHat: { normal: eighths16, accent: [0, 8] },
+  }, { playback: { bpm: 86, swing: 56, kit: "Vintage" }, learningGoals: ["Boom Bap", "Raum", "Pocket"] }),
+  styleExercise("drum-late-backbeat-pocket", "Late Backbeat Pocket", "Hip-Hop", [60, 105], "Spiele wenige Kicks gegen eine schwere Snare und halte die letzte Ghostnote deutlich leiser.", {
+    kick: { accent: [0, 6, 11] }, snare: { accent: [4, 12], ghost: [15] }, closedHat: { normal: [0, 2, 4, 6, 8, 10, 12, 14], accent: [0, 12] },
+  }, { playback: { bpm: 82, swing: 58, kit: "Trocken" }, learningGoals: ["Backbeat", "Dynamik", "Pocket"] }),
+  styleExercise("drum-sparse-new-york-pocket", "Sparse New-York Pocket", "Hip-Hop", [70, 110], "Lass zwischen den Kicks große Lücken und halte die offenen Achtelpositionen bewusst unbesetzt.", {
+    kick: { accent: [0, 7, 10] }, snare: { accent: [4, 12] }, closedHat: { normal: [0, 2, 6, 8, 10, 14], accent: [0, 8] },
+  }, { playback: { bpm: 91, swing: 55, kit: "Vintage" }, learningGoals: ["Minimalismus", "Boom Bap", "Timing"] }),
+  styleExercise("drum-chopped-soul-turn", "Chopped-Soul Turn", "Hip-Hop", [65, 110], "Spiele beide Takte als eine Phrase; der zweite Takt verschiebt Kick und Ghostnote in den Schluss.", {
+    kick: { accent: [0, 3, 7, 10, 16, 19, 23, 30] }, snare: { accent: [4, 12, 20, 28], ghost: [15, 27] }, closedHat: { normal: repeated(eighths16, 2, 16), accent: [0, 8, 16, 24] },
+  }, { bars: 2, playback: { bpm: 88, swing: 57, kit: "Vintage" }, learningGoals: ["Zweitaktform", "Synkopen", "Pocket"] }),
+  styleExercise("drum-vinyl-rim-pocket", "Vinyl Rim Pocket", "Hip-Hop", [60, 105], "Halte Rim und Snare dynamisch getrennt; die trockenen Rim-Antworten dürfen den Backbeat nicht verdoppeln.", {
+    kick: { accent: [0, 6, 10, 15] }, snare: { accent: [4, 12] }, rim: { ghost: [3, 7, 11, 14] }, closedHat: { normal: eighths16, accent: [0, 8] },
+  }, { playback: { bpm: 79, swing: 56, kit: "Trocken" }, learningGoals: ["Percussion", "Dynamik", "Boom Bap"] }),
+  styleExercise("drum-boom-bap-kick-maze", "Boom-Bap Kick Maze", "Hip-Hop", [65, 115], "Halte den Backbeat konstant, während die Kick mehrere Sechzehntelpositionen umspielt.", {
+    kick: { accent: [0, 3, 6, 7, 10, 14] }, snare: { accent: [4, 12] }, closedHat: { normal: eighths16, ghost: [5, 13], accent: [0, 8] },
+  }, { difficulty: "Fortgeschritten", playback: { bpm: 94, swing: 55, kit: "Vintage" }, learningGoals: ["Kick-Synkopen", "Koordination", "Boom Bap"] }),
+  styleExercise("drum-half-time-headnod", "Half-Time Headnod", "Hip-Hop", [55, 95], "Lass die Snare nur auf drei landen und forme die lange Zweitaktphrase ausschließlich mit Kick und Hat.", {
+    kick: { accent: [0, 6, 14, 16, 19, 26, 30] }, snare: { accent: [8, 24] }, closedHat: { normal: repeated(eighths16, 2, 16), accent: [0, 16] },
+  }, { bars: 2, playback: { bpm: 74, swing: 58, kit: "Trocken" }, learningGoals: ["Half Time", "Zweitaktform", "Raum"] }),
+  styleExercise("drum-triplet-headnod", "Triplet Headnod", "Hip-Hop", [55, 105], "Spiele den Hip-Hop-Backbeat auf einem Triolenraster und halte die mittlere Triolennote weich.", {
+    kick: { accent: [0, 5, 8] }, snare: { accent: [3, 9], ghost: [7, 11] }, closedHat: { normal: seq(0, 12), accent: [0, 3, 6, 9] },
+  }, { subdivision: "Triolen", difficulty: "Fortgeschritten", playback: { bpm: 78, kit: "Trocken" }, learningGoals: ["Triolen", "Pocket", "Koordination"] }),
+  styleExercise("drum-swung-sixteenth-pocket", "Swung Sixteenth Pocket", "Hip-Hop", [60, 110], "Halte die ungeraden Hat-Schläge leise und lasse die Kick den Sechzehntelfluss unterbrechen.", {
+    kick: { accent: [0, 7, 9, 14] }, snare: { accent: [4, 12], ghost: [11] }, closedHat: { normal: seq(0, 16, 2), ghost: seq(1, 16, 2), accent: [0, 8] },
+  }, { difficulty: "Fortgeschritten", playback: { bpm: 89, swing: 60, kit: "Vintage" }, learningGoals: ["Swing", "Dynamik", "Pocket"] }),
+  styleExercise("drum-layered-rim-backbeat", "Layered Rim Backbeat", "Hip-Hop", [65, 115], "Setze den Rim nur auf den zweiten Backbeat und halte die zusätzliche Schicht hörbar unter der Snare.", {
+    kick: { accent: [0, 3, 8, 11, 14] }, snare: { accent: [4, 12] }, rim: { normal: [12] }, closedHat: { normal: [0, 2, 4, 6, 8, 10, 12, 14], ghost: [7, 15] },
+  }, { playback: { bpm: 93, swing: 54, kit: "Trocken" }, learningGoals: ["Layering", "Dynamik", "Backbeat"] }),
+  styleExercise("drum-open-hat-turnaround", "Open-Hat Turnaround", "Hip-Hop", [65, 115], "Öffne die Hat erst am Ende jedes Takts und beantworte sie im zweiten Takt mit einer zusätzlichen Kick.", {
+    kick: { accent: [0, 7, 10, 16, 23, 26, 30] }, snare: { accent: [4, 12, 20, 28] }, closedHat: { normal: repeated(eighths16, 2, 16).filter((step) => ![14, 30].includes(step)), accent: [0, 8, 16, 24] }, openHat: { normal: [14, 30] },
+  }, { bars: 2, playback: { bpm: 92, swing: 56, kit: "Vintage" }, learningGoals: ["Zweitaktform", "Offene Hi-Hat", "Pocket"] }),
+  styleExercise("drum-double-kick-pickup", "Double-Kick Pickup", "Hip-Hop", [65, 115], "Spiele die beiden kurzen Kick-Doppel als Auftaktbewegung, ohne den Backbeat nach vorne zu ziehen.", {
+    kick: { accent: [0, 3, 7, 8, 10, 15, 16, 19, 23, 24, 27, 31] }, snare: { accent: [4, 12, 20, 28] }, closedHat: { normal: repeated(eighths16, 2, 16), accent: [0, 16] },
+  }, { bars: 2, difficulty: "Fortgeschritten", playback: { bpm: 96, swing: 55, kit: "Trocken" }, learningGoals: ["Kick-Doppel", "Zweitaktform", "Koordination"] }),
+  styleExercise("drum-three-kick-loop", "Three-Kick Loop", "Hip-Hop", [60, 105], "Halte die drei Kicks je Takt identisch und erzeuge die Variation nur durch Hats und eine Schluss-Ghostnote.", {
+    kick: { accent: [0, 6, 11, 16, 22, 27] }, snare: { accent: [4, 12, 20, 28], ghost: [31] }, closedHat: { normal: [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28], accent: [0, 8, 16, 24] }, openHat: { normal: [30] },
+  }, { bars: 2, playback: { bpm: 84, swing: 57, kit: "Vintage" }, learningGoals: ["Loop-Pocket", "Dynamik", "Zweitaktform"] }),
+  styleExercise("drum-broken-backbeat", "Broken Backbeat", "Hip-Hop", [65, 115], "Verschiebe den letzten Backbeat auf das letzte Sechzehntel und halte die vorausgehende Ghostnote sehr leise.", {
+    kick: { accent: [0, 3, 8, 10, 14] }, snare: { accent: [4, 15], ghost: [12] }, closedHat: { normal: eighths16, accent: [0, 8] },
+  }, { difficulty: "Fortgeschritten", playback: { bpm: 91, swing: 54, kit: "Trocken" }, learningGoals: ["Backbeat", "Verschiebung", "Timing"] }),
+  styleExercise("drum-808-boom-bap", "808 Boom-Bap", "Old School Hip-Hop", [70, 125], "Kombiniere eine lange 808-Kick mit trockenem Backbeat und sparsamen offenen Hats.", {
+    kick: { accent: [0, 3, 8, 11, 15] }, snare: { accent: [4, 12] }, closedHat: { normal: [0, 4, 8, 12] }, openHat: { normal: [6, 14] }, rim: { ghost: [2, 10] },
+  }, { playback: { bpm: 98, swing: 52, kit: "808" }, learningGoals: ["808", "Old School", "Raum"] }),
+  styleExercise("drum-lofi-ghost-grid", "Lo-Fi Ghost Grid", "Hip-Hop", [55, 100], "Lass die leisen Snare-Sechzehntel wie Rauschen unter den beiden Haupt-Backbeats liegen.", {
+    kick: { accent: [0, 7, 10, 14] }, snare: { accent: [4, 12], ghost: [1, 3, 6, 9, 11, 15] }, closedHat: { normal: eighths16, accent: [0, 8] },
+  }, { difficulty: "Fortgeschritten", playback: { bpm: 76, swing: 59, kit: "Vintage" }, learningGoals: ["Ghostnotes", "Dynamik", "Lo-Fi"] }),
+  styleExercise("drum-push-pull-pocket", "Push-Pull Pocket", "Hip-Hop", [60, 110], "Spiele die erste Kickgruppe vorwärts und beantworte sie nach dem Backbeat mit einer rückwärts gerichteten Figur.", {
+    kick: { accent: [0, 3, 6, 10, 13] }, snare: { accent: [4, 12], ghost: [8, 15] }, closedHat: { normal: [0, 2, 4, 6, 8, 10, 12, 14], accent: [0, 12] },
+  }, { playback: { bpm: 87, swing: 58, kit: "Trocken" }, learningGoals: ["Phrasierung", "Synkopen", "Pocket"] }),
+  styleExercise("drum-stumbling-soul-pocket", "Stumbling Soul Pocket", "Hip-Hop", [55, 105], "Akzentuiere ungleichmäßige Hat-Gruppen und halte Kick und Snare trotzdem als ruhigen Orientierungspunkt.", {
+    kick: { accent: [0, 7, 9, 15] }, snare: { accent: [4, 12], ghost: [6, 11, 14] }, closedHat: { normal: [0, 1, 3, 4, 6, 8, 9, 11, 12, 14], accent: [0, 8] },
+  }, { difficulty: "Fortgeschritten", playback: { bpm: 80, swing: 61, kit: "Vintage" }, learningGoals: ["Asymmetrie", "Dynamik", "Pocket"] }),
+  styleExercise("drum-west-coast-bounce", "West-Coast Bounce", "Old School Hip-Hop", [75, 125], "Halte die Kick federnd, öffne die Hat auf dem letzten Und und setze den Rim als helle Gegenstimme.", {
+    kick: { accent: [0, 3, 8, 10, 15] }, snare: { accent: [4, 12] }, closedHat: { normal: [0, 2, 4, 6, 8, 10, 12], accent: [0, 8] }, openHat: { normal: [14] }, rim: { normal: [7, 11] },
+  }, { playback: { bpm: 102, swing: 53, kit: "808" }, learningGoals: ["Bounce", "Offene Hi-Hat", "Old School"] }),
+  styleExercise("drum-crate-digger-turn", "Crate-Digger Turn", "Hip-Hop", [60, 105], "Halte den ersten Takt schlicht und verdichte nur den Schluss des zweiten Takts mit Kick, Rim und Ghostnote.", {
+    kick: { accent: [0, 7, 10, 16, 23, 26, 29, 31] }, snare: { accent: [4, 12, 20, 28], ghost: [27, 30] }, rim: { normal: [15, 31] }, closedHat: { normal: repeated(eighths16, 2, 16), accent: [0, 16] },
+  }, { bars: 2, difficulty: "Fortgeschritten", playback: { bpm: 83, swing: 58, kit: "Vintage" }, learningGoals: ["Form", "Verdichtung", "Boom Bap"] }),
+
+  styleExercise("drum-dnb-two-step-foundation", "DnB Two-Step Foundation", "Jungle & Drum and Bass", [110, 220], "Halte Snare auf zwei und vier, während die Kicks eins und die Mitte des Takts unterschiedlich gewichten.", {
+    kick: { accent: [0, 10] }, snare: { accent: [4, 12] }, closedHat: { normal: seq(0, 16, 2), ghost: seq(1, 16, 2), accent: [0, 8] },
+  }, { playback: { bpm: 172, swing: 50, kit: "Elektronisch" }, learningGoals: ["DnB", "Grundlagen", "Dynamik"] }),
+  styleExercise("drum-dnb-kick-switch", "DnB Kick Switch", "Jungle & Drum and Bass", [120, 220], "Tausche die zweite Kickposition im zweiten Takt und halte Snare sowie Hat unverändert.", {
+    kick: { accent: [0, 10, 16, 22, 30] }, snare: { accent: [4, 12, 20, 28] }, closedHat: { normal: repeated(eighths16, 2, 16), accent: [0, 8, 16, 24] },
+  }, { bars: 2, playback: { bpm: 174, swing: 50, kit: "Elektronisch" }, learningGoals: ["Zweitaktform", "Kick-Synkopen", "DnB"] }),
+  styleExercise("drum-dnb-ghost-roll", "DnB Ghost Roll", "Jungle & Drum and Bass", [115, 210], "Halte die Ghostnotes als leise Sechzehntelkette zwischen den vier Hauptsnares.", {
+    kick: { accent: [0, 10, 16, 26] }, snare: { accent: [4, 12, 20, 28], ghost: [6, 7, 14, 15, 22, 23, 30, 31] }, ride: { normal: repeated(eighths16, 2, 16), accent: [0, 16] },
+  }, { bars: 2, difficulty: "Fortgeschritten", playback: { bpm: 168, swing: 50, kit: "Studio" }, learningGoals: ["Ghostnotes", "Dynamik", "DnB"] }),
+  styleExercise("drum-dnb-half-time-drop", "DnB Half-Time Drop", "Jungle & Drum and Bass", [70, 180], "Lass die Snare schwer auf drei landen und setze schnelle Hat-Impulse als Kontrast zum halben Puls.", {
+    kick: { accent: [0, 6, 11, 14] }, snare: { accent: [8], ghost: [7, 15] }, closedHat: { normal: seq(0, 16), accent: [0, 4, 8, 12] },
+  }, { difficulty: "Fortgeschritten", playback: { bpm: 150, swing: 50, kit: "Elektronisch" }, learningGoals: ["Half Time", "Kontrast", "DnB"] }),
+  styleExercise("drum-dnb-liquid-ride", "Liquid Ride Flow", "Jungle & Drum and Bass", [110, 210], "Führe weiche Ride-Achtel durch beide Takte und halte Kick sowie Snare luftig.", {
+    kick: { accent: [0, 10, 16, 27] }, snare: { accent: [4, 12, 20, 28], ghost: [15, 23] }, ride: { normal: repeated(eighths16, 2, 16), accent: [0, 8, 16, 24] }, openHat: { normal: [14, 30] },
+  }, { bars: 2, playback: { bpm: 170, swing: 51, kit: "Studio" }, learningGoals: ["Liquid", "Ride", "Zweitaktform"] }),
+  styleExercise("drum-dnb-techstep-space", "Techstep Space", "Jungle & Drum and Bass", [120, 220], "Lass die Mitte des Takts bewusst leer und beantworte den Backbeat mit einer kurzen Rim-Figur.", {
+    kick: { accent: [0, 3, 11] }, snare: { accent: [4, 12] }, rim: { normal: [7, 14] }, closedHat: { normal: [0, 2, 6, 8, 10, 14], accent: [0, 8] },
+  }, { playback: { bpm: 176, swing: 50, kit: "Elektronisch" }, learningGoals: ["Techstep", "Raum", "Synkopen"] }),
+  styleExercise("drum-jungle-cutup-a", "Jungle Cut-Up A", "Jungle & Drum and Bass", [115, 220], "Spiele die Snare-Antworten wie einzelne geschnittene Break-Pads und halte die Ride-Achtel gerade.", {
+    kick: { accent: [0, 2, 10, 11] }, snare: { accent: [4, 12], ghost: [7, 9, 15] }, ride: { normal: eighths16, accent: [0, 8] },
+  }, { difficulty: "Fortgeschritten", playback: { bpm: 165, swing: 52, kit: "Studio" }, learningGoals: ["Jungle", "Chopping", "Ghostnotes"] }),
+  styleExercise("drum-jungle-cutup-b", "Jungle Cut-Up B", "Jungle & Drum and Bass", [115, 220], "Verschiebe den zweiten Backbeat und fange ihn mit zwei leisen Snare-Schlägen wieder ein.", {
+    kick: { accent: [0, 6, 10, 14] }, snare: { accent: [4, 13], ghost: [11, 12, 15] }, ride: { normal: [0, 2, 4, 6, 8, 10, 12, 14], accent: [0, 6] }, openHat: { normal: [15] },
+  }, { difficulty: "Fortgeschritten", playback: { bpm: 167, swing: 51, kit: "Studio" }, learningGoals: ["Jungle", "Verschiebung", "Koordination"] }),
+  styleExercise("drum-dnb-two-bar-turnaround", "DnB Two-Bar Turnaround", "Jungle & Drum and Bass", [120, 220], "Bewahre den ersten Takt als Referenz und spiele die Kick-Snare-Kette nur im Schluss des zweiten Takts.", {
+    kick: { accent: [0, 10, 16, 26, 29, 31] }, snare: { accent: [4, 12, 20, 28], ghost: [27, 30] }, closedHat: { normal: repeated(eighths16, 2, 16), accent: [0, 8, 16, 24] }, crash: { accent: [16] },
+  }, { bars: 2, difficulty: "Fortgeschritten", playback: { bpm: 178, swing: 50, kit: "Elektronisch" }, learningGoals: ["Turnaround", "Zweitaktform", "DnB"] }),
+  styleExercise("drum-dnb-sixteenth-drive", "DnB Sixteenth Drive", "Jungle & Drum and Bass", [110, 210], "Spiele die Hat-Sechzehntel in zwei Dynamikstufen und halte die wenigen Kicks deutlich größer.", {
+    kick: { accent: [0, 10, 15] }, snare: { accent: [4, 12], ghost: [7, 14] }, closedHat: { normal: seq(0, 16, 2).filter((step) => step !== 6), ghost: seq(1, 16, 2), accent: [0, 4, 8, 12] }, openHat: { normal: [6] },
+  }, { difficulty: "Fortgeschritten", playback: { bpm: 171, swing: 50, kit: "Elektronisch" }, learningGoals: ["Sechzehntel", "Dynamik", "DnB"] }),
+
+  styleExercise("drum-funk-linear-chain", "Linear Funk Chain", "Funk & Soul", [65, 125], "Spiele Kick, Snare und Hat möglichst selten gleichzeitig; jede Stimme setzt die Kette fort.", {
+    kick: { accent: [0, 3, 7, 10, 14] }, snare: { accent: [4, 12], ghost: [6, 11, 15] }, closedHat: { normal: [1, 2, 5, 8, 9, 13], accent: [0, 8] },
+  }, { difficulty: "Fortgeschritten", playback: { bpm: 98, swing: 54, kit: "Trocken" }, learningGoals: ["Linear", "Koordination", "Funk"] }),
+  styleExercise("drum-funk-ghost-matrix", "Funk Ghost Matrix", "Funk & Soul", [60, 120], "Halte sechs Ghostnotes gleichmäßig leise und trenne sie klar von den beiden Backbeats.", {
+    kick: { accent: [0, 6, 9, 14] }, snare: { accent: [4, 12], ghost: [2, 3, 7, 10, 11, 15] }, closedHat: { normal: seq(0, 16), accent: [0, 4, 8, 12] },
+  }, { difficulty: "Fortgeschritten", playback: { bpm: 92, swing: 53, kit: "Trocken" }, learningGoals: ["Ghostnotes", "Dynamik", "Funk"] }),
+  styleExercise("drum-funk-open-hat-pocket", "Funk Open-Hat Pocket", "Funk & Soul", [65, 125], "Öffne die Hat kurz auf 2a und 4a; Kick und Snare bleiben währenddessen trocken.", {
+    kick: { accent: [0, 3, 8, 10, 14] }, snare: { accent: [4, 12], ghost: [7, 11] }, closedHat: { normal: seq(0, 16).filter((step) => ![7, 15].includes(step)), accent: [0, 4, 8, 12] }, openHat: { accent: [7, 15] },
+  }, { difficulty: "Fortgeschritten", playback: { bpm: 101, swing: 52, kit: "Trocken" }, learningGoals: ["Offene Hi-Hat", "Ghostnotes", "Funk"] }),
+  styleExercise("drum-funk-snare-displacement", "Funk Snare Displacement", "Funk & Soul", [60, 115], "Lass den ersten Backbeat stehen und verschiebe den zweiten schrittweise über die Zweitaktphrase.", {
+    kick: { accent: [0, 6, 10, 16, 22, 27, 30] }, snare: { accent: [4, 13, 20, 29], ghost: [12, 28] }, closedHat: { normal: repeated(eighths16, 2, 16), accent: [0, 8, 16, 24] },
+  }, { bars: 2, difficulty: "Fortgeschritten", playback: { bpm: 94, swing: 53, kit: "Trocken" }, learningGoals: ["Verschiebung", "Zweitaktform", "Funk"] }),
+  styleExercise("drum-breakbeat-turnaround", "Breakbeat Turnaround", "Funk & Soul", [70, 140], "Halte den ersten Takt stabil und spiele im zweiten Takt einen kurzen Snare-Tom-Abschluss.", {
+    kick: { accent: [0, 3, 10, 16, 19, 26, 30] }, snare: { accent: [4, 12, 20, 28], ghost: [23, 27] }, closedHat: { normal: repeated(eighths16, 2, 16), accent: [0, 8, 16, 24] }, highTom: { normal: [29] }, lowTom: { accent: [31] },
+  }, { bars: 2, difficulty: "Fortgeschritten", playback: { bpm: 108, swing: 52, kit: "Studio" }, learningGoals: ["Turnaround", "Toms", "Breakbeat"] }),
 
   exercise("drum-amen", "Amen Break — Übungsrekonstruktion", "Dance & Electronic", [80, 180], "Spiele den viertaktigen Coleman-Break: Ride-Achtel tragen die versetzten Kicks, Ghostnotes und späten Snares.", {
     kick: { accent: [0, 2, 10, 11, 16, 18, 26, 27, 32, 34, 42, 50, 51, 58] },
@@ -443,7 +622,7 @@ const patterns = exercises.map((entry) => {
 });
 
 const target = new URL("../public/data/patterns-v1.json", import.meta.url);
-const output = `${JSON.stringify({ version: 2, updated: "2026-08-23", count: patterns.length, patterns }, null, 2)}\n`;
+const output = `${JSON.stringify({ version: 2, updated: "2026-08-24", count: patterns.length, patterns }, null, 2)}\n`;
 
 if (process.argv.includes("--check")) {
   const current = await readFile(target, "utf8");

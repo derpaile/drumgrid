@@ -2,7 +2,7 @@
 
 ## Ergebnis
 
-- `../../public/data/patterns-v1.json`: 74 App-Patterns; darunter 22 klar als Rekonstruktion oder Reduktion bezeichnete Trip-Hop- und Hip-Hop-Presets von Portishead bis Wu-Tang Clan.
+- `../../public/data/patterns-v1.json`: 120 App-Patterns; darunter 22 klar als Rekonstruktion oder Reduktion bezeichnete Trip-Hop- und Hip-Hop-Presets, elf kostenlose MIDI-basierte Funk-/DnB-Ergänzungen und 35 eigenständige Stilübungen.
 - `generated/reviewed-drum-patterns-v1.json`: 54 eindeutige, geprüfte Patterns.
 - `reviewed-drum-patterns-v1.schema.json`: JSON-Schema inklusive optionalem `originalFeel`.
 - `original/`: unveränderte DeepSeek-Exporte zur Nachvollziehbarkeit.
@@ -19,6 +19,9 @@
 - Cuban Bolero nutzt ein gerades Sechzehntelraster statt der unbelegten Triolenfassung.
 - `Hot Pants (Bonus Beats)` und `God Made Me Funky` sind transparent als Stilreduktion bzw. Stilübung bezeichnet; es wird keine nicht belegte Volltranskription behauptet.
 - Vier inhaltliche Duplikate sowie unbelegbare Superlative, Sampling-Zahlen und kaputte `[reference:n]`-Marker wurden entfernt.
+- Die drei bisher fehlenden kostenlosen Native-Instruments-Breaks `I Got You`, `Funky President` und `Come Dancing` wurden mit Velocity und Mikro-Timing ergänzt.
+- Acht nicht redundante Simon-V-MIDI-Patterns erweitern Jungle und Drum and Bass; Tamburin- und Dirty-Hat-Spuren werden transparent auf vorhandene Beckenstimmen reduziert.
+- 35 eigenständige Hip-Hop-, Funk- und DnB-Stilübungen vergrößern den Katalog ohne zusätzliche Songkopien oder kostenpflichtige Packs.
 
 ## Quantisiert und Original Feel
 
@@ -39,6 +42,7 @@ Das Modell besitzt neun Drumspuren, aber keine getrennte Fuß-Hi-Hat, Cowbell, T
 - [ZGMTH: Microtiming in Early Funk](https://www.gmth.de/zeitschrift/artikel/1224.aspx): Noten und gemessene Millisekundenwerte für `Think`, `Impeach`, `Apache`, `Cissy Strut` und `It’s a New Day`.
 - [University of Hull: Rebecoming Analogue](https://hull-repository.worktribe.com/output/4218015): Break-Formen, Ghostnotes und Drummer-Zuschreibungen, unter anderem John „Jabo“ Starks.
 - [Native Instruments: Drum-Break-Rekonstruktionen und MIDI](https://blog.native-instruments.com/best-drum-breaks/): `Funky Drummer`, `Ashley’s Roachclip` und `Express Yourself`.
+- [Simon V: Drum & Bass Patterns](https://www.simonv.com/tutorials/drum_patterns.php): freie MIDI-Vorlagen für acht ergänzende DnB- und Jungle-Übungen.
 - [Goodhertz: Synthetic Substitution](https://goodhertz.com/funklet/synthetic-substitution/): zweitaktige Noten- und Dynamikfolge.
 - [International Audio Laboratories Erlangen: Amen Break](https://www.audiolabs-erlangen.de/resources/MIR/2016-IEEE-TASLP-DrumSeparation/AmenBreak): viertaktige Form und Instrumentzerlegung.
 - [DrumsTheWord: Famous Drum Beats eBook](https://www.drumstheword.com/digital-media/Downloads/FamousDrumBeats_eBook.pdf): detaillierte Bonham-Notationen.

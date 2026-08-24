@@ -9,7 +9,7 @@ const HIT_STATES = new Set(["mute", "ghost", "normal", "accent"]);
 const SUMMARY_STATES = new Set(["mute", "normal", "accent"]);
 const PATTERN_CATEGORIES = new Set([
   "Rock & Pop", "Punk & Metal", "Funk & Soul", "Hip-Hop", "Old School Hip-Hop", "Trip-Hop & Downtempo", "Dance & Electronic",
-  "Reggae", "Latin & World", "Blues & Shuffle", "Genreübergreifend",
+  "Jungle & Drum and Bass", "Reggae", "Latin & World", "Blues & Shuffle", "Genreübergreifend",
 ]);
 const PATTERN_TYPES = new Set(["Groove", "Break", "Technik"]);
 const DRUM_VOICES = new Set([
@@ -75,11 +75,11 @@ test("renders the Klangmaß metronome product", async () => {
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape|react-loading-skeleton/i);
 });
 
-test("ships a drum-only v2 library with 74 complete patterns", async () => {
+test("ships a drum-only v2 library with 120 complete patterns", async () => {
   const library = await readLibrary();
   assert.equal(library.version, 2);
-  assert.equal(library.count, 74);
-  assert.equal(library.patterns.length, 74);
+  assert.equal(library.count, 120);
+  assert.equal(library.patterns.length, 120);
   const ids = new Set();
   const names = new Set();
   const musicalSignatures = new Set();
@@ -221,6 +221,29 @@ test("includes the second researched trip-hop and old-school collection", async 
   assert.equal(patterns.get("drum-sneaker-pimps-six-underground").bars, 4);
   assert.equal(patterns.get("drum-run-dmc-sucker-mcs").category, "Old School Hip-Hop");
   assert.equal(patterns.get("drum-planet-rock").playback?.kit, "808");
+});
+
+test("includes the free MIDI expansion and original style collection", async () => {
+  const library = await readLibrary();
+  const patterns = indexedPatterns(library);
+  const expected = new Map([
+    ["drum-i-got-you", [2, 145]], ["drum-funky-president", [2, 105]], ["drum-come-dancing", [2, 97]],
+    ["drum-simonv-basic", [2, 175]], ["drum-simonv-two-step", [4, 175]], ["drum-simonv-swing", [2, 175]],
+    ["drum-simonv-cosmic-tree", [2, 175]], ["drum-simonv-quadrant-six", [2, 175]],
+    ["drum-simonv-leafy-lane", [2, 175]], ["drum-simonv-datalife", [8, 175]], ["drum-simonv-moving-808s", [2, 175]],
+  ]);
+  for (const [id, [bars, bpm]] of expected) {
+    const pattern = patterns.get(id);
+    assert.ok(pattern, `missing free MIDI pattern ${id}`);
+    assert.equal(pattern.bars, bars, `${id} has the wrong form length`);
+    assert.equal(pattern.playback?.bpm, bpm, `${id} has the wrong source tempo`);
+    assert.ok(pattern.source?.url, `${id} lacks its source`);
+    assert.ok(pattern.originalFeel, `${id} lacks its MIDI feel layer`);
+  }
+  const originalStyles = library.patterns.filter((pattern) => pattern.attribution === "Eigenständige Stilübung");
+  assert.equal(originalStyles.length, 35);
+  assert.ok(originalStyles.every((pattern) => !pattern.source), "an original style exercise claims a transcription source");
+  assert.ok(library.patterns.filter((pattern) => pattern.category === "Jungle & Drum and Bass").length >= 18);
 });
 
 test("keeps the signature drum exercises musically consistent", async () => {
