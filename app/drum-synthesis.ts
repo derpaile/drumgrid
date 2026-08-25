@@ -1,6 +1,6 @@
 import type { DrumHitState, DrumKit, DrumVoice } from "./metronome-core";
 
-type PlayableDrumKit = "Studio" | "Trocken" | "Vintage" | "Elektronisch" | "707" | "808" | "808 Deep" | "909" | "PSS-795";
+type PlayableDrumKit = "Studio" | "Trocken" | "Vintage" | "Elektronisch" | "Holzwerk" | "Quartz Click" | "707" | "808" | "808 Deep" | "909" | "PSS-795";
 type SampleManifest = Record<DrumVoice, readonly string[]>;
 
 export const DRUM_KIT_OPTIONS: ReadonlyArray<{ value: PlayableDrumKit; label: string; description: string }> = [
@@ -8,6 +8,8 @@ export const DRUM_KIT_OPTIONS: ReadonlyArray<{ value: PlayableDrumKit; label: st
   { value: "Trocken", label: "Future Garage", description: "Kurze, reduzierte One-Shots aus dem Future-Garage-Projekt" },
   { value: "Vintage", label: "Lo-Fi", description: "Warme Kicks, Snares und Hats aus dem bereitgestellten Lo-Fi-Kit" },
   { value: "Elektronisch", label: "80s", description: "Komplettes elektronisches Kit aus den bereitgestellten 80s-Samples" },
+  { value: "Holzwerk", label: "Holzwerk", description: "Trockenes akustisches Click-Kit aus Holzblock-, Clave- und Metalltransienten" },
+  { value: "Quartz Click", label: "Quartz Click", description: "Modernes Präzisions-Click-Kit mit kurzen Ticks, Rims und Blips" },
   { value: "707", label: "707", description: "Klassisches digitales Roland-Drum-Machine-Kit" },
   { value: "808", label: "808", description: "Tiefe analoge Kick und prägnante elektronische Percussion" },
   { value: "808 Deep", label: "808 Deep", description: "Lange Sub-Kick, ausklingende Snare und breite Cymbals" },
@@ -75,6 +77,8 @@ const SAMPLE_MANIFESTS: Record<PlayableDrumKit, SampleManifest> = {
     highTom: shared80s("high-tom"),
     lowTom: shared80s("low-tom"),
   },
+  Holzwerk: completeKit("holzwerk"),
+  "Quartz Click": completeKit("quartz-click"),
   "707": completeKit("707"),
   "808": completeKit("808"),
   "808 Deep": completeKit("808-deep"),
@@ -83,7 +87,7 @@ const SAMPLE_MANIFESTS: Record<PlayableDrumKit, SampleManifest> = {
 };
 
 const PLAYABLE_KITS = new Set<PlayableDrumKit>(DRUM_KIT_OPTIONS.map((option) => option.value));
-const FIXED_PITCH_KITS = new Set<PlayableDrumKit>(["Elektronisch", "707", "808", "808 Deep", "909", "PSS-795"]);
+const FIXED_PITCH_KITS = new Set<PlayableDrumKit>(["Elektronisch", "Holzwerk", "Quartz Click", "707", "808", "808 Deep", "909", "PSS-795"]);
 
 const VOICE_LEVELS: Record<DrumVoice, number> = {
   kick: .94,

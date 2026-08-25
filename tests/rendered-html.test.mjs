@@ -367,25 +367,27 @@ test("uses a readable workstation hierarchy with sequencer priority", async () =
   }
 });
 
-test("ships nine compact recorded drum sample kits without procedural fallback", async () => {
+test("ships eleven compact recorded drum sample kits without procedural fallback", async () => {
   const audioRoot = new URL("../public/audio/drums/", import.meta.url);
-  const kitFolders = ["80s", "jungle", "lofi", "garage", "707", "808", "808-deep", "909", "pss795"];
+  const kitFolders = ["80s", "jungle", "lofi", "garage", "holzwerk", "quartz-click", "707", "808", "808-deep", "909", "pss795"];
   const completeKitFiles = new Set(["kick.mp3", "snare.mp3", "closed-hat.mp3", "open-hat.mp3", "ride.mp3", "crash.mp3", "rim.mp3", "high-tom.mp3", "low-tom.mp3"]);
-  for (const kit of ["707", "808", "808-deep", "909", "pss795"]) {
+  for (const kit of ["holzwerk", "quartz-click", "707", "808", "808-deep", "909", "pss795"]) {
     assert.deepEqual(new Set(await readdir(new URL(`${kit}/`, audioRoot))), completeKitFiles, `${kit} is incomplete`);
   }
   const files = (await Promise.all(kitFolders.map(async (kit) =>
     (await readdir(new URL(`${kit}/`, audioRoot))).map((name) => new URL(`${kit}/${name}`, audioRoot)),
   ))).flat();
   const sizes = await Promise.all(files.map(async (file) => (await stat(file)).size));
-  assert.equal(files.length, 81);
+  assert.equal(files.length, 99);
   assert.ok(files.every((file) => file.pathname.endsWith(".mp3")));
   assert.ok(sizes.every((size) => size > 0));
-  assert.ok(sizes.reduce((sum, size) => sum + size, 0) < 1_200_000, "drum samples exceed the 1.2 MB budget");
+  assert.ok(sizes.reduce((sum, size) => sum + size, 0) < 1_400_000, "drum samples exceed the 1.4 MB budget");
 
   const engine = await readFile(new URL("../app/drum-synthesis.ts", import.meta.url), "utf8");
   assert.match(engine, /decodeAudioData/);
   assert.match(engine, /\/audio\/drums/);
+  assert.match(engine, /Holzwerk: completeKit\("holzwerk"\)/);
+  assert.match(engine, /"Quartz Click": completeKit\("quartz-click"\)/);
   assert.doesNotMatch(engine, /createBuffer|createOscillator|seededNoise|Math\.sin/);
 });
 
