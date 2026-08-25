@@ -2,7 +2,8 @@
 
 ## Ergebnis
 
-- `../../public/data/patterns-v1.json`: 120 App-Patterns; darunter 22 klar als Rekonstruktion oder Reduktion bezeichnete Trip-Hop- und Hip-Hop-Presets, elf kostenlose MIDI-basierte Funk-/DnB-Ergänzungen und 35 eigenständige Stilübungen.
+- `../../public/data/patterns-v1.json`: 194 App-Patterns; darunter 22 klar als Rekonstruktion oder Reduktion bezeichnete Trip-Hop- und Hip-Hop-Presets, elf kostenlose MIDI-basierte Funk-/DnB-Ergänzungen und 109 eigenständige Stilübungen.
+- `generated/style-expansion-v1.json`: 74 neue, eigenständige Übungen: Jazz/Roots (24), Progressive/Heavy (22), globale Rhythmen (18) und Clubmusik (10).
 - `generated/reviewed-drum-patterns-v1.json`: 54 eindeutige, geprüfte Patterns.
 - `reviewed-drum-patterns-v1.schema.json`: JSON-Schema inklusive optionalem `originalFeel`.
 - `original/`: unveränderte DeepSeek-Exporte zur Nachvollziehbarkeit.
@@ -21,7 +22,7 @@
 - Vier inhaltliche Duplikate sowie unbelegbare Superlative, Sampling-Zahlen und kaputte `[reference:n]`-Marker wurden entfernt.
 - Die drei bisher fehlenden kostenlosen Native-Instruments-Breaks `I Got You`, `Funky President` und `Come Dancing` wurden mit Velocity und Mikro-Timing ergänzt.
 - Acht nicht redundante Simon-V-MIDI-Patterns erweitern Jungle und Drum and Bass; Tamburin- und Dirty-Hat-Spuren werden transparent auf vorhandene Beckenstimmen reduziert.
-- 35 eigenständige Hip-Hop-, Funk- und DnB-Stilübungen vergrößern den Katalog ohne zusätzliche Songkopien oder kostenpflichtige Packs.
+- 35 eigenständige Hip-Hop-, Funk- und DnB-Stilübungen sowie 74 neue Jazz-, Roots-, Heavy-, globale und elektronische Stilübungen vergrößern den Katalog ohne zusätzliche Songkopien oder kostenpflichtige Packs.
 
 ## Quantisiert und Original Feel
 

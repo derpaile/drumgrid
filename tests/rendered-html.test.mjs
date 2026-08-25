@@ -8,8 +8,9 @@ const FACTOR = { Viertel: 1, Achtel: 2, "16tel": 4, Triolen: 3, Sextolen: 6 };
 const HIT_STATES = new Set(["mute", "ghost", "normal", "accent"]);
 const SUMMARY_STATES = new Set(["mute", "normal", "accent"]);
 const PATTERN_CATEGORIES = new Set([
-  "Rock & Pop", "Punk & Metal", "Funk & Soul", "Hip-Hop", "Old School Hip-Hop", "Trip-Hop & Downtempo", "Dance & Electronic",
-  "Jungle & Drum and Bass", "Reggae", "Latin & World", "Blues & Shuffle", "Genreübergreifend",
+  "Rock & Pop", "Progressive & Heavy", "Punk & Metal", "Jazz", "Blues & Shuffle", "Country & Americana", "R&B & Gospel",
+  "Funk & Soul", "Hip-Hop", "Old School Hip-Hop", "Trip-Hop & Downtempo", "Dance & Electronic",
+  "Jungle & Drum and Bass", "Reggae", "Latin & World", "Genreübergreifend",
 ]);
 const PATTERN_TYPES = new Set(["Groove", "Break", "Technik"]);
 const DRUM_VOICES = new Set([
@@ -75,11 +76,11 @@ test("renders the Klangmaß metronome product", async () => {
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape|react-loading-skeleton/i);
 });
 
-test("ships a drum-only v2 library with 120 complete patterns", async () => {
+test("ships a drum-only v2 library with 194 complete patterns", async () => {
   const library = await readLibrary();
   assert.equal(library.version, 2);
-  assert.equal(library.count, 120);
-  assert.equal(library.patterns.length, 120);
+  assert.equal(library.count, 194);
+  assert.equal(library.patterns.length, 194);
   const ids = new Set();
   const names = new Set();
   const musicalSignatures = new Set();
@@ -240,10 +241,33 @@ test("includes the free MIDI expansion and original style collection", async () 
     assert.ok(pattern.source?.url, `${id} lacks its source`);
     assert.ok(pattern.originalFeel, `${id} lacks its MIDI feel layer`);
   }
-  const originalStyles = library.patterns.filter((pattern) => pattern.attribution === "Eigenständige Stilübung");
-  assert.equal(originalStyles.length, 35);
-  assert.ok(originalStyles.every((pattern) => !pattern.source), "an original style exercise claims a transcription source");
+  const originalStyles = library.patterns.filter((pattern) => pattern.attribution.startsWith("Eigenständige"));
+  assert.equal(originalStyles.length, 109);
+  assert.ok(originalStyles.every((pattern) => !/rekonstruktion|transkription/i.test(pattern.attribution)), "an original style exercise overstates transcription accuracy");
   assert.ok(library.patterns.filter((pattern) => pattern.category === "Jungle & Drum and Bass").length >= 18);
+});
+
+test("includes the broad jazz, roots, progressive, global and club expansion", async () => {
+  const library = await readLibrary();
+  const patterns = indexedPatterns(library);
+  const categoryMinimums = new Map([
+    ["Jazz", 9], ["R&B & Gospel", 6], ["Country & Americana", 5], ["Blues & Shuffle", 8],
+    ["Progressive & Heavy", 12], ["Punk & Metal", 13], ["Latin & World", 20], ["Dance & Electronic", 14],
+  ]);
+  for (const [category, minimum] of categoryMinimums) {
+    assert.ok(library.patterns.filter((pattern) => pattern.category === category).length >= minimum, `${category} is underrepresented`);
+  }
+  for (const id of [
+    "drum-jazz-swing-ride", "drum-jazz-waltz", "drum-country-train-beat", "drum-neo-soul-swung-sixteenths",
+    "drum-djent-eleven-eight-stop-start", "drum-prog-metal-thirteen-eight-additive", "drum-prog-metal-sextuplet-hand-foot",
+    "drum-son-clave-32", "drum-afro-cuban-six-eight", "drum-amapiano-log-drum", "drum-ukg-two-step", "drum-jersey-club-triplet",
+  ]) assert.ok(patterns.has(id), `missing style-expansion pattern ${id}`);
+  const meters = new Set(library.patterns.map((pattern) => pattern.meter));
+  for (const meter of ["2/4", "3/4", "5/8", "5/4", "6/8", "7/8", "9/8", "11/8", "12/8", "13/8"]) assert.ok(meters.has(meter), `missing meter ${meter}`);
+  assert.ok(library.patterns.some((pattern) => pattern.subdivision === "Sextolen"), "missing sextuplet pattern");
+  assert.deepEqual(patterns.get("drum-djent-eleven-eight-stop-start").grouping, [3, 3, 3, 2]);
+  assert.equal(patterns.get("drum-jazz-waltz").meter, "3/4");
+  assert.equal(patterns.get("drum-son-clave-32").bars, 2);
 });
 
 test("keeps the signature drum exercises musically consistent", async () => {
@@ -362,6 +386,16 @@ test("applies pattern editor changes to live playback immediately", async () => 
   assert.match(source.slice(subdivisionStart, subdivisionEnd), /if \(editorOpen\)[\s\S]*setEditorSteps\(\[\.\.\.nextSteps\]\)/, "grid changes must resize the open editor");
 });
 
+test("supports a simple volume control for every drum voice", async () => {
+  const source = await readFile(new URL("../app/metronome-app.tsx", import.meta.url), "utf8");
+  const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+  assert.match(source, /const DEFAULT_VOICE_VOLUMES: Record<DrumVoice, number>/);
+  assert.match(source, /voiceVolumesRef\.current\[voice\] \/ 100/);
+  assert.match(source, /className="voice-volume-input" type="range" min="0" max="100" step="5"/);
+  assert.match(source, /setVoiceVolumes\(\{ \.\.\.DEFAULT_VOICE_VOLUMES \}\)/);
+  assert.match(styles, /\.voice-volume-input\s*\{/);
+});
+
 test("uses a readable workstation hierarchy with sequencer priority", async () => {
   const source = await readFile(new URL("../app/metronome-app.tsx", import.meta.url), "utf8");
   const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
@@ -381,7 +415,7 @@ test("uses a readable workstation hierarchy with sequencer priority", async () =
   }
 });
 
-test("ships eleven compact recorded drum sample kits without procedural fallback", async () => {
+test("keeps eleven recorded kits and adds a complete procedural precision kit", async () => {
   const audioRoot = new URL("../public/audio/drums/", import.meta.url);
   const kitFolders = ["80s", "jungle", "lofi", "garage", "holzwerk", "quartz-click", "707", "808", "808-deep", "909", "pss795"];
   const completeKitFiles = new Set(["kick.mp3", "snare.mp3", "closed-hat.mp3", "open-hat.mp3", "ride.mp3", "crash.mp3", "rim.mp3", "high-tom.mp3", "low-tom.mp3"]);
@@ -402,7 +436,10 @@ test("ships eleven compact recorded drum sample kits without procedural fallback
   assert.match(engine, /\/audio\/drums/);
   assert.match(engine, /Holzwerk: completeKit\("holzwerk"\)/);
   assert.match(engine, /"Quartz Click": completeKit\("quartz-click"\)/);
-  assert.doesNotMatch(engine, /createBuffer|createOscillator|seededNoise|Math\.sin/);
+  assert.match(engine, /value: "Präzision"/);
+  assert.match(engine, /context\.createBuffer\(1, length, sampleRate\)/);
+  assert.match(engine, /case "kick"[\s\S]*case "snare"[\s\S]*case "closedHat"[\s\S]*case "openHat"[\s\S]*case "ride"[\s\S]*case "crash"[\s\S]*case "rim"[\s\S]*case "highTom"[\s\S]*case "lowTom"/);
+  assert.match(engine, /cache\.get\(key\)\?\.sampleRate !== context\.sampleRate/);
 });
 
 test("includes complete PWA assets", async () => {

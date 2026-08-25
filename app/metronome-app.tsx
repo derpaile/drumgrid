@@ -28,6 +28,112 @@ type MidiAccessLike = { inputs: Map<string, MidiInputLike>; onstatechange: (() =
 type WakeLockHandle = { release: () => Promise<void> };
 type OpenHatHandle = { source: AudioBufferSourceNode; gain: GainNode; level: number; endAt: number };
 
+const VISIBLE_FFT_BINS = 100;
+const DEFAULT_VOICE_VOLUMES: Record<DrumVoice, number> = {
+  kick: 100, snare: 100, closedHat: 100, openHat: 100, ride: 100,
+  crash: 100, rim: 100, highTom: 100, lowTom: 100,
+};
+
+function VoiceLaneLabel({
+  voice, volume, onVolumeChange, onClear,
+}: {
+  voice: DrumVoice;
+  volume: number;
+  onVolumeChange: (voice: DrumVoice, value: number) => void;
+  onClear?: () => void;
+}) {
+  return <span className="drum-lane-label voice-lane-label">
+    <span>{DRUM_LABELS[voice]}</span>
+    {onClear && <button onClick={onClear} aria-label={`${DRUM_LABELS[voice]} leeren`}>×</button>}
+    <input className="voice-volume-input" type="range" min="0" max="100" step="5" value={volume} title={`${volume}%`} onChange={(event) => onVolumeChange(voice, Number(event.target.value))} aria-label={`${DRUM_LABELS[voice]} Lautstärke`} />
+  </span>;
+}
+
+function FftSpectrum({ analyserRef, active }: { analyserRef: { current: AnalyserNode | null }; active: boolean }) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const levelsRef = useRef(new Float32Array(VISIBLE_FFT_BINS));
+  const peaksRef = useRef(new Float32Array(VISIBLE_FFT_BINS));
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const graphics = canvas.getContext("2d");
+    if (!graphics) return;
+    const analyser = analyserRef.current;
+    const frequencyData = analyser ? new Uint8Array(analyser.frequencyBinCount) : null;
+    let frame = 0;
+
+    const draw = () => {
+      const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+      const width = Math.max(1, canvas.clientWidth);
+      const height = Math.max(1, canvas.clientHeight);
+      const backingWidth = Math.round(width * pixelRatio);
+      const backingHeight = Math.round(height * pixelRatio);
+      if (canvas.width !== backingWidth || canvas.height !== backingHeight) {
+        canvas.width = backingWidth;
+        canvas.height = backingHeight;
+      }
+      graphics.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+      graphics.clearRect(0, 0, width, height);
+      graphics.fillStyle = "#010401";
+      graphics.fillRect(0, 0, width, height);
+
+      if (active && analyser && frequencyData) analyser.getByteFrequencyData(frequencyData);
+      const levels = levelsRef.current;
+      const peaks = peaksRef.current;
+      const gap = 1;
+      const barWidth = Math.max(1, (width - gap * (VISIBLE_FFT_BINS - 1)) / VISIBLE_FFT_BINS);
+      const plotHeight = Math.max(1, height - 8);
+      const binHz = analyser ? analyser.context.sampleRate / analyser.fftSize : 1;
+      const minHz = 35;
+      const maxHz = analyser ? Math.min(18_000, analyser.context.sampleRate / 2) : 18_000;
+      const frequencyRange = maxHz / minHz;
+      let highestLevel = 0;
+
+      for (let index = 0; index < VISIBLE_FFT_BINS; index += 1) {
+        let target = 0;
+        if (active && analyser && frequencyData) {
+          const lowHz = minHz * Math.pow(frequencyRange, index / VISIBLE_FFT_BINS);
+          const highHz = minHz * Math.pow(frequencyRange, (index + 1) / VISIBLE_FFT_BINS);
+          const start = Math.min(frequencyData.length - 1, Math.max(0, Math.floor(lowHz / binHz)));
+          const end = Math.min(frequencyData.length, Math.max(start + 1, Math.ceil(highHz / binHz)));
+          let strongest = 0;
+          for (let bin = start; bin < end; bin += 1) strongest = Math.max(strongest, frequencyData[bin]);
+          target = Math.pow(strongest / 255, 1.25);
+        }
+
+        const previous = levels[index];
+        const level = target > previous ? previous + (target - previous) * .82 : previous * .84;
+        levels[index] = level;
+        peaks[index] = Math.max(level, peaks[index] - .018);
+        highestLevel = Math.max(highestLevel, level, peaks[index]);
+
+        const x = index * (barWidth + gap);
+        const barHeight = Math.max(2, level * plotHeight);
+        for (let y = 0; y < barHeight; y += 4) {
+          const position = y / plotHeight;
+          graphics.fillStyle = position > .88 ? "#ff665d" : position > .7 ? "#e0c36a" : "#30f22a";
+          graphics.globalAlpha = level > .01 ? .92 : .18;
+          graphics.fillRect(x, height - 3 - y, barWidth, Math.min(2, barHeight - y));
+        }
+        if (peaks[index] > .035) {
+          graphics.globalAlpha = .85;
+          graphics.fillStyle = "#d8f58a";
+          graphics.fillRect(x, Math.max(1, height - 4 - peaks[index] * plotHeight), barWidth, 1);
+        }
+      }
+      graphics.globalAlpha = 1;
+
+      if (active || highestLevel > .01) frame = window.requestAnimationFrame(draw);
+    };
+
+    draw();
+    return () => window.cancelAnimationFrame(frame);
+  }, [active, analyserRef]);
+
+  return <canvas ref={canvasRef} className="spectrum" aria-hidden="true" data-visible-bins={VISIBLE_FFT_BINS} />;
+}
+
 const withAudioTimeout = <T,>(promise: Promise<T>, milliseconds = 2500): Promise<T> => new Promise((resolve, reject) => {
   const timer = window.setTimeout(() => reject(new Error("Audio transition timed out")), milliseconds);
   promise.then((value) => {
@@ -60,6 +166,7 @@ export default function MetronomeApp() {
   const [sessionKind, setSessionKind] = useState<SessionKind>("free");
   const [section, setSection] = useState<AppSection>("trainer");
   const [volume, setVolume] = useState(72);
+  const [voiceVolumes, setVoiceVolumes] = useState<Record<DrumVoice, number>>(() => ({ ...DEFAULT_VOICE_VOLUMES }));
   const [sound, setSound] = useState<DrumKit>("Studio");
   const [swing, setSwing] = useState(50);
   const [timerMinutes, setTimerMinutes] = useState(0);
@@ -102,6 +209,7 @@ export default function MetronomeApp() {
   const scheduledSourcesRef = useRef<Set<AudioScheduledSourceNode>>(new Set());
   const masterGainRef = useRef<GainNode | null>(null);
   const compressorRef = useRef<DynamicsCompressorNode | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
   const drumSampleCacheRef = useRef<DrumSampleCache>(new Map());
   const openHatSourcesRef = useRef<Set<OpenHatHandle>>(new Set());
   const drumHitCounterRef = useRef(0);
@@ -118,6 +226,7 @@ export default function MetronomeApp() {
   const drumTracksRef = useRef<DrumTracks | null>(drumTracks);
   const tempoUnitRef = useRef(tempoUnit);
   const volumeRef = useRef(volume);
+  const voiceVolumesRef = useRef(voiceVolumes);
   const soundRef = useRef<DrumKit>(sound);
   const swingRef = useRef(swing);
   const originalFeelRef = useRef<OriginalFeel | null>(originalFeel);
@@ -314,6 +423,12 @@ export default function MetronomeApp() {
     };
   }, []);
 
+  const updateVoiceVolume = useCallback((voice: DrumVoice, value: number) => {
+    const next = { ...voiceVolumesRef.current, [voice]: Math.max(0, Math.min(100, value)) };
+    voiceVolumesRef.current = next;
+    setVoiceVolumes(next);
+  }, []);
+
   const clearRuntime = useCallback((closeContext = true) => {
     if (schedulerRef.current !== null) window.clearInterval(schedulerRef.current);
     schedulerRef.current = null;
@@ -328,8 +443,10 @@ export default function MetronomeApp() {
     openHatSourcesRef.current.clear();
     try { masterGainRef.current?.disconnect(); } catch { /* Already disconnected. */ }
     try { compressorRef.current?.disconnect(); } catch { /* Already disconnected. */ }
+    try { analyserRef.current?.disconnect(); } catch { /* Already disconnected. */ }
     masterGainRef.current = null;
     compressorRef.current = null;
+    analyserRef.current = null;
     drumHitCounterRef.current = 0;
     wakeLockRef.current?.release().catch(() => undefined);
     wakeLockRef.current = null;
@@ -387,7 +504,7 @@ export default function MetronomeApp() {
     if (!sampleBuffer) return;
     const gain = context.createGain();
     const source = context.createBufferSource();
-    const level = drumHitLevel(voice, state, velocityMultiplier, volumeRef.current);
+    const level = drumHitLevel(voice, state, velocityMultiplier * voiceVolumesRef.current[voice] / 100, volumeRef.current);
     source.buffer = sampleBuffer;
     source.playbackRate.setValueAtTime(drumPlaybackRate(kit, voice, state, hitCounter), when);
     gain.gain.setValueAtTime(level, when);
@@ -424,7 +541,7 @@ export default function MetronomeApp() {
       try {
         await withAudioTimeout(primeDrumKit(context, drumSampleCacheRef.current, nextKit, DRUM_VOICES), 8000);
       } catch {
-        showToast("Das Drumkit konnte nicht geladen werden.");
+        showToast("Das Drumkit konnte nicht vorbereitet werden.");
         return;
       }
     }
@@ -521,21 +638,27 @@ export default function MetronomeApp() {
     try {
       await withAudioTimeout(primeDrumKit(context, drumSampleCacheRef.current, soundRef.current, DRUM_VOICES), 8000);
     } catch {
-      return fail("Drum-Samples konnten nicht geladen werden. Prüfe deine Verbindung und tippe erneut auf ▶.");
+      return fail("Drumklänge konnten nicht vorbereitet werden. Prüfe deine Verbindung und tippe erneut auf ▶.");
     }
     if (generationRef.current !== token || !wantsPlaybackRef.current || document.hidden || audioRef.current !== context) return;
 
     const master = context.createGain();
     const compressor = context.createDynamicsCompressor();
+    const analyser = context.createAnalyser();
     master.gain.value = .9;
     compressor.threshold.value = -15;
     compressor.knee.value = 16;
     compressor.ratio.value = 5;
     compressor.attack.value = .003;
     compressor.release.value = .18;
-    master.connect(compressor).connect(context.destination);
+    analyser.fftSize = 4096;
+    analyser.minDecibels = -90;
+    analyser.maxDecibels = -12;
+    analyser.smoothingTimeConstant = .68;
+    master.connect(compressor).connect(analyser).connect(context.destination);
     masterGainRef.current = master;
     compressorRef.current = compressor;
+    analyserRef.current = analyser;
     nextTimeRef.current = context.currentTime + .07;
     endAtRef.current = timerRemainingRef.current ? Date.now() + timerRemainingRef.current : 0;
     let lastContextTime = context.currentTime;
@@ -1149,10 +1272,11 @@ export default function MetronomeApp() {
 
   const resetControls = () => {
     volumeRef.current = 72; soundRef.current = "Studio"; swingRef.current = 50; timerMinutesRef.current = 0;
+    voiceVolumesRef.current = { ...DEFAULT_VOICE_VOLUMES };
     repeatBarsRef.current = 0; trainerRef.current = false; trainerModeRef.current = "up"; trainerMinRef.current = 20; trainerMaxRef.current = 300; trainerDirectionRef.current = 1;
     timerRemainingRef.current = 0;
     feelModeRef.current = "quantized";
-    setVolume(72); setSound("Studio"); setSwing(50); setTimerMinutes(0); setTimerText("∞"); setRepeatBars(0); setTrainer(false); setTrainerMode("up"); setTrainerMin(20); setTrainerMax(300);
+    setVolume(72); setVoiceVolumes({ ...DEFAULT_VOICE_VOLUMES }); setSound("Studio"); setSwing(50); setTimerMinutes(0); setTimerText("∞"); setRepeatBars(0); setTrainer(false); setTrainerMode("up"); setTrainerMin(20); setTrainerMax(300);
     setFeelMode("quantized");
     showToast("Einstellungen zurückgesetzt");
   };
@@ -1259,7 +1383,7 @@ export default function MetronomeApp() {
               <label className="bpm-compact"><input type="number" min="20" max="300" value={bpm} onChange={(event) => updateBpm(Number(event.target.value))} aria-label="Tempo in BPM" /><span>BPM</span></label>
               <button className="nudge" onClick={() => updateBpm(bpm + 1)} aria-label="Tempo um eins erhöhen">+</button>
               <input className="tempo-range" type="range" min="20" max="300" value={bpm} onChange={(event) => updateBpm(Number(event.target.value))} aria-label="Tempo-Regler" />
-              <div className={`spectrum ${isPlaying ? "playing" : ""}`} aria-hidden="true">{Array.from({ length: 18 }, (_, index) => <i key={index} />)}</div>
+              <FftSpectrum analyserRef={analyserRef} active={isPlaying} />
             </div>
 
             <div className="beat-strip">
@@ -1281,7 +1405,7 @@ export default function MetronomeApp() {
                     {DRUM_VOICES.map((voice) => {
                       const track = editorTracks[voice] || Array<DrumHitState>(editorSteps.length).fill("mute");
                       return <div className="drum-lane editor-lane" key={voice} style={{ gridTemplateColumns: `94px repeat(${editorSteps.length}, minmax(40px, 1fr))` }}>
-                        <span className="drum-lane-label"><span>{DRUM_LABELS[voice]}</span><button onClick={() => clearEditorLane(voice)} aria-label={`${DRUM_LABELS[voice]} leeren`}>×</button></span>
+                        <VoiceLaneLabel voice={voice} volume={voiceVolumes[voice]} onVolumeChange={updateVoiceVolume} onClear={() => clearEditorLane(voice)} />
                         {track.map((state, index) => <button key={index} tabIndex={index === 0 ? 0 : -1} className={`editor-step ${state} ${currentStep === index ? "current" : ""} ${index % stepsPerBar(meter, subdivision) === 0 ? "bar-start" : ""}`} onClick={() => updateEditorHit(voice, index)} onKeyDown={(event) => { if (!["ArrowLeft", "ArrowRight"].includes(event.key)) return; event.preventDefault(); const cells = Array.from(event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>(".editor-step") || []); cells[Math.max(0, Math.min(cells.length - 1, index + (event.key === "ArrowRight" ? 1 : -1)))]?.focus(); }} aria-label={`${DRUM_LABELS[voice]}, Schritt ${index + 1}: ${HIT_LABELS[state]}`} aria-pressed={state !== "mute"}>{index + 1}</button>)}
                       </div>;
                     })}
@@ -1296,7 +1420,7 @@ export default function MetronomeApp() {
                 <div className="drum-grid">
                   <div className="drum-lane drum-ruler" style={{ gridTemplateColumns: `82px repeat(${steps.length}, minmax(24px, 1fr))` }}><span className="drum-lane-label">Takt</span>{steps.map((_, index) => <span key={index} className={index % stepsPerBar(meter, subdivision) === 0 ? "bar-start" : ""}>{index % stepsPerBar(meter, subdivision) === 0 ? Math.floor(index / stepsPerBar(meter, subdivision)) + 1 : ""}</span>)}</div>
                   {activeDrumEntries.map(([voice, track]) => <div className="drum-lane" key={voice} style={{ gridTemplateColumns: `82px repeat(${steps.length}, minmax(24px, 1fr))` }}>
-                    <span className="drum-lane-label">{DRUM_LABELS[voice]}</span>
+                    <VoiceLaneLabel voice={voice} volume={voiceVolumes[voice]} onVolumeChange={updateVoiceVolume} />
                     {track.map((state, index) => <button key={index} data-step={index} className={`drum-cell ${state} ${currentStep === index ? "current" : ""} ${index % stepsPerBar(meter, subdivision) === 0 ? "bar-start" : ""}`} onClick={() => updateDrumHit(voice, index)} aria-label={`${DRUM_LABELS[voice]}, Schritt ${index + 1}: ${HIT_LABELS[state]}`} aria-pressed={state !== "mute"} />)}
                   </div>)}
                 </div>
@@ -1391,7 +1515,7 @@ export default function MetronomeApp() {
           <div className="local-data-note"><div><strong>Privat und lokal</strong><span>Keine Aufnahme, kein Konto, keine Telemetrie.</span></div><button className="danger" onClick={() => { if (window.confirm("Alle Favoriten, Presets und Übungsverläufe auf diesem Gerät löschen?")) void clearAllLocalData(); }}>Lokale Daten löschen</button></div>
         </section>
 
-        <footer className="footer"><span>KLANGMASS · Kuratierte Sample-Kits</span><span>Installierbar · Offline · Kompakt · Keine Aufnahme</span></footer>
+        <footer className="footer"><span>KLANGMASS · Sample- &amp; Synthese-Kits</span><span>Installierbar · Offline · Kompakt · Präzise</span></footer>
       </div>
       <nav className="mobile-nav" aria-label="Mobile Hauptnavigation"><button className={section === "trainer" ? "active" : ""} onClick={() => navigateTo("trainer")}><span>●</span>Üben</button><button className={section === "library" ? "active" : ""} onClick={() => navigateTo("library")}><span>⌕</span>Bibliothek</button><button className="mobile-play" onClick={togglePlayback} aria-label={isPlaying ? "Wiedergabe stoppen" : "Abspielen"}>{isPlaying ? "Ⅱ" : "▶"}</button><button className={section === "mine" ? "active" : ""} onClick={() => navigateTo("mine")}><span>♥</span>Meine</button></nav>
       </div>

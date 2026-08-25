@@ -4,7 +4,7 @@ export type Subdivision = "Viertel" | "Achtel" | "16tel" | "Triolen" | "Sextolen
 export type TempoUnit = "quarter" | "eighth" | "dotted-quarter";
 export type TrainerMode = "up" | "pyramid";
 export type Meter = { beats: number; denominator: number };
-export type DrumKit = "Studio" | "Trocken" | "Vintage" | "Besen" | "Elektronisch" | "Holzwerk" | "Quartz Click" | "707" | "808" | "808 Deep" | "909" | "PSS-795";
+export type DrumKit = "Studio" | "Trocken" | "Vintage" | "Besen" | "Elektronisch" | "Holzwerk" | "Quartz Click" | "Präzision" | "707" | "808" | "808 Deep" | "909" | "PSS-795";
 export type PatternType = "Groove" | "Break" | "Technik";
 
 export const DRUM_VOICES = ["kick", "snare", "closedHat", "openHat", "ride", "crash", "rim", "highTom", "lowTom"] as const;
@@ -67,8 +67,9 @@ export type PracticeEntry = {
 
 export const SUBDIVISIONS: Subdivision[] = ["Viertel", "Achtel", "16tel", "Triolen", "Sextolen"];
 export const PATTERN_CATEGORIES = [
-  "Rock & Pop", "Punk & Metal", "Funk & Soul", "Hip-Hop", "Old School Hip-Hop", "Trip-Hop & Downtempo", "Dance & Electronic",
-  "Jungle & Drum and Bass", "Reggae", "Latin & World", "Blues & Shuffle", "Genreübergreifend",
+  "Rock & Pop", "Progressive & Heavy", "Punk & Metal", "Jazz", "Blues & Shuffle", "Country & Americana", "R&B & Gospel",
+  "Funk & Soul", "Hip-Hop", "Old School Hip-Hop", "Trip-Hop & Downtempo", "Dance & Electronic",
+  "Jungle & Drum and Bass", "Reggae", "Latin & World", "Genreübergreifend",
 ] as const;
 export const PATTERN_TYPES: PatternType[] = ["Groove", "Break", "Technik"];
 export const FACTOR: Record<Subdivision, number> = { Viertel: 1, Achtel: 2, "16tel": 4, Triolen: 3, Sextolen: 6 };

@@ -9,7 +9,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     metadataBase: new URL(origin),
     title: { default: "Klangmaß — Drum-Groove-Trainer", template: "%s · Klangmaß" },
-    description: "Kuratierte Drum-Grooves mit kompakten Sample-Kits — installierbar und vollständig offline.",
+    description: "Kuratierte Drum-Grooves mit Sample- und prozeduralen Synthese-Kits — installierbar und vollständig offline.",
     applicationName: "Klangmaß",
     manifest: "/manifest.webmanifest",
     appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Klangmaß" },
@@ -19,7 +19,7 @@ export async function generateMetadata(): Promise<Metadata> {
       type: "website",
       locale: "de_DE",
       title: "Klangmaß — Drum-Groove-Trainer",
-      description: "Kuratierte Drum-Grooves mit kompakten Sample-Kits. Installierbar und vollständig offline.",
+      description: "Kuratierte Drum-Grooves mit Sample- und prozeduralen Synthese-Kits. Installierbar und vollständig offline.",
       images: [{ url: `${origin}/og-drums.png`, width: 1731, height: 909, alt: "Klangmaß Drum-Groove-Trainer" }],
     },
     twitter: { card: "summary_large_image", title: "Klangmaß — Drum-Groove-Trainer", images: [`${origin}/og-drums.png`] },

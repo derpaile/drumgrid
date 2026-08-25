@@ -42,3 +42,4 @@ yarn-error.log*
 
 # local source packs; the app ships only curated files from public/audio/
 /samples/
+music-samples-index.tsv

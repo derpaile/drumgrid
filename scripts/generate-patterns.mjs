@@ -1,11 +1,14 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 
+const styleExpansion = JSON.parse(await readFile(new URL("../research/drum-patterns/generated/style-expansion-v1.json", import.meta.url), "utf8"));
+
 const FACTOR = { Viertel: 1, Achtel: 2, "16tel": 4, Triolen: 3, Sextolen: 6 };
 const HIT_STATES = ["ghost", "normal", "accent"];
 const DRUM_VOICES = ["kick", "snare", "closedHat", "openHat", "ride", "crash", "rim", "highTom", "lowTom"];
 const PATTERN_CATEGORIES = new Set([
-  "Rock & Pop", "Punk & Metal", "Funk & Soul", "Hip-Hop", "Old School Hip-Hop", "Trip-Hop & Downtempo", "Dance & Electronic",
-  "Jungle & Drum and Bass", "Reggae", "Latin & World", "Blues & Shuffle", "Genreübergreifend",
+  "Rock & Pop", "Progressive & Heavy", "Punk & Metal", "Jazz", "Blues & Shuffle", "Country & Americana", "R&B & Gospel",
+  "Funk & Soul", "Hip-Hop", "Old School Hip-Hop", "Trip-Hop & Downtempo", "Dance & Electronic",
+  "Jungle & Drum and Bass", "Reggae", "Latin & World", "Genreübergreifend",
 ]);
 const BREAK_IDS = new Set([
   "drum-amen", "drum-apache", "drum-big-beat", "drum-express-yourself", "drum-funky-drummer",
@@ -549,6 +552,28 @@ const exercises = [
   }, { difficulty: "Fortgeschritten", playback: { bpm: 60, kit: "Studio", trainer: { mode: "pyramid", step: 5, every: 8, min: 60, max: 180 } } }),
 ];
 
+function expansionExercise(pattern) {
+  const { beats, denominator } = parseMeter(pattern.meter);
+  const expectedLength = pattern.bars * beats * 4 / denominator * FACTOR[pattern.subdivision];
+  if (!Number.isInteger(expectedLength) || pattern.pattern.length !== expectedLength) throw new Error(`${pattern.id} has an invalid source grid`);
+  const tracks = Object.fromEntries(Object.entries(pattern.drumTracks).map(([voice, track]) => {
+    if (!DRUM_VOICES.includes(voice) || track.length !== expectedLength) throw new Error(`${pattern.id} has an invalid ${voice} source track`);
+    const specification = Object.fromEntries(HIT_STATES.map((state) => [state, track.flatMap((value, index) => value === state ? [index] : [])]).filter(([, indices]) => indices.length));
+    return [voice, specification];
+  }));
+  if (JSON.stringify(mergeTracks(pattern.drumTracks, expectedLength)) !== JSON.stringify(pattern.pattern)) throw new Error(`${pattern.id} has a stale summary track`);
+  const entry = exercise(pattern.id, pattern.name, pattern.category, [pattern.bpmMin, pattern.bpmMax], pattern.instruction, tracks, {
+    meter: pattern.meter, subdivision: pattern.subdivision, bars: pattern.bars, grouping: pattern.grouping,
+    difficulty: pattern.difficulty, attribution: pattern.attribution, learningGoals: pattern.learningGoals,
+    whyInteresting: pattern.whyInteresting, playback: pattern.playback, source: pattern.source, originalFeel: pattern.originalFeel,
+  });
+  if (entry.patternType !== pattern.patternType) throw new Error(`${pattern.id} has inconsistent patternType ${pattern.patternType}`);
+  return entry;
+}
+
+if (!Array.isArray(styleExpansion.patterns) || styleExpansion.count !== styleExpansion.patterns.length) throw new Error("Invalid style-expansion catalog");
+exercises.push(...styleExpansion.patterns.map(expansionExercise));
+
 function parseMeter(meter) {
   const [beats, denominator] = meter.split("/").map(Number);
   return { beats, denominator };
@@ -622,7 +647,7 @@ const patterns = exercises.map((entry) => {
 });
 
 const target = new URL("../public/data/patterns-v1.json", import.meta.url);
-const output = `${JSON.stringify({ version: 2, updated: "2026-08-24", count: patterns.length, patterns }, null, 2)}\n`;
+const output = `${JSON.stringify({ version: 2, updated: "2026-08-25", count: patterns.length, patterns }, null, 2)}\n`;
 
 if (process.argv.includes("--check")) {
   const current = await readFile(target, "utf8");

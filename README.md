@@ -1,19 +1,20 @@
 # Klangmaß
 
-Installierbarer Drum-Groove-Trainer mit 120 kuratierten Schlagzeugübungen und
-kompakten Drum-Sample-Kits. Die App funktioniert ohne Konto und nach dem ersten
+Installierbarer Drum-Groove-Trainer mit 194 kuratierten Schlagzeugübungen sowie
+kompakten Sample- und Synthese-Kits. Die App funktioniert ohne Konto und nach dem ersten
 Aufruf vollständig offline. Songbezogene Grooves sind als Übungsrekonstruktion
 gekennzeichnet; Genreübungen geben keine falsche Transkriptionsgenauigkeit vor.
 
 ## Enthalten
 
 - Web-Audio-Scheduler mit Tempo, Taktart, Unterteilungen und Swing
-- elf kompakte Sample-Kits mit Kick, Snare, Hats, Toms, Rim und Crash
+- elf kompakte Sample-Kits plus ein vollständig prozedurales Präzisions-Kit mit Kick, Snare, Hats, Toms, Rim und Cymbals
 - mehrspuriges Groove-Raster mit Ghostnotes und Akzenten
 - pro Pattern umschaltbar zwischen quantisiertem Raster und belegtem Original-Feel mit Mikro-Timing/Dynamik
 - Session-Start für freies Üben, 5-Minuten-Timing, 10-Minuten-Groove und Tempo-Pyramide
 - Timer, Wiederholungen, Tempo-Trainer und Übeverlauf
 - Lernpfade und Filter nach Ziel, Takt, Schwierigkeit und Unterteilung
+- breite Stilbibliothek von Jazz, Country und Gospel bis Progressive Metal, Afro-Karibik und Clubmusik
 - Pattern-Editor mit mehreren Takten, Undo, Spur-Löschen sowie Import/Export
 - Favoriten, Verlauf und eigene Presets in IndexedDB
 - Tastatursteuerung (`Leertaste`, `T`, `+`, `-`) und optionaler MIDI-Start
