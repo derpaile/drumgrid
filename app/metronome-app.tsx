@@ -850,6 +850,26 @@ export default function MetronomeApp() {
     setPatternName("Eigenes Drum-Pattern");
   };
 
+  const applyEditorPattern = (tracks: DrumTracks, length: number) => {
+    const liveTracks = normalizedDrumTracks(tracks, length) || {};
+    const summary = mergeDrumTracks(liveTracks, length);
+    const cycleSteps = Math.max(stepsPerBar(meterRef.current, subdivisionRef.current), length);
+    nextStepRef.current %= cycleSteps;
+    checkpointRef.current = { ...checkpointRef.current, nextStep: nextStepRef.current };
+    drumTracksRef.current = liveTracks;
+    stepsRef.current = summary;
+    setEditorTracks(liveTracks);
+    setEditorSteps(summary);
+    setDrumTracks(liveTracks);
+    setStepsState(summary);
+    originalFeelRef.current = null;
+    feelModeRef.current = "quantized";
+    setOriginalFeel(null);
+    setFeelMode("quantized");
+    patternNameRef.current = "Eigenes Drum-Pattern";
+    setPatternName("Eigenes Drum-Pattern");
+  };
+
   const openEditor = (preset?: Pattern, trigger?: HTMLElement) => {
     editorTriggerRef.current = trigger || document.activeElement as HTMLElement | null;
     const sourceSteps = preset?.pattern || stepsRef.current;
@@ -908,15 +928,14 @@ export default function MetronomeApp() {
       counterpartLane[index] = "mute";
       next[counterpart] = counterpartLane;
     }
-    setEditorTracks(next);
-    setEditorSteps(mergeDrumTracks(next, length));
+    applyEditorPattern(next, length);
   };
 
   const undoEditor = () => {
     const previous = editorHistory.at(-1);
     if (!previous) return;
-    setEditorTracks(cloneDrumTracks(previous));
-    setEditorSteps(mergeDrumTracks(previous, editorSteps.length));
+    const previousLength = Math.max(...Object.values(previous).map((track) => track?.length || 0), 1);
+    applyEditorPattern(previous, previousLength);
     setEditorHistory((current) => current.slice(0, -1));
   };
 
@@ -924,16 +943,20 @@ export default function MetronomeApp() {
     setEditorHistory((current) => [...current.slice(-19), cloneDrumTracks(editorTracks)]);
     const next = cloneDrumTracks(editorTracks);
     next[voice] = Array<DrumHitState>(editorSteps.length).fill("mute");
-    setEditorTracks(next);
-    setEditorSteps(mergeDrumTracks(next, editorSteps.length));
+    applyEditorPattern(next, editorSteps.length);
   };
 
   const resizeEditorBars = (bars: number) => {
     const length = stepsPerBar(meter, subdivision) * bars;
     setEditorHistory((current) => [...current.slice(-19), cloneDrumTracks(editorTracks)]);
     const next = normalizedDrumTracks(editorTracks, length) || {};
-    setEditorTracks(next);
-    setEditorSteps(mergeDrumTracks(next, length));
+    applyEditorPattern(next, length);
+  };
+
+  const resetEditorPattern = () => {
+    setEditorHistory((current) => [...current.slice(-19), cloneDrumTracks(editorTracks)]);
+    const length = stepsPerBar(meter, subdivision);
+    applyEditorPattern(defaultDrumTracks(meter, subdivision), length);
   };
 
   const loadPattern = (pattern: Pattern, autoStart = false) => {
@@ -953,7 +976,6 @@ export default function MetronomeApp() {
     const nextSwing = playback.swing ?? 50;
     const nextTimerMinutes = playback.timerMinutes ?? 0;
     const nextRepeatBars = playback.repeatBars ?? 0;
-    const nextKit = normalizeDrumKit(playback.kit ?? "Studio");
     const nextTrainer = playback.trainer;
     meterRef.current = nextMeter;
     subdivisionRef.current = pattern.subdivision;
@@ -963,7 +985,6 @@ export default function MetronomeApp() {
     swingRef.current = nextSwing;
     timerMinutesRef.current = nextTimerMinutes;
     repeatBarsRef.current = nextRepeatBars;
-    soundRef.current = nextKit;
     trainerRef.current = Boolean(nextTrainer);
     trainerModeRef.current = nextTrainer?.mode ?? "up";
     trainerStepRef.current = nextTrainer?.step ?? 5;
@@ -982,7 +1003,6 @@ export default function MetronomeApp() {
     setTimerMinutes(nextTimerMinutes);
     setTimerText(nextTimerMinutes ? `${nextTimerMinutes}:00` : "∞");
     setRepeatBars(nextRepeatBars);
-    setSound(nextKit);
     setTrainer(Boolean(nextTrainer));
     setTrainerMode(nextTrainer?.mode ?? "up");
     setTrainerStep(nextTrainer?.step ?? 5);
@@ -1228,6 +1248,7 @@ export default function MetronomeApp() {
               <div className="session-progress" aria-live="polite"><span>{sessionBars} Takte</span><span>{timerText === "∞" ? "freie Session" : `${timerText} verbleibend`}</span></div>
             </div>
             <div className="tempo-toolbar" aria-label="Tempo">
+              <button className="play-button tempo-play" onClick={togglePlayback} aria-label={isPlaying ? "Wiedergabe stoppen" : "Abspielen"} aria-pressed={isPlaying}>{isPlaying ? "Ⅱ" : "▶"}</button>
               <button className="tap-compact" onClick={tapTempo}>TAP</button>
               <button className="nudge" onClick={() => updateBpm(bpm - 1)} aria-label="Tempo um eins verringern">−</button>
               <label className="bpm-compact"><input type="number" min="20" max="300" value={bpm} onChange={(event) => updateBpm(Number(event.target.value))} aria-label="Tempo in BPM" /><span>BPM</span></label>
@@ -1254,20 +1275,16 @@ export default function MetronomeApp() {
               </div>}
             </div>
 
-            <div className="transport compact-transport">
-              <button className="play-button" onClick={togglePlayback} aria-label={isPlaying ? "Wiedergabe stoppen" : "Abspielen"}>{isPlaying ? "Ⅱ" : "▶"}</button>
-              <div className="transport-note">{timerText === "∞" ? "Ohne Zeitlimit" : `Restzeit ${timerText}`}<br />{repeatBars ? `${repeatBars} Takte` : "Endlos wiederholen"}</div>
-            </div>
             <div className="shortcut-hint">Leertaste: Start/Stop · T: Tap Tempo · +/−: BPM</div>
           </div>
 
           <aside className="panel controls-panel" aria-label="Drum-Trainer-Einstellungen">
             <div className="panel-title-row"><h2 className="panel-title">Einstellungen</h2><button className="reset-button" onClick={resetControls}>Reset</button></div>
-            <div className="control-group compact-sound">
+            <div className="control-group compact-sound settings-cell settings-sound">
               <div className="control-label"><span>Klang</span><span>{volume}%</span></div>
               <div className="select-row"><select className="field-select" value={sound} title={DRUM_KIT_OPTIONS.find((kit) => kit.value === sound)?.description} onChange={(event) => void changeDrumKit(event.target.value as DrumKit)} aria-label="Drumkit">{DRUM_KIT_OPTIONS.map((kit) => <option key={kit.value} value={kit.value}>{kit.label}</option>)}</select><input type="range" min="0" max="100" value={volume} onChange={(event) => setVolume(Number(event.target.value))} aria-label="Lautstärke" /></div>
             </div>
-            <div className="control-group">
+            <div className="control-group settings-cell settings-feel">
               <div className="control-label"><span>Spielweise</span><span>{feelMode === "original" ? originalFeel?.label || "Original Feel" : "Raster"}</span></div>
               <div className="segmented feel-toggle">
                 <button className={feelMode === "quantized" ? "active" : ""} aria-pressed={feelMode === "quantized"} onClick={() => { feelModeRef.current = "quantized"; setFeelMode("quantized"); }}>Quantisiert</button>
@@ -1275,7 +1292,7 @@ export default function MetronomeApp() {
               </div>
               <small className="feel-note">{originalFeel ? (feelMode === "original" ? originalFeel.note : "Gerades Raster; Dynamikstufen bleiben erhalten.") : "Keine belegte Performance-Variante hinterlegt."}</small>
             </div>
-            <div className="control-group">
+            <div className="control-group settings-cell settings-meter">
               <div className="control-label"><span>Takt</span><span>{meterLabel}</span></div>
               <div className="meter-compact">
                 <button onClick={() => changeMeter(Math.max(1, meter.beats - 1))} aria-label="Einen Schlag weniger">−</button>
@@ -1284,17 +1301,17 @@ export default function MetronomeApp() {
                 <div className="segmented denominator">{[4, 8, 16].map((value) => <button key={value} className={meter.denominator === value ? "active" : ""} aria-pressed={meter.denominator === value} onClick={() => changeMeter(meter.beats, value)}>/{value}</button>)}</div>
               </div>
             </div>
-            <div className="control-group">
+            <div className="control-group settings-cell settings-subdivision">
               <div className="control-label"><span>Unterteilung</span><span>{subdivision}</span></div>
               <div className="segmented five">
                 {SUBDIVISIONS.map((item) => <button key={item} className={subdivision === item ? "active" : ""} aria-pressed={subdivision === item} disabled={!hasExactGrid(meter, item)} title={!hasExactGrid(meter, item) ? `Kein vollständiges ${item}-Raster in ${meterLabel}` : undefined} onClick={() => changeSubdivision(item)}>{item === "Viertel" ? "¼" : item === "Achtel" ? "⅛" : item === "16tel" ? "¹⁄₁₆" : item === "Triolen" ? "3" : "6"}</button>)}
               </div>
             </div>
-            <div className="control-group">
+            <div className="control-group settings-cell settings-swing">
               <div className="control-label"><span>Swing</span><span>{Math.round((swing - 50) * 2)}%</span></div>
               <div className="slider-row"><span className="slider-icon">0</span><input type="range" min="0" max="50" value={(swing - 50) * 2} onChange={(event) => { const value = 50 + Number(event.target.value) / 2; swingRef.current = value; setSwing(value); }} aria-label="Swing von null bis fünfzig Prozent" /><span>50</span></div>
             </div>
-            <div className="control-group">
+            <div className="control-group settings-extras">
               <button className="session-extras-toggle" onClick={() => setSessionExtrasOpen((open) => !open)} aria-expanded={sessionExtrasOpen}><span>Zeit & Ende</span><small>{timerMinutes ? `${timerMinutes} Min.` : "ohne Timer"}{repeatBars ? ` · ${repeatBars} Takte` : ""}</small><b>{sessionExtrasOpen ? "−" : "+"}</b></button>
               {sessionExtrasOpen && <div className="session-extras">
                 <div className="control-label sub-label"><span>Timer</span><span>{timerMinutes ? `${timerMinutes}m` : "aus"}</span></div>
@@ -1303,11 +1320,11 @@ export default function MetronomeApp() {
                 <div className="segmented compact five">{[0, 4, 8, 16, 32].map((value) => <button key={value} className={repeatBars === value ? "active" : ""} aria-pressed={repeatBars === value} onClick={() => { repeatBarsRef.current = value; setRepeatBars(value); }}>{value || "∞"}</button>)}</div>
               </div>}
             </div>
-            <div className="trainer-card">
+            <div className="trainer-card settings-trainer">
               <div className="toggle-row"><div><strong>{trainerMode === "pyramid" ? "Tempo-Pyramide" : "Tempo-Trainer"}</strong><small>{trainerMode === "pyramid" ? "Automatisch hoch und wieder herunter" : "Automatisch schneller werden"}</small></div><button className={`switch ${trainer ? "on" : ""}`} onClick={() => { const value = !trainer; trainerRef.current = value; setTrainer(value); }} aria-label="Tempo-Trainer umschalten" aria-pressed={trainer} /></div>
               {trainer && <div className="trainer-settings"><select value={trainerMode} onChange={(event) => { const value = event.target.value as TrainerMode; trainerModeRef.current = value; setTrainerMode(value); }} aria-label="Trainer-Modus"><option value="up">Steigern</option><option value="pyramid">Pyramide</option></select><select value={trainerStep} onChange={(event) => { const value = Number(event.target.value); trainerStepRef.current = value; setTrainerStep(value); }} aria-label="Tempo-Schritt"><option value="2">{trainerMode === "pyramid" ? "±2" : "+2"} BPM</option><option value="5">{trainerMode === "pyramid" ? "±5" : "+5"} BPM</option><option value="10">{trainerMode === "pyramid" ? "±10" : "+10"} BPM</option></select><select value={trainerEvery} onChange={(event) => { const value = Number(event.target.value); trainerEveryRef.current = value; setTrainerEvery(value); }} aria-label="Intervall"><option value="4">alle 4 Takte</option><option value="8">alle 8 Takte</option><option value="16">alle 16 Takte</option></select><label>Start<input type="number" min="20" max="300" value={trainerMin} onChange={(event) => setTrainerMin(Number(event.target.value))} /></label><label>Ziel<input type="number" min="20" max="300" value={trainerMax} onChange={(event) => setTrainerMax(Number(event.target.value))} /></label><p>{bpm} BPM → {trainerMode === "pyramid" ? `${trainerMax} → ${trainerMin}` : trainerMax} · alle {trainerEvery} Takte</p></div>}
             </div>
-            <button className="midi-button" onClick={enableMidi} disabled={midiStatus === "connected"}>{midiStatus === "connected" ? "MIDI verbunden" : midiStatus === "unsupported" ? "Kein MIDI" : midiStatus === "denied" ? "MIDI abgelehnt" : "MIDI verbinden"}</button>
+            <button className="midi-button settings-midi" onClick={enableMidi} disabled={midiStatus === "connected"}>{midiStatus === "connected" ? "MIDI verbunden" : midiStatus === "unsupported" ? "Kein MIDI" : midiStatus === "denied" ? "MIDI abgelehnt" : "MIDI verbinden"}</button>
           </aside>
         </section>
 
@@ -1351,22 +1368,22 @@ export default function MetronomeApp() {
 
       {editorOpen && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeEditor(); }}>
         <section className="modal" ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="editor-title">
-          <div className="modal-head"><div><h2 id="editor-title">Drum-Pattern-Editor</h2><p>Entwurf bearbeiten, mit Pfeiltasten navigieren und erst beim Speichern übernehmen.</p></div><button className="close-button" onClick={closeEditor} aria-label="Editor schließen">×</button></div>
-          <div className="editor-toolbar"><label>Takte<select value={Math.max(1, Math.round(editorSteps.length / stepsPerBar(meter, subdivision)))} onChange={(event) => resizeEditorBars(Number(event.target.value))}>{[1, 2, 3, 4].map((value) => <option key={value} value={value}>{value}</option>)}</select></label><button onClick={undoEditor} disabled={!editorHistory.length}>↶ Rückgängig</button><span>{meterLabel} · {subdivision} · {editorSteps.length} Schritte</span></div>
+          <div className="modal-head"><div><h2 id="editor-title">Drum-Pattern-Editor</h2><p>Änderungen wirken sofort. Speichern legt das Pattern dauerhaft als Preset ab.</p></div><button className="close-button" onClick={closeEditor} aria-label="Editor schließen">×</button></div>
+          <div className="editor-toolbar"><label>Takte<select value={Math.max(1, Math.round(editorSteps.length / stepsPerBar(meter, subdivision)))} onChange={(event) => resizeEditorBars(Number(event.target.value))}>{[1, 2, 3, 4].map((value) => <option key={value} value={value}>{value}</option>)}</select></label><button onClick={togglePlayback}>{isPlaying ? "Ⅱ Stop" : "▶ Vorschau"}</button><button onClick={undoEditor} disabled={!editorHistory.length}>↶ Rückgängig</button><span>{meterLabel} · {subdivision} · {editorSteps.length} Schritte</span></div>
           <div className="drum-editor-scroll">
             <div className="drum-editor-grid">
               {DRUM_VOICES.map((voice) => {
                 const track = editorTracks[voice] || Array<DrumHitState>(editorSteps.length).fill("mute");
                 return <div className="drum-lane editor-lane" key={voice} style={{ gridTemplateColumns: `94px repeat(${editorSteps.length}, 44px)` }}>
                   <span className="drum-lane-label"><span>{DRUM_LABELS[voice]}</span><button onClick={() => clearEditorLane(voice)} aria-label={`${DRUM_LABELS[voice]} leeren`}>×</button></span>
-                  {track.map((state, index) => <button key={index} tabIndex={index === 0 ? 0 : -1} className={`editor-step ${state} ${index % stepsPerBar(meter, subdivision) === 0 ? "bar-start" : ""}`} onClick={() => updateEditorHit(voice, index)} onKeyDown={(event) => { if (!["ArrowLeft", "ArrowRight"].includes(event.key)) return; event.preventDefault(); const cells = Array.from(event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>(".editor-step") || []); cells[Math.max(0, Math.min(cells.length - 1, index + (event.key === "ArrowRight" ? 1 : -1)))]?.focus(); }} aria-label={`${DRUM_LABELS[voice]}, Schritt ${index + 1}: ${HIT_LABELS[state]}`} aria-pressed={state !== "mute"}>{index + 1}</button>)}
+                  {track.map((state, index) => <button key={index} tabIndex={index === 0 ? 0 : -1} className={`editor-step ${state} ${currentStep === index ? "current" : ""} ${index % stepsPerBar(meter, subdivision) === 0 ? "bar-start" : ""}`} onClick={() => updateEditorHit(voice, index)} onKeyDown={(event) => { if (!["ArrowLeft", "ArrowRight"].includes(event.key)) return; event.preventDefault(); const cells = Array.from(event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>(".editor-step") || []); cells[Math.max(0, Math.min(cells.length - 1, index + (event.key === "ArrowRight" ? 1 : -1)))]?.focus(); }} aria-label={`${DRUM_LABELS[voice]}, Schritt ${index + 1}: ${HIT_LABELS[state]}`} aria-pressed={state !== "mute"}>{index + 1}</button>)}
                 </div>;
               })}
             </div>
           </div>
           <div className="editor-legend"><span><i className="legend-dot accent" />Akzent</span><span><i className="legend-dot" />Schlag</span><span><i className="legend-dot ghost" />Ghostnote</span><span><i className="legend-dot mute" />Stille</span></div>
           <div className="editor-fields"><input className="text-field" value={presetName} onChange={(event) => setPresetName(event.target.value)} placeholder="Name des Patterns" aria-label="Preset-Name" /><select className="field-select" value={presetCategory} onChange={(event) => setPresetCategory(event.target.value)} aria-label="Preset-Kategorie"><option>Eigene Presets</option><option>Groove</option><option>Rudiment</option><option>Timing</option><option>Song</option></select></div>
-          <div className="modal-actions"><button className="secondary" onClick={closeEditor}>Verwerfen</button><button className="secondary" onClick={() => { setEditorHistory((current) => [...current.slice(-19), cloneDrumTracks(editorTracks)]); const nextTracks = defaultDrumTracks(meter, subdivision); setEditorTracks(nextTracks); setEditorSteps(mergeDrumTracks(nextTracks, stepsPerBar(meter, subdivision))); }}>Grundmuster</button><button className="primary" onClick={() => void savePreset()}>{editingPresetId ? "Änderungen speichern" : "Als Preset speichern"}</button></div>
+          <div className="modal-actions"><button className="secondary" onClick={closeEditor}>Schließen</button><button className="secondary" onClick={resetEditorPattern}>Grundmuster</button><button className="primary" onClick={() => void savePreset()}>{editingPresetId ? "Änderungen speichern" : "Als Preset speichern"}</button></div>
         </section>
       </div>}
       {toast && <div className="toast" role="status">{toast}</div>}

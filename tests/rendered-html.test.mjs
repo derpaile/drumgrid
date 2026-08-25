@@ -325,6 +325,42 @@ test("ties the pause symbol to a running audio engine and recovers page lifecycl
   assert.doesNotMatch(source, /setIsPlaying/);
 });
 
+test("keeps the selected drum kit global when switching beats", async () => {
+  const source = await readFile(new URL("../app/metronome-app.tsx", import.meta.url), "utf8");
+  const start = source.indexOf("const loadPattern =");
+  const end = source.indexOf("const toggleFavorite =", start);
+  assert.ok(start >= 0 && end > start, "loadPattern was not found");
+  const loadPattern = source.slice(start, end);
+  assert.doesNotMatch(loadPattern, /setSound|soundRef\.current|normalizeDrumKit/, "beat loading changes the global drum kit");
+});
+
+test("applies pattern editor changes to live playback immediately", async () => {
+  const source = await readFile(new URL("../app/metronome-app.tsx", import.meta.url), "utf8");
+  const start = source.indexOf("const applyEditorPattern =");
+  const end = source.indexOf("const loadPattern =", start);
+  assert.ok(start >= 0 && end > start, "live editor update block was not found");
+  const editor = source.slice(start, end);
+  assert.match(editor, /drumTracksRef\.current = liveTracks/);
+  assert.match(editor, /stepsRef\.current = summary/);
+  assert.match(editor, /setDrumTracks\(liveTracks\)/);
+  assert.ok((editor.match(/applyEditorPattern\(/g) || []).length >= 5, "not every editor action updates live playback");
+  assert.match(source, /Änderungen wirken sofort/);
+  assert.match(source, /▶ Vorschau/);
+});
+
+test("gives the sequencer full horizontal priority over rhythm settings", async () => {
+  const source = await readFile(new URL("../app/metronome-app.tsx", import.meta.url), "utf8");
+  const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+  assert.match(styles, /\.workspace \{[^}]*grid-template-columns: minmax\(0, 1fr\)/);
+  assert.match(styles, /\.controls-panel \{[^}]*grid-template-columns: repeat\(10, minmax\(0, 1fr\)\)/);
+  assert.match(source, /className="tempo-toolbar"[\s\S]{0,240}className="play-button tempo-play"[\s\S]{0,240}className="tap-compact"/);
+  assert.match(styles, /\.tempo-play\s*\{[^}]*width:\s*64px;[^}]*height:\s*72px/s);
+  assert.match(styles, /@media \(max-width:\s*700px\)[\s\S]*?\.tempo-play\s*\{\s*display:\s*none;/);
+  for (const className of ["settings-meter", "settings-subdivision", "settings-swing"]) {
+    assert.match(source, new RegExp(`control-group settings-cell ${className}`));
+  }
+});
+
 test("ships nine compact recorded drum sample kits without procedural fallback", async () => {
   const audioRoot = new URL("../public/audio/drums/", import.meta.url);
   const kitFolders = ["80s", "jungle", "lofi", "garage", "707", "808", "808-deep", "909", "pss795"];
