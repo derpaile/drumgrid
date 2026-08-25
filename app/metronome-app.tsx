@@ -785,6 +785,11 @@ export default function MetronomeApp() {
     drumTracksRef.current = nextTracks;
     setStepsState(nextSteps);
     setDrumTracks(nextTracks);
+    if (editorOpen) {
+      setEditorTracks(cloneDrumTracks(nextTracks));
+      setEditorSteps([...nextSteps]);
+      setEditorHistory([]);
+    }
     originalFeelRef.current = null;
     feelModeRef.current = "quantized";
     setOriginalFeel(null);
@@ -803,6 +808,11 @@ export default function MetronomeApp() {
     drumTracksRef.current = nextTracks;
     setStepsState(nextSteps);
     setDrumTracks(nextTracks);
+    if (editorOpen) {
+      setEditorTracks(cloneDrumTracks(nextTracks));
+      setEditorSteps([...nextSteps]);
+      setEditorHistory([]);
+    }
     originalFeelRef.current = null;
     feelModeRef.current = "quantized";
     setOriginalFeel(null);
@@ -850,9 +860,10 @@ export default function MetronomeApp() {
   };
 
   const applyEditorPattern = (tracks: DrumTracks, length: number) => {
-    const liveTracks = normalizedDrumTracks(tracks, length) || {};
-    const summary = mergeDrumTracks(liveTracks, length);
-    const cycleSteps = Math.max(stepsPerBar(meterRef.current, subdivisionRef.current), length);
+    const liveLength = Math.max(stepsPerBar(meterRef.current, subdivisionRef.current), length);
+    const liveTracks = normalizedDrumTracks(tracks, liveLength) || {};
+    const summary = mergeDrumTracks(liveTracks, liveLength);
+    const cycleSteps = liveLength;
     nextStepRef.current %= cycleSteps;
     checkpointRef.current = { ...checkpointRef.current, nextStep: nextStepRef.current };
     drumTracksRef.current = liveTracks;
@@ -875,9 +886,14 @@ export default function MetronomeApp() {
     const needsScroll = !resolvedTrigger?.closest(".beat-strip");
     editorTriggerRef.current = resolvedTrigger;
     const sourceSteps = preset?.pattern || stepsRef.current;
-    const sourceTracks = normalizedDrumTracks(preset?.drumTracks || drumTracksRef.current || defaultDrumTracks(meterRef.current, subdivisionRef.current), sourceSteps.length) || {};
-    setEditorTracks(cloneDrumTracks(sourceTracks));
-    setEditorSteps([...sourceSteps]);
+    const sourceLength = Math.max(stepsPerBar(meterRef.current, subdivisionRef.current), sourceSteps.length);
+    const sourceTracks = normalizedDrumTracks(preset?.drumTracks || drumTracksRef.current || defaultDrumTracks(meterRef.current, subdivisionRef.current), sourceLength) || {};
+    const sourceSummary = mergeDrumTracks(sourceTracks, sourceLength);
+    if (sourceSteps.length < sourceLength) applyEditorPattern(sourceTracks, sourceLength);
+    else {
+      setEditorTracks(cloneDrumTracks(sourceTracks));
+      setEditorSteps(sourceSummary);
+    }
     setEditorHistory([]);
     setPresetName(preset?.name || patternNameRef.current || "Mein Pattern");
     setPresetCategory(preset?.category || "Eigene Presets");

@@ -344,6 +344,8 @@ test("applies pattern editor changes to live playback immediately", async () => 
   assert.match(editor, /drumTracksRef\.current = liveTracks/);
   assert.match(editor, /stepsRef\.current = summary/);
   assert.match(editor, /setDrumTracks\(liveTracks\)/);
+  assert.match(editor, /const liveLength = Math\.max\(stepsPerBar\(meterRef\.current, subdivisionRef\.current\), length\)/);
+  assert.match(editor, /normalizedDrumTracks\(tracks, liveLength\)/);
   assert.ok((editor.match(/applyEditorPattern\(/g) || []).length >= 5, "not every editor action updates live playback");
   assert.match(source, /Änderungen wirken sofort/);
   assert.match(source, /▶ Vorschau/);
@@ -355,6 +357,9 @@ test("applies pattern editor changes to live playback immediately", async () => 
   const saveStart = source.indexOf("const savePreset =");
   const saveEnd = source.indexOf("const deletePresetById =", saveStart);
   assert.doesNotMatch(source.slice(saveStart, saveEnd), /closeEditor\(\)/, "saving should not end live editing");
+  const subdivisionStart = source.indexOf("const changeSubdivision =");
+  const subdivisionEnd = source.indexOf("const updateStep =", subdivisionStart);
+  assert.match(source.slice(subdivisionStart, subdivisionEnd), /if \(editorOpen\)[\s\S]*setEditorSteps\(\[\.\.\.nextSteps\]\)/, "grid changes must resize the open editor");
 });
 
 test("uses a readable workstation hierarchy with sequencer priority", async () => {
