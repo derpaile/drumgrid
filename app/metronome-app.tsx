@@ -148,7 +148,7 @@ export default function MetronomeApp() {
   const sessionStartBpmRef = useRef(bpm);
   const practiceHistoryRef = useRef<PracticeEntry[]>([]);
   const drumGridScrollRef = useRef<HTMLDivElement | null>(null);
-  const dialogRef = useRef<HTMLElement | null>(null);
+  const inlineEditorRef = useRef<HTMLElement | null>(null);
   const editorTriggerRef = useRef<HTMLElement | null>(null);
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const midiAccessRef = useRef<MidiAccessLike | null>(null);
@@ -723,8 +723,7 @@ export default function MetronomeApp() {
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
-      if (target?.matches("input, select, textarea, [contenteditable='true']")) return;
-      if (editorOpen) return;
+      if (target?.matches("button, a, input, select, textarea, [contenteditable='true']")) return;
       if (event.code === "Space") { event.preventDefault(); togglePlayback(); }
       else if (event.key.toLocaleLowerCase("de") === "t") registerTap(performance.now());
       else if (event.key === "+" || event.key === "=") updateBpm(bpmRef.current + 1);
@@ -732,7 +731,7 @@ export default function MetronomeApp() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [editorOpen, registerTap, togglePlayback, updateBpm]);
+  }, [registerTap, togglePlayback, updateBpm]);
 
   useEffect(() => {
     if (currentStep < 0 || !drumGridScrollRef.current) return;
@@ -871,7 +870,10 @@ export default function MetronomeApp() {
   };
 
   const openEditor = (preset?: Pattern, trigger?: HTMLElement) => {
-    editorTriggerRef.current = trigger || document.activeElement as HTMLElement | null;
+    if (preset) loadPattern(preset);
+    const resolvedTrigger = trigger || document.activeElement as HTMLElement | null;
+    const needsScroll = !resolvedTrigger?.closest(".beat-strip");
+    editorTriggerRef.current = resolvedTrigger;
     const sourceSteps = preset?.pattern || stepsRef.current;
     const sourceTracks = normalizedDrumTracks(preset?.drumTracks || drumTracksRef.current || defaultDrumTracks(meterRef.current, subdivisionRef.current), sourceSteps.length) || {};
     setEditorTracks(cloneDrumTracks(sourceTracks));
@@ -881,6 +883,10 @@ export default function MetronomeApp() {
     setPresetCategory(preset?.category || "Eigene Presets");
     setEditingPresetId(preset?.id.startsWith("custom-") ? preset.id : null);
     setEditorOpen(true);
+    window.setTimeout(() => {
+      if (needsScroll) inlineEditorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      inlineEditorRef.current?.focus({ preventScroll: true });
+    }, 0);
   };
 
   const closeEditor = useCallback(() => {
@@ -890,28 +896,11 @@ export default function MetronomeApp() {
 
   useEffect(() => {
     if (!editorOpen) return;
-    const background = document.querySelector<HTMLElement>(".app-content");
-    background?.setAttribute("inert", "");
-    document.body.classList.add("modal-open");
-    const focusables = () => Array.from(dialogRef.current?.querySelectorAll<HTMLElement>(
-      "button:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex='-1'])",
-    ) || []);
-    window.setTimeout(() => focusables()[0]?.focus(), 0);
     const keyHandler = (event: KeyboardEvent) => {
-      if (event.key === "Escape") return closeEditor();
-      if (event.key !== "Tab") return;
-      const items = focusables();
-      if (!items.length) return;
-      const first = items[0]; const last = items[items.length - 1];
-      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
-      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+      if (event.key === "Escape") closeEditor();
     };
     document.addEventListener("keydown", keyHandler);
-    return () => {
-      document.removeEventListener("keydown", keyHandler);
-      background?.removeAttribute("inert");
-      document.body.classList.remove("modal-open");
-    };
+    return () => document.removeEventListener("keydown", keyHandler);
   }, [closeEditor, editorOpen]);
 
   const updateEditorHit = (voice: DrumVoice, index: number) => {
@@ -1088,11 +1077,11 @@ export default function MetronomeApp() {
     setPatternInstruction(preset.instruction);
     setPatternAttribution("Eigenes Preset");
     setPatternGoals(["Eigene Übung"]);
+    setEditingPresetId(preset.id);
     drumTracksRef.current = cloneDrumTracks(editorTracks);
     stepsRef.current = [...editorSteps];
     setDrumTracks(cloneDrumTracks(editorTracks));
     setStepsState([...editorSteps]);
-    closeEditor();
     showToast(editingPresetId ? "Preset aktualisiert" : "Preset offline gespeichert");
   };
 
@@ -1260,9 +1249,34 @@ export default function MetronomeApp() {
             <div className="beat-strip">
               <div className="beat-strip-top">
                 <div><div className="pattern-name">{patternName}</div><div className="pattern-meta">{meterLabel} · {subdivision} · {steps.length} Schritte{cycleBars > 1 ? ` · ${cycleBars} Takte` : ""}</div></div>
-                <button className="edit-link" onClick={(event) => openEditor(undefined, event.currentTarget)}>Pattern bearbeiten</button>
+                <button className={`edit-link ${editorOpen ? "active" : ""}`} aria-expanded={editorOpen} aria-controls="inline-pattern-editor" onClick={(event) => editorOpen ? closeEditor() : openEditor(undefined, event.currentTarget)}>{editorOpen ? "Bearbeitung beenden" : "Pattern bearbeiten"}</button>
               </div>
-              {activeDrumEntries.length ? <div className="drum-grid-scroll" ref={drumGridScrollRef} role="region" aria-label="Aktuelles Drum-Pattern">
+              {editorOpen ? <section id="inline-pattern-editor" className="inline-editor" ref={inlineEditorRef} tabIndex={-1} aria-labelledby="inline-editor-title">
+                <div className="inline-editor-head"><div><strong id="inline-editor-title">Pattern live bearbeiten</strong><span>Änderungen wirken sofort – auch beim laufenden Beat. Speichern ist nur für ein dauerhaftes Preset nötig.</span></div><span className="live-edit-badge">LIVE</span></div>
+                <div className="editor-toolbar">
+                  <label>Takte<select value={Math.max(1, Math.round(editorSteps.length / stepsPerBar(meter, subdivision)))} onChange={(event) => resizeEditorBars(Number(event.target.value))}>{[1, 2, 3, 4].map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
+                  <button onClick={togglePlayback}>{isPlaying ? "Ⅱ Stop" : "▶ Vorschau"}</button>
+                  <button onClick={undoEditor} disabled={!editorHistory.length}>↶ Rückgängig</button>
+                  <button onClick={resetEditorPattern}>Grundmuster</button>
+                  <span>{meterLabel} · {subdivision} · {editorSteps.length} Schritte</span>
+                </div>
+                <div className="drum-editor-scroll" role="region" aria-label="Drum-Pattern bearbeiten">
+                  <div className="drum-editor-grid">
+                    {DRUM_VOICES.map((voice) => {
+                      const track = editorTracks[voice] || Array<DrumHitState>(editorSteps.length).fill("mute");
+                      return <div className="drum-lane editor-lane" key={voice} style={{ gridTemplateColumns: `94px repeat(${editorSteps.length}, minmax(40px, 1fr))` }}>
+                        <span className="drum-lane-label"><span>{DRUM_LABELS[voice]}</span><button onClick={() => clearEditorLane(voice)} aria-label={`${DRUM_LABELS[voice]} leeren`}>×</button></span>
+                        {track.map((state, index) => <button key={index} tabIndex={index === 0 ? 0 : -1} className={`editor-step ${state} ${currentStep === index ? "current" : ""} ${index % stepsPerBar(meter, subdivision) === 0 ? "bar-start" : ""}`} onClick={() => updateEditorHit(voice, index)} onKeyDown={(event) => { if (!["ArrowLeft", "ArrowRight"].includes(event.key)) return; event.preventDefault(); const cells = Array.from(event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>(".editor-step") || []); cells[Math.max(0, Math.min(cells.length - 1, index + (event.key === "ArrowRight" ? 1 : -1)))]?.focus(); }} aria-label={`${DRUM_LABELS[voice]}, Schritt ${index + 1}: ${HIT_LABELS[state]}`} aria-pressed={state !== "mute"}>{index + 1}</button>)}
+                      </div>;
+                    })}
+                  </div>
+                </div>
+                <div className="editor-legend"><span><i className="legend-dot accent" />Akzent</span><span><i className="legend-dot" />Schlag</span><span><i className="legend-dot ghost" />Ghostnote</span><span><i className="legend-dot mute" />Stille</span></div>
+                <div className="inline-editor-footer">
+                  <div className="editor-fields"><input className="text-field" value={presetName} onChange={(event) => setPresetName(event.target.value)} placeholder="Name des Patterns" aria-label="Preset-Name" /><select className="field-select" value={presetCategory} onChange={(event) => setPresetCategory(event.target.value)} aria-label="Preset-Kategorie"><option>Eigene Presets</option><option>Groove</option><option>Rudiment</option><option>Timing</option><option>Song</option></select></div>
+                  <div className="inline-editor-actions"><button className="secondary" onClick={closeEditor}>Fertig</button><button className="primary" onClick={() => void savePreset()}>{editingPresetId ? "Änderungen speichern" : "Als Preset speichern"}</button></div>
+                </div>
+              </section> : activeDrumEntries.length ? <div className="drum-grid-scroll" ref={drumGridScrollRef} role="region" aria-label="Aktuelles Drum-Pattern">
                 <div className="drum-grid">
                   <div className="drum-lane drum-ruler" style={{ gridTemplateColumns: `82px repeat(${steps.length}, minmax(24px, 1fr))` }}><span className="drum-lane-label">Takt</span>{steps.map((_, index) => <span key={index} className={index % stepsPerBar(meter, subdivision) === 0 ? "bar-start" : ""}>{index % stepsPerBar(meter, subdivision) === 0 ? Math.floor(index / stepsPerBar(meter, subdivision)) + 1 : ""}</span>)}</div>
                   {activeDrumEntries.map(([voice, track]) => <div className="drum-lane" key={voice} style={{ gridTemplateColumns: `82px repeat(${steps.length}, minmax(24px, 1fr))` }}>
@@ -1365,27 +1379,6 @@ export default function MetronomeApp() {
       </div>
       <nav className="mobile-nav" aria-label="Mobile Hauptnavigation"><button className={section === "trainer" ? "active" : ""} onClick={() => navigateTo("trainer")}><span>●</span>Üben</button><button className={section === "library" ? "active" : ""} onClick={() => navigateTo("library")}><span>⌕</span>Bibliothek</button><button className="mobile-play" onClick={togglePlayback} aria-label={isPlaying ? "Wiedergabe stoppen" : "Abspielen"}>{isPlaying ? "Ⅱ" : "▶"}</button><button className={section === "mine" ? "active" : ""} onClick={() => navigateTo("mine")}><span>♥</span>Meine</button></nav>
       </div>
-
-      {editorOpen && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeEditor(); }}>
-        <section className="modal" ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="editor-title">
-          <div className="modal-head"><div><h2 id="editor-title">Drum-Pattern-Editor</h2><p>Änderungen wirken sofort. Speichern legt das Pattern dauerhaft als Preset ab.</p></div><button className="close-button" onClick={closeEditor} aria-label="Editor schließen">×</button></div>
-          <div className="editor-toolbar"><label>Takte<select value={Math.max(1, Math.round(editorSteps.length / stepsPerBar(meter, subdivision)))} onChange={(event) => resizeEditorBars(Number(event.target.value))}>{[1, 2, 3, 4].map((value) => <option key={value} value={value}>{value}</option>)}</select></label><button onClick={togglePlayback}>{isPlaying ? "Ⅱ Stop" : "▶ Vorschau"}</button><button onClick={undoEditor} disabled={!editorHistory.length}>↶ Rückgängig</button><span>{meterLabel} · {subdivision} · {editorSteps.length} Schritte</span></div>
-          <div className="drum-editor-scroll">
-            <div className="drum-editor-grid">
-              {DRUM_VOICES.map((voice) => {
-                const track = editorTracks[voice] || Array<DrumHitState>(editorSteps.length).fill("mute");
-                return <div className="drum-lane editor-lane" key={voice} style={{ gridTemplateColumns: `94px repeat(${editorSteps.length}, 44px)` }}>
-                  <span className="drum-lane-label"><span>{DRUM_LABELS[voice]}</span><button onClick={() => clearEditorLane(voice)} aria-label={`${DRUM_LABELS[voice]} leeren`}>×</button></span>
-                  {track.map((state, index) => <button key={index} tabIndex={index === 0 ? 0 : -1} className={`editor-step ${state} ${currentStep === index ? "current" : ""} ${index % stepsPerBar(meter, subdivision) === 0 ? "bar-start" : ""}`} onClick={() => updateEditorHit(voice, index)} onKeyDown={(event) => { if (!["ArrowLeft", "ArrowRight"].includes(event.key)) return; event.preventDefault(); const cells = Array.from(event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>(".editor-step") || []); cells[Math.max(0, Math.min(cells.length - 1, index + (event.key === "ArrowRight" ? 1 : -1)))]?.focus(); }} aria-label={`${DRUM_LABELS[voice]}, Schritt ${index + 1}: ${HIT_LABELS[state]}`} aria-pressed={state !== "mute"}>{index + 1}</button>)}
-                </div>;
-              })}
-            </div>
-          </div>
-          <div className="editor-legend"><span><i className="legend-dot accent" />Akzent</span><span><i className="legend-dot" />Schlag</span><span><i className="legend-dot ghost" />Ghostnote</span><span><i className="legend-dot mute" />Stille</span></div>
-          <div className="editor-fields"><input className="text-field" value={presetName} onChange={(event) => setPresetName(event.target.value)} placeholder="Name des Patterns" aria-label="Preset-Name" /><select className="field-select" value={presetCategory} onChange={(event) => setPresetCategory(event.target.value)} aria-label="Preset-Kategorie"><option>Eigene Presets</option><option>Groove</option><option>Rudiment</option><option>Timing</option><option>Song</option></select></div>
-          <div className="modal-actions"><button className="secondary" onClick={closeEditor}>Schließen</button><button className="secondary" onClick={resetEditorPattern}>Grundmuster</button><button className="primary" onClick={() => void savePreset()}>{editingPresetId ? "Änderungen speichern" : "Als Preset speichern"}</button></div>
-        </section>
-      </div>}
       {toast && <div className="toast" role="status">{toast}</div>}
       {storageError && <div className="storage-alert" role="alert"><span>{storageError}</span><button onClick={() => setStorageError("")}>×</button></div>}
     </main>

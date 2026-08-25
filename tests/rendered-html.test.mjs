@@ -336,6 +336,7 @@ test("keeps the selected drum kit global when switching beats", async () => {
 
 test("applies pattern editor changes to live playback immediately", async () => {
   const source = await readFile(new URL("../app/metronome-app.tsx", import.meta.url), "utf8");
+  const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
   const start = source.indexOf("const applyEditorPattern =");
   const end = source.indexOf("const loadPattern =", start);
   assert.ok(start >= 0 && end > start, "live editor update block was not found");
@@ -346,6 +347,14 @@ test("applies pattern editor changes to live playback immediately", async () => 
   assert.ok((editor.match(/applyEditorPattern\(/g) || []).length >= 5, "not every editor action updates live playback");
   assert.match(source, /Änderungen wirken sofort/);
   assert.match(source, /▶ Vorschau/);
+  assert.match(source, /className="inline-editor"/);
+  assert.match(source, /aria-expanded=\{editorOpen\}/);
+  assert.match(source, /Speichern ist nur für ein dauerhaftes Preset nötig/);
+  assert.doesNotMatch(source, /modal-backdrop|aria-modal|role="dialog"/);
+  assert.doesNotMatch(styles, /\.modal-backdrop|\.modal\s*\{/);
+  const saveStart = source.indexOf("const savePreset =");
+  const saveEnd = source.indexOf("const deletePresetById =", saveStart);
+  assert.doesNotMatch(source.slice(saveStart, saveEnd), /closeEditor\(\)/, "saving should not end live editing");
 });
 
 test("uses a readable workstation hierarchy with sequencer priority", async () => {
