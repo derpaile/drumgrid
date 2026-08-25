@@ -348,13 +348,19 @@ test("applies pattern editor changes to live playback immediately", async () => 
   assert.match(source, /▶ Vorschau/);
 });
 
-test("gives the sequencer full horizontal priority over rhythm settings", async () => {
+test("uses a readable workstation hierarchy with sequencer priority", async () => {
   const source = await readFile(new URL("../app/metronome-app.tsx", import.meta.url), "utf8");
   const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
   assert.match(styles, /\.workspace \{[^}]*grid-template-columns: minmax\(0, 1fr\)/);
   assert.match(styles, /\.controls-panel \{[^}]*grid-template-columns: repeat\(10, minmax\(0, 1fr\)\)/);
+  assert.match(styles, /\.page \{[^}]*width: min\(1540px, calc\(100% - 24px\)\)/);
+  assert.match(styles, /--font-micro: \.72rem/);
+  assert.match(styles, /--font-body: \.96rem/);
+  assert.match(styles, /\.pattern-grid \{[^}]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/);
+  assert.match(styles, /\.session-context \{[^}]*grid-template-columns: minmax\(0, 1fr\) auto/);
+  assert.match(source, /gridTemplateColumns: `82px repeat\(\$\{steps\.length\}, minmax\(24px, 1fr\)\)`/);
   assert.match(source, /className="tempo-toolbar"[\s\S]{0,240}className="play-button tempo-play"[\s\S]{0,240}className="tap-compact"/);
-  assert.match(styles, /\.tempo-play\s*\{[^}]*width:\s*64px;[^}]*height:\s*72px/s);
+  assert.match(styles, /\.tempo-play\s*\{[^}]*width:\s*60px;[^}]*height:\s*64px/s);
   assert.match(styles, /@media \(max-width:\s*700px\)[\s\S]*?\.tempo-play\s*\{\s*display:\s*none;/);
   for (const className of ["settings-meter", "settings-subdivision", "settings-swing"]) {
     assert.match(source, new RegExp(`control-group settings-cell ${className}`));

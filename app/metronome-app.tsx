@@ -1264,8 +1264,8 @@ export default function MetronomeApp() {
               </div>
               {activeDrumEntries.length ? <div className="drum-grid-scroll" ref={drumGridScrollRef} role="region" aria-label="Aktuelles Drum-Pattern">
                 <div className="drum-grid">
-                  <div className="drum-lane drum-ruler" style={{ gridTemplateColumns: `70px repeat(${steps.length}, minmax(20px, 1fr))` }}><span className="drum-lane-label">Takt</span>{steps.map((_, index) => <span key={index} className={index % stepsPerBar(meter, subdivision) === 0 ? "bar-start" : ""}>{index % stepsPerBar(meter, subdivision) === 0 ? Math.floor(index / stepsPerBar(meter, subdivision)) + 1 : ""}</span>)}</div>
-                  {activeDrumEntries.map(([voice, track]) => <div className="drum-lane" key={voice} style={{ gridTemplateColumns: `70px repeat(${steps.length}, minmax(20px, 1fr))` }}>
+                  <div className="drum-lane drum-ruler" style={{ gridTemplateColumns: `82px repeat(${steps.length}, minmax(24px, 1fr))` }}><span className="drum-lane-label">Takt</span>{steps.map((_, index) => <span key={index} className={index % stepsPerBar(meter, subdivision) === 0 ? "bar-start" : ""}>{index % stepsPerBar(meter, subdivision) === 0 ? Math.floor(index / stepsPerBar(meter, subdivision)) + 1 : ""}</span>)}</div>
+                  {activeDrumEntries.map(([voice, track]) => <div className="drum-lane" key={voice} style={{ gridTemplateColumns: `82px repeat(${steps.length}, minmax(24px, 1fr))` }}>
                     <span className="drum-lane-label">{DRUM_LABELS[voice]}</span>
                     {track.map((state, index) => <button key={index} data-step={index} className={`drum-cell ${state} ${currentStep === index ? "current" : ""} ${index % stepsPerBar(meter, subdivision) === 0 ? "bar-start" : ""}`} onClick={() => updateDrumHit(voice, index)} aria-label={`${DRUM_LABELS[voice]}, Schritt ${index + 1}: ${HIT_LABELS[state]}`} aria-pressed={state !== "mute"} />)}
                   </div>)}
@@ -1290,7 +1290,7 @@ export default function MetronomeApp() {
                 <button className={feelMode === "quantized" ? "active" : ""} aria-pressed={feelMode === "quantized"} onClick={() => { feelModeRef.current = "quantized"; setFeelMode("quantized"); }}>Quantisiert</button>
                 <button className={feelMode === "original" ? "active" : ""} aria-pressed={feelMode === "original"} disabled={!originalFeel} title={originalFeel?.note || "Keine belegten Mikro-Timing-Daten vorhanden"} onClick={() => { if (!originalFeel) return; feelModeRef.current = "original"; setFeelMode("original"); }}>Original Feel</button>
               </div>
-              <small className="feel-note">{originalFeel ? (feelMode === "original" ? originalFeel.note : "Gerades Raster; Dynamikstufen bleiben erhalten.") : "Keine belegte Performance-Variante hinterlegt."}</small>
+              {originalFeel && <small className="feel-note">{feelMode === "original" ? originalFeel.note : "Gerades Raster; Dynamikstufen bleiben erhalten."}</small>}
             </div>
             <div className="control-group settings-cell settings-meter">
               <div className="control-label"><span>Takt</span><span>{meterLabel}</span></div>
