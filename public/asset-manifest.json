@@ -1,0 +1,762 @@
+{
+  "version": 1,
+  "buildRevision": "261729875f6ecb65",
+  "generatedAt": "2026-08-26T13:13:58.442Z",
+  "catalogPath": "/data/patterns-v2.44950e4a6138.json",
+  "catalogRevision": "44950e4a6138aa313a374b2f3490046208826d8e6eb3f0b755800fdd7ab85c80",
+  "assets": [
+    {
+      "path": "/.DS_Store",
+      "revision": "aa32bcc1c07eec534bdad6a0623f4c0a246feb8b7a5083769d14e9c71eabea24",
+      "size": 6148,
+      "scope": "app"
+    },
+    {
+      "path": "/audio/drums/707/closed-hat.mp3",
+      "revision": "534eb621368611bfce06dd2e2cae73703c5ae9f2223a42b9bfcc5811cfa4c795",
+      "size": 12896,
+      "scope": "audio",
+      "kit": "707"
+    },
+    {
+      "path": "/audio/drums/707/crash.mp3",
+      "revision": "f9a8b3e456c51e3bda66c7ebd78274cf98d1374040a77d937159e73fc04aa18b",
+      "size": 24808,
+      "scope": "audio",
+      "kit": "707"
+    },
+    {
+      "path": "/audio/drums/707/high-tom.mp3",
+      "revision": "5e5573ab5ec10ce782363c768164255981895ea27b5b390bcfcc0dd48a514256",
+      "size": 15717,
+      "scope": "audio",
+      "kit": "707"
+    },
+    {
+      "path": "/audio/drums/707/kick.mp3",
+      "revision": "33c16540d3c2d3c62f3a8cdc1e54c672ae3c2018d7ac84451292e249e34e32ef",
+      "size": 9761,
+      "scope": "audio",
+      "kit": "707"
+    },
+    {
+      "path": "/audio/drums/707/low-tom.mp3",
+      "revision": "40ce817324d13dc1a9cd06b8b0a114aa0e5713e6880d3dd68c31e75b02607346",
+      "size": 14150,
+      "scope": "audio",
+      "kit": "707"
+    },
+    {
+      "path": "/audio/drums/707/open-hat.mp3",
+      "revision": "74d28ef2cfbda1d50879ac1bac2a8a1ff5db1666e29c16be841590da467fcc1b",
+      "size": 12896,
+      "scope": "audio",
+      "kit": "707"
+    },
+    {
+      "path": "/audio/drums/707/ride.mp3",
+      "revision": "3d457a0ec26c961bf145e812d4ebe2d57e4e77a4f4b49efc784e0756fe0eab6c",
+      "size": 24808,
+      "scope": "audio",
+      "kit": "707"
+    },
+    {
+      "path": "/audio/drums/707/rim.mp3",
+      "revision": "9b51f2ab277ce98c1808ff193ad9f50d0f46ab3a0a7ec5d16fca9ff146d6aa6e",
+      "size": 9134,
+      "scope": "audio",
+      "kit": "707"
+    },
+    {
+      "path": "/audio/drums/707/snare.mp3",
+      "revision": "fadbf5e48be519122c864cfd5fd2fa4da3764c99c7f560b3e0a67b7e9b462331",
+      "size": 12896,
+      "scope": "audio",
+      "kit": "707"
+    },
+    {
+      "path": "/audio/drums/808/closed-hat.mp3",
+      "revision": "60195431f21429dcc22b9bd43758f0989131a77e70b11f0e0aaa1a3a9a5418ab",
+      "size": 1924,
+      "scope": "audio",
+      "kit": "808"
+    },
+    {
+      "path": "/audio/drums/808/crash.mp3",
+      "revision": "d9afd92cc5ebe1757fd518c2ac00303d99efe44b017d31c44356496f3209559f",
+      "size": 60857,
+      "scope": "audio",
+      "kit": "808"
+    },
+    {
+      "path": "/audio/drums/808/high-tom.mp3",
+      "revision": "ffdc215eb411347888b3839eb7c2d92f8a96f0335f8a2e4d07de900954306f82",
+      "size": 6313,
+      "scope": "audio",
+      "kit": "808"
+    },
+    {
+      "path": "/audio/drums/808/kick.mp3",
+      "revision": "1d40d84a0e17cb9a90f8bbcfff4084132b402c1ed0d03cbcda4fec3af1868bc9",
+      "size": 17598,
+      "scope": "audio",
+      "kit": "808"
+    },
+    {
+      "path": "/audio/drums/808/low-tom.mp3",
+      "revision": "1cb0ec2b163c49b88191ac5b779c81dd5762a810359a9d09adc260925a395e7c",
+      "size": 28569,
+      "scope": "audio",
+      "kit": "808"
+    },
+    {
+      "path": "/audio/drums/808/open-hat.mp3",
+      "revision": "e5d95fe4c87c21a9fd8507c8d649bdc055ecce41ee8c8397a269a7cdd3a7e6fa",
+      "size": 18538,
+      "scope": "audio",
+      "kit": "808"
+    },
+    {
+      "path": "/audio/drums/808/ride.mp3",
+      "revision": "91a922632a0b38ef699b2cde9853f751e3559fe3bf6b9fc3cf096ff4958195ae",
+      "size": 46437,
+      "scope": "audio",
+      "kit": "808"
+    },
+    {
+      "path": "/audio/drums/808/rim.mp3",
+      "revision": "718eb1bb8d3633800c4e72a0fbe81b889eaa69ba4984a57618960e1a9cb7e47b",
+      "size": 984,
+      "scope": "audio",
+      "kit": "808"
+    },
+    {
+      "path": "/audio/drums/808/snare.mp3",
+      "revision": "61d1f5587246aa98f37d5973fa0c41f8aabcd5df9b99b6adcac2316c377f8314",
+      "size": 3805,
+      "scope": "audio",
+      "kit": "808"
+    },
+    {
+      "path": "/audio/drums/808-deep/closed-hat.mp3",
+      "revision": "e8c36c57cbe6843c7c92f2799b3e02f7009726112024acd7a0c9b69e087283e1",
+      "size": 6313,
+      "scope": "audio",
+      "kit": "808-deep"
+    },
+    {
+      "path": "/audio/drums/808-deep/crash.mp3",
+      "revision": "52aadddb6c2bfca00310a1b83e001ba876d84c49284b71d6b97437a67d02bb38",
+      "size": 62110,
+      "scope": "audio",
+      "kit": "808-deep"
+    },
+    {
+      "path": "/audio/drums/808-deep/high-tom.mp3",
+      "revision": "1b0536d05aed6e142572fa9c254441b8719633bd9b76f414120ef8458f7ae465",
+      "size": 4119,
+      "scope": "audio",
+      "kit": "808-deep"
+    },
+    {
+      "path": "/audio/drums/808-deep/kick.mp3",
+      "revision": "301f89ba97914ca771559382b16422762e89e607a75957a80966d3ecb97a70c1",
+      "size": 50199,
+      "scope": "audio",
+      "kit": "808-deep"
+    },
+    {
+      "path": "/audio/drums/808-deep/low-tom.mp3",
+      "revision": "1d1db92839c52ef637e75dce2a266fba49b093838d97f9a3f937b85a99dd89db",
+      "size": 28569,
+      "scope": "audio",
+      "kit": "808-deep"
+    },
+    {
+      "path": "/audio/drums/808-deep/open-hat.mp3",
+      "revision": "fcf98e3421db2eb0ef14844a17bb7f6a82566e0133cbe18d7fe032dbc3962865",
+      "size": 29196,
+      "scope": "audio",
+      "kit": "808-deep"
+    },
+    {
+      "path": "/audio/drums/808-deep/ride.mp3",
+      "revision": "581c3d7190117d80f855f54ea6d2642c0cbb9ff1538605df279541a89ce8772e",
+      "size": 70888,
+      "scope": "audio",
+      "kit": "808-deep"
+    },
+    {
+      "path": "/audio/drums/808-deep/rim.mp3",
+      "revision": "264db71b14d824edc358002e3adb5ae8e8e7e18c979e1f6f7283f55ece7f5007",
+      "size": 1297,
+      "scope": "audio",
+      "kit": "808-deep"
+    },
+    {
+      "path": "/audio/drums/808-deep/snare.mp3",
+      "revision": "87ff9b5bf5bb4d9639e03ef584d3cd85796c71f7e1c6ad04d35ea3e566541c94",
+      "size": 19792,
+      "scope": "audio",
+      "kit": "808-deep"
+    },
+    {
+      "path": "/audio/drums/80s/closed-hat.mp3",
+      "revision": "96b319f394375b836b08e318829cc379c7f0839d4a3f78a01e67980775bdf02b",
+      "size": 1297,
+      "scope": "audio",
+      "kit": "80s"
+    },
+    {
+      "path": "/audio/drums/80s/crash.mp3",
+      "revision": "c120530c664c11ce6d69a15525a4c2efa934878a9ee4ef5eaa0251b8f27cafd5",
+      "size": 15717,
+      "scope": "audio",
+      "kit": "80s"
+    },
+    {
+      "path": "/audio/drums/80s/high-tom.mp3",
+      "revision": "e89f69135d803e4ec7088a68c84ffa482009508a08faee8363f549dd875b5b37",
+      "size": 5686,
+      "scope": "audio",
+      "kit": "80s"
+    },
+    {
+      "path": "/audio/drums/80s/kick.mp3",
+      "revision": "06c5809ddb45daf63192b881a5a4ceaad1868b40fcacb27562cb7c1b7fee25dd",
+      "size": 3178,
+      "scope": "audio",
+      "kit": "80s"
+    },
+    {
+      "path": "/audio/drums/80s/low-tom.mp3",
+      "revision": "117ff9a7e115d6b81b5bd3f818d4117c6fda74bec05aff134cbbaff2a4ec5e73",
+      "size": 8194,
+      "scope": "audio",
+      "kit": "80s"
+    },
+    {
+      "path": "/audio/drums/80s/open-hat.mp3",
+      "revision": "4d99e9d7a1f85e44dca8b912f4742cf1e15fc2a638c98232b85793ae09335062",
+      "size": 4746,
+      "scope": "audio",
+      "kit": "80s"
+    },
+    {
+      "path": "/audio/drums/80s/ride.mp3",
+      "revision": "06675fb358bd500b020ba60cc9590d027c270aeaeece5a55815f2c52445c7f23",
+      "size": 16030,
+      "scope": "audio",
+      "kit": "80s"
+    },
+    {
+      "path": "/audio/drums/80s/rim.mp3",
+      "revision": "14a5b29f16f676e6785fdbcf4c195cffcb53c12ac46e20be115c00c94fd9d767",
+      "size": 6940,
+      "scope": "audio",
+      "kit": "80s"
+    },
+    {
+      "path": "/audio/drums/80s/snare.mp3",
+      "revision": "885c07e6f518022b999190a37d1909c4552c1810a92f7fb1a714b4d74aca7a27",
+      "size": 2551,
+      "scope": "audio",
+      "kit": "80s"
+    },
+    {
+      "path": "/audio/drums/909/closed-hat.mp3",
+      "revision": "206a7290bb869d0f3ca042fe2b95f402a5946db2331ef2f82991c2e61554e2de",
+      "size": 1924,
+      "scope": "audio",
+      "kit": "909"
+    },
+    {
+      "path": "/audio/drums/909/crash.mp3",
+      "revision": "5be3954d2ae823f3bcff6ace16337b8c2b4c137a675cf0d50071fdba5efd0228",
+      "size": 7880,
+      "scope": "audio",
+      "kit": "909"
+    },
+    {
+      "path": "/audio/drums/909/high-tom.mp3",
+      "revision": "e59a3bcd37826401c6f91c7267cab98c5a2ae1551a720f31db82dc13766f38a1",
+      "size": 11642,
+      "scope": "audio",
+      "kit": "909"
+    },
+    {
+      "path": "/audio/drums/909/kick.mp3",
+      "revision": "898f2ca170da8f5b12e76eb83cb858cc02ab7f4887a8d4bb284796ee36138828",
+      "size": 14777,
+      "scope": "audio",
+      "kit": "909"
+    },
+    {
+      "path": "/audio/drums/909/low-tom.mp3",
+      "revision": "3ce75f2306ad2c78b2b0db225cafb4e2b537e173caf4a21b965810e266b85f47",
+      "size": 8507,
+      "scope": "audio",
+      "kit": "909"
+    },
+    {
+      "path": "/audio/drums/909/open-hat.mp3",
+      "revision": "62917d8e59f1bc1caf1ccf5fcfbddb04fa24b712fb8e67d0d1451c1ea80530c4",
+      "size": 7253,
+      "scope": "audio",
+      "kit": "909"
+    },
+    {
+      "path": "/audio/drums/909/ride.mp3",
+      "revision": "ae48b4bb333e1787d87dc9fbbc1f4ff5740d88d05058257e51a1c69e8a558d96",
+      "size": 2238,
+      "scope": "audio",
+      "kit": "909"
+    },
+    {
+      "path": "/audio/drums/909/rim.mp3",
+      "revision": "fb00b515fe48ca5105c089c846ab88103c988a54f3c310d739afdf3ba06fbada",
+      "size": 2865,
+      "scope": "audio",
+      "kit": "909"
+    },
+    {
+      "path": "/audio/drums/909/snare.mp3",
+      "revision": "851f5de0856c091497446dc8f78cd3fd15cb489dc10071d0fc145212c17d64e0",
+      "size": 3805,
+      "scope": "audio",
+      "kit": "909"
+    },
+    {
+      "path": "/audio/drums/garage/closed-hat-a.mp3",
+      "revision": "d983169b5e160d71fe8a18a53a120e3b20ddbf112691bd2c8767ea52b2384a44",
+      "size": 2865,
+      "scope": "audio",
+      "kit": "garage"
+    },
+    {
+      "path": "/audio/drums/garage/closed-hat-b.mp3",
+      "revision": "8dfa5653ef68b0bb05bbaafea33c58fef01529c954d4f8d9ba4388b9686e0283",
+      "size": 3492,
+      "scope": "audio",
+      "kit": "garage"
+    },
+    {
+      "path": "/audio/drums/garage/kick.mp3",
+      "revision": "5f4516c5ac5fc685d701146f0b9868ec5700739e86780f734c6a8462885b5811",
+      "size": 4119,
+      "scope": "audio",
+      "kit": "garage"
+    },
+    {
+      "path": "/audio/drums/garage/open-hat-a.mp3",
+      "revision": "31b7f15563dbb6b591f59cada415938cc4298b160590b5484e451bc4f991ec4e",
+      "size": 4119,
+      "scope": "audio",
+      "kit": "garage"
+    },
+    {
+      "path": "/audio/drums/garage/open-hat-b.mp3",
+      "revision": "80afbbd111f62d5c6cefcf53fcabb9b1ae230a594a6331f3516a0f8058ab8ebc",
+      "size": 3492,
+      "scope": "audio",
+      "kit": "garage"
+    },
+    {
+      "path": "/audio/drums/garage/rim-a.mp3",
+      "revision": "d6e645bd8021b87ffd42b57902c3793b86bf7f8a99888e9a3a46eeb1511cf8d8",
+      "size": 2865,
+      "scope": "audio",
+      "kit": "garage"
+    },
+    {
+      "path": "/audio/drums/garage/rim-b.mp3",
+      "revision": "e534f052aab7363b7dad8f6fcb88aa0086a047042daa8493206406008187a818",
+      "size": 2865,
+      "scope": "audio",
+      "kit": "garage"
+    },
+    {
+      "path": "/audio/drums/garage/snare-a.mp3",
+      "revision": "8f6b20cc2c9a1c20533650e2bb07fbc1012e4daed9521024d4ab42491adf0943",
+      "size": 3178,
+      "scope": "audio",
+      "kit": "garage"
+    },
+    {
+      "path": "/audio/drums/garage/snare-b.mp3",
+      "revision": "9fb0997f9ef34c83bb27c377a6cce9688ff4c456b2874a4d6c08777b62b0d321",
+      "size": 2238,
+      "scope": "audio",
+      "kit": "garage"
+    },
+    {
+      "path": "/audio/drums/holzwerk/closed-hat.mp3",
+      "revision": "a6d6761fb7147d686053cb7593e3f5eb7bc850baf30346e219685274aab59f4a",
+      "size": 5686,
+      "scope": "audio",
+      "kit": "holzwerk"
+    },
+    {
+      "path": "/audio/drums/holzwerk/crash.mp3",
+      "revision": "c9f5c218c9365b6781bf5b0bdb6de71ee1cc9fb9b0ec53949033ca91e1e65186",
+      "size": 26688,
+      "scope": "audio",
+      "kit": "holzwerk"
+    },
+    {
+      "path": "/audio/drums/holzwerk/high-tom.mp3",
+      "revision": "85b434002669e02d92d0485e0d8acf87149cf89f253c44ffef26487fe96aa588",
+      "size": 10388,
+      "scope": "audio",
+      "kit": "holzwerk"
+    },
+    {
+      "path": "/audio/drums/holzwerk/kick.mp3",
+      "revision": "8adda4af741972875a85a2540100c719560155c9f64817832b548de69cbc0b80",
+      "size": 12269,
+      "scope": "audio",
+      "kit": "holzwerk"
+    },
+    {
+      "path": "/audio/drums/holzwerk/low-tom.mp3",
+      "revision": "2660afc49b46b790122d49e7e1e3d5be19fb6927759458f510da29034b3614f9",
+      "size": 30137,
+      "scope": "audio",
+      "kit": "holzwerk"
+    },
+    {
+      "path": "/audio/drums/holzwerk/open-hat.mp3",
+      "revision": "84c32d71ab823cf15c79a7bd0894cf3232385058e451ec266d242c4811bc7ce5",
+      "size": 7253,
+      "scope": "audio",
+      "kit": "holzwerk"
+    },
+    {
+      "path": "/audio/drums/holzwerk/ride.mp3",
+      "revision": "4304fe9990e785ee5ae1d92d29550d06cbf1d3f9360a010e0f2f56d4a0af294c",
+      "size": 18852,
+      "scope": "audio",
+      "kit": "holzwerk"
+    },
+    {
+      "path": "/audio/drums/holzwerk/rim.mp3",
+      "revision": "2ad10d30222eb9e7cfd978bf2a0313f74e2bd7929613c26ddc2374df9e073b8b",
+      "size": 4432,
+      "scope": "audio",
+      "kit": "holzwerk"
+    },
+    {
+      "path": "/audio/drums/holzwerk/snare.mp3",
+      "revision": "c5ec50bd724ee3ade79a6fd19d9a657d7917113fb2fba4e66ce9ab380e70b6da",
+      "size": 9134,
+      "scope": "audio",
+      "kit": "holzwerk"
+    },
+    {
+      "path": "/audio/drums/jungle/closed-hat-a.mp3",
+      "revision": "24deabd176dfa0a4bce27855aaf91428ff5552ed68d22b4fcc49614bb74d1f56",
+      "size": 17911,
+      "scope": "audio",
+      "kit": "jungle"
+    },
+    {
+      "path": "/audio/drums/jungle/closed-hat-b.mp3",
+      "revision": "eed3fd7a0eaf188967684d35606d0a4cd59a65f602b8f93bb50a652cae92f9c7",
+      "size": 5059,
+      "scope": "audio",
+      "kit": "jungle"
+    },
+    {
+      "path": "/audio/drums/jungle/crash.mp3",
+      "revision": "d9e8d7ed46744886c7d313d5e1abd5793a76b5ff09c3bb503c9fa1cf0199f215",
+      "size": 34839,
+      "scope": "audio",
+      "kit": "jungle"
+    },
+    {
+      "path": "/audio/drums/jungle/kick-a.mp3",
+      "revision": "f74b3e24ab4778fbd6f32f60bec07b6c9a551b0caa3b501760895e6e68071565",
+      "size": 9448,
+      "scope": "audio",
+      "kit": "jungle"
+    },
+    {
+      "path": "/audio/drums/jungle/kick-b.mp3",
+      "revision": "59fcaa708e64fada4f90ac6f50f937317bd20982db290b6fab5ef48d50b7e15f",
+      "size": 9448,
+      "scope": "audio",
+      "kit": "jungle"
+    },
+    {
+      "path": "/audio/drums/jungle/open-hat.mp3",
+      "revision": "4c452b65b7a83f2288d17544950cf6dc3ee3ac6d158a6df82446194fbc0e3aaf",
+      "size": 9448,
+      "scope": "audio",
+      "kit": "jungle"
+    },
+    {
+      "path": "/audio/drums/jungle/ride.mp3",
+      "revision": "e868bef82c46f9ac2988caa854b35f4f2d01d3c17816e52ec98a8e054a8ba783",
+      "size": 9448,
+      "scope": "audio",
+      "kit": "jungle"
+    },
+    {
+      "path": "/audio/drums/jungle/rim-a.mp3",
+      "revision": "412786e6a955c1bcc823f9ca10eb77ee46851f87cd80a6c500061c8b6bf42263",
+      "size": 17911,
+      "scope": "audio",
+      "kit": "jungle"
+    },
+    {
+      "path": "/audio/drums/jungle/rim-b.mp3",
+      "revision": "88476005aaf50d8b0ca0ba805d34022cab393c4f3fa1a1a54d1ad1824db2a492",
+      "size": 51766,
+      "scope": "audio",
+      "kit": "jungle"
+    },
+    {
+      "path": "/audio/drums/jungle/snare-a.mp3",
+      "revision": "4fbfe2c186f64f0e7393a71c5784c74a9b2bb82508307e7492687f314863f6a2",
+      "size": 9448,
+      "scope": "audio",
+      "kit": "jungle"
+    },
+    {
+      "path": "/audio/drums/jungle/snare-b.mp3",
+      "revision": "9de8ef6458fb9bfd6663cb50f4fa6f3548552952466a777e4a6e23e6001bc379",
+      "size": 17911,
+      "scope": "audio",
+      "kit": "jungle"
+    },
+    {
+      "path": "/audio/drums/lofi/closed-hat-a.mp3",
+      "revision": "c24bc6337b02bfb9a3028a39cb51e7c90878e2d58c8d70ef49f36592a24cb3b0",
+      "size": 8507,
+      "scope": "audio",
+      "kit": "lofi"
+    },
+    {
+      "path": "/audio/drums/lofi/closed-hat-b.mp3",
+      "revision": "2d87998d2e226b4986ea9bb07056b62f971bc385a735f8858df526abf3e47655",
+      "size": 8507,
+      "scope": "audio",
+      "kit": "lofi"
+    },
+    {
+      "path": "/audio/drums/lofi/kick-a.mp3",
+      "revision": "c023320f9242f6649348207227da4a645ec6a5e649f8d959de8ed83feff32a74",
+      "size": 5999,
+      "scope": "audio",
+      "kit": "lofi"
+    },
+    {
+      "path": "/audio/drums/lofi/kick-b.mp3",
+      "revision": "1b979166d4af825c79740105e9a058d5dd9f8aed4168debd199e87cd06313b6a",
+      "size": 5999,
+      "scope": "audio",
+      "kit": "lofi"
+    },
+    {
+      "path": "/audio/drums/lofi/open-hat.mp3",
+      "revision": "29cd41fa8bcedc9030f85e281986727f9b8b5235f4772d3372ed23c86ea407c0",
+      "size": 8507,
+      "scope": "audio",
+      "kit": "lofi"
+    },
+    {
+      "path": "/audio/drums/lofi/snare-a.mp3",
+      "revision": "3ddfd1e7be34b8ce768374dc777ccdcb620953a62db696f29fe82d80f3ee212d",
+      "size": 5999,
+      "scope": "audio",
+      "kit": "lofi"
+    },
+    {
+      "path": "/audio/drums/lofi/snare-b.mp3",
+      "revision": "4d38eefbce839a2ec00f3a34d553c3ecea91f00099f368cbf4f9db29ac6f7875",
+      "size": 11015,
+      "scope": "audio",
+      "kit": "lofi"
+    },
+    {
+      "path": "/audio/drums/pss795/closed-hat.mp3",
+      "revision": "e0a3a918d7dc0346b7d636cb761e6e0d19daeb60a95643266d9b8b3429071f8a",
+      "size": 2551,
+      "scope": "audio",
+      "kit": "pss795"
+    },
+    {
+      "path": "/audio/drums/pss795/crash.mp3",
+      "revision": "00ed02f06634471635e51df463340b06601a67838d7108a40051cfb1f6737cbe",
+      "size": 20419,
+      "scope": "audio",
+      "kit": "pss795"
+    },
+    {
+      "path": "/audio/drums/pss795/high-tom.mp3",
+      "revision": "6cafd85f4c8e1a36cae1e1ac39a64645dda81edb202bbefd271e74f5772f43b3",
+      "size": 5686,
+      "scope": "audio",
+      "kit": "pss795"
+    },
+    {
+      "path": "/audio/drums/pss795/kick.mp3",
+      "revision": "901aab0835d9acadc351d7d61c48bc96066b69d827419a2f492e8680977ab6a1",
+      "size": 8194,
+      "scope": "audio",
+      "kit": "pss795"
+    },
+    {
+      "path": "/audio/drums/pss795/low-tom.mp3",
+      "revision": "9e5ad5f798d300b0c232b0f6c912702eb19ffb4bf13124ee6bfeafd622275584",
+      "size": 7253,
+      "scope": "audio",
+      "kit": "pss795"
+    },
+    {
+      "path": "/audio/drums/pss795/open-hat.mp3",
+      "revision": "799ec8fa74b600ca277968fb7bc22b2b575e141c50ccd86696ceea33895827c5",
+      "size": 21359,
+      "scope": "audio",
+      "kit": "pss795"
+    },
+    {
+      "path": "/audio/drums/pss795/ride.mp3",
+      "revision": "80a6673aa952ed9bbe5ec0e2d8518cd1ab9322a76d6690bb7414369a46c31d06",
+      "size": 22927,
+      "scope": "audio",
+      "kit": "pss795"
+    },
+    {
+      "path": "/audio/drums/pss795/rim.mp3",
+      "revision": "eaabe555f066a435315f3af9ede0df064ba7cd5dc3f20c5d6afca06a4c3506d7",
+      "size": 2865,
+      "scope": "audio",
+      "kit": "pss795"
+    },
+    {
+      "path": "/audio/drums/pss795/snare.mp3",
+      "revision": "b74a161e2e15583f7045b847db72104787cc6aabe11d1d0f3f6242324fd44376",
+      "size": 6940,
+      "scope": "audio",
+      "kit": "pss795"
+    },
+    {
+      "path": "/audio/drums/quartz-click/closed-hat.mp3",
+      "revision": "831c815667fe2d0ff4e106ae74f1e28411f23efd44fde99e2f26c952ea71161c",
+      "size": 1611,
+      "scope": "audio",
+      "kit": "quartz-click"
+    },
+    {
+      "path": "/audio/drums/quartz-click/crash.mp3",
+      "revision": "082e950dcc26547b9930cc7349deb608e0a46796a8df7822544667a6f73e0fa4",
+      "size": 5686,
+      "scope": "audio",
+      "kit": "quartz-click"
+    },
+    {
+      "path": "/audio/drums/quartz-click/high-tom.mp3",
+      "revision": "9f91797f0c9a5d7c15422761d8cfe4ff1b5a2e7dcabc39a472ecbcc1249352d5",
+      "size": 2865,
+      "scope": "audio",
+      "kit": "quartz-click"
+    },
+    {
+      "path": "/audio/drums/quartz-click/kick.mp3",
+      "revision": "4d2c2af3538e1e29a701cc85352a46b6618d10ad6a0bbcaf8082614decf7385d",
+      "size": 6626,
+      "scope": "audio",
+      "kit": "quartz-click"
+    },
+    {
+      "path": "/audio/drums/quartz-click/low-tom.mp3",
+      "revision": "d3d66ed4fdf217471b758057e6ed89201a300fa0b3d706c664eae831312ed530",
+      "size": 6626,
+      "scope": "audio",
+      "kit": "quartz-click"
+    },
+    {
+      "path": "/audio/drums/quartz-click/open-hat.mp3",
+      "revision": "4513e5eda61e3f1ff8a83165823f7480686722e0865ec6710235a9d3e233bcf2",
+      "size": 3805,
+      "scope": "audio",
+      "kit": "quartz-click"
+    },
+    {
+      "path": "/audio/drums/quartz-click/ride.mp3",
+      "revision": "bc0f44038f663b10d4268c75867a9b60512d1723aa498c05ec66cd6b4ca3a408",
+      "size": 11642,
+      "scope": "audio",
+      "kit": "quartz-click"
+    },
+    {
+      "path": "/audio/drums/quartz-click/rim.mp3",
+      "revision": "882bb483b68743524b1d5c205e7ee03c5ea161c88ea3d3061d162ba1180f394f",
+      "size": 1297,
+      "scope": "audio",
+      "kit": "quartz-click"
+    },
+    {
+      "path": "/audio/drums/quartz-click/snare.mp3",
+      "revision": "2f51719c3a7439eccda92541da7892558143c5525a0c588213fe236e4339b1c9",
+      "size": 6626,
+      "scope": "audio",
+      "kit": "quartz-click"
+    },
+    {
+      "path": "/data/patterns-v1.json",
+      "revision": "44950e4a6138aa313a374b2f3490046208826d8e6eb3f0b755800fdd7ab85c80",
+      "size": 728463,
+      "scope": "catalog"
+    },
+    {
+      "path": "/icon-192.png",
+      "revision": "992dc06ee486c88a9178028ded25703343de1cafcf97a181ffe50b55bc026fb5",
+      "size": 43561,
+      "scope": "app"
+    },
+    {
+      "path": "/icon-512.png",
+      "revision": "ea34efb97229ee428cac543b1af523775dcac40fcb4f26e7c0244ff18b26348b",
+      "size": 303087,
+      "scope": "app"
+    },
+    {
+      "path": "/manifest.webmanifest",
+      "revision": "a7dd252203051b4da611c2b7830e5c9d8e7741740b2aa53e24cb1bbfd5f95258",
+      "size": 590,
+      "scope": "app"
+    },
+    {
+      "path": "/og-drums.png",
+      "revision": "e0fffdf4e6c4652f6da4ff4b58fa2febdf219c998a3891f4efa39b2a9061ba60",
+      "size": 2166155,
+      "scope": "app"
+    },
+    {
+      "path": "/og.png",
+      "revision": "8eba962ed8f4e36980fe8610b294e2cfc8ef5a43311248b8593ab47a5a1645cc",
+      "size": 1561280,
+      "scope": "app"
+    },
+    {
+      "path": "/sw.js",
+      "revision": "e5ee7b32c5f42de8f852709907fd802aca2773ef511271089b4e7cbd2197f694",
+      "size": 7815,
+      "scope": "app"
+    },
+    {
+      "path": "/data/patterns-v2.44950e4a6138.json",
+      "revision": "44950e4a6138aa313a374b2f3490046208826d8e6eb3f0b755800fdd7ab85c80",
+      "size": 728463,
+      "scope": "catalog"
+    },
+    {
+      "path": "/",
+      "revision": "44950e4a6138aa31",
+      "size": 0,
+      "scope": "app"
+    }
+  ]
+}

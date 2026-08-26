@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import MetronomeApp from "./metronome-app";
 
 export const metadata: Metadata = {
-  title: "Klangmaß — Drum-Groove-Trainer",
+  title: "Klangmaß — Lokaler Übecoach",
   description:
-    "Kuratierte Drum-Grooves mit Sample- und prozeduralen Synthese-Kits — präzise, installierbar und vollständig offline.",
+    "194 Drum-Grooves, adaptive Sessions, Lernleitern, Gap Click und vollständige Scenes — privat, präzise und offline.",
 };
 
 export default function Home() {

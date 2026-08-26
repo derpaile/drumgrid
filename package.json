@@ -1,13 +1,14 @@
 {
   "name": "klangmass-pwa",
-  "version": "0.1.0",
+  "version": "3.0.0",
   "private": true,
   "engines": {
     "node": ">=22.13.0"
   },
   "scripts": {
-    "dev": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext dev",
-    "build": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext build",
+    "assets:manifest": "node scripts/generate-asset-manifest.mjs",
+    "dev": "npm run assets:manifest && WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext dev",
+    "build": "npm run assets:manifest && WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext build",
     "start": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext start",
     "test": "npm run build && node --test tests/rendered-html.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",

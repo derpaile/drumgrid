@@ -375,7 +375,7 @@ test("applies pattern editor changes to live playback immediately", async () => 
   assert.match(source, /▶ Vorschau/);
   assert.match(source, /className="inline-editor"/);
   assert.match(source, /aria-expanded=\{editorOpen\}/);
-  assert.match(source, /Speichern ist nur für ein dauerhaftes Preset nötig/);
+  assert.match(source, /Beim Speichern bleiben Pattern, Kit, Tempo und Training gemeinsam als Scene erhalten/);
   assert.doesNotMatch(source, /modal-backdrop|aria-modal|role="dialog"/);
   assert.doesNotMatch(styles, /\.modal-backdrop|\.modal\s*\{/);
   const saveStart = source.indexOf("const savePreset =");
@@ -444,13 +444,41 @@ test("keeps eleven recorded kits and adds a complete procedural precision kit", 
 
 test("includes complete PWA assets", async () => {
   const manifest = JSON.parse(await readFile(new URL("../public/manifest.webmanifest", import.meta.url), "utf8"));
+  const assets = JSON.parse(await readFile(new URL("../public/asset-manifest.json", import.meta.url), "utf8"));
   const serviceWorker = await readFile(new URL("../public/sw.js", import.meta.url), "utf8");
   assert.equal(manifest.display, "standalone");
   assert.equal(manifest.icons.length, 2);
-  assert.match(serviceWorker, /patterns-v1\.json/);
+  assert.match(assets.catalogPath, /^\/data\/patterns-v2\.[a-f0-9]{12}\.json$/);
+  assert.equal(assets.assets.filter((asset) => asset.scope === "audio").length, 99);
+  assert.ok(assets.assets.every((asset) => /^[a-f0-9]{16,64}$/.test(asset.revision) && asset.size >= 0));
+  const revisedCatalog = JSON.parse(await readFile(new URL(`../public${assets.catalogPath}`, import.meta.url), "utf8"));
+  assert.equal(revisedCatalog.count, 194, "a cached 120-pattern library must update to the current catalog");
   assert.match(serviceWorker, /caches\.open/);
   assert.match(serviceWorker, /request\.mode === "navigate"/);
-  assert.match(serviceWorker, /PRECACHE_URLS/);
+  assert.match(serviceWorker, /CACHE_RUNTIME/);
+  assert.match(serviceWorker, /CACHE_ALL_KITS/);
+  assert.match(serviceWorker, /pending-manifest/);
+  assert.match(serviceWorker, /active-manifest/);
+  assert.match(serviceWorker, /verifiedResponse/);
+  assert.match(serviceWorker, /if \(hash !== asset\.revision\) throw/);
+  assert.match(serviceWorker, /if \(!pending\) throw/);
   assert.match(serviceWorker, /klangmass-/);
-  assert.doesNotMatch(serviceWorker, /keys\.filter\(\(key\) => key !==/);
+  assert.doesNotMatch(serviceWorker, /OFFLINE_READY/);
+});
+
+test("uses one scene and practice-result model across the local learning loop", async () => {
+  const model = await readFile(new URL("../app/practice-model.ts", import.meta.url), "utf8");
+  const app = await readFile(new URL("../app/metronome-app.tsx", import.meta.url), "utf8");
+  assert.match(model, /export type Scene/);
+  assert.match(model, /export type LastSessionSnapshot/);
+  assert.match(model, /export type PracticeResult/);
+  assert.match(model, /export type PracticeModeConfig/);
+  assert.match(model, /migrateLegacyPresets/);
+  assert.match(model, /migrateLegacyPractice/);
+  assert.match(app, /Heute für dich/);
+  assert.match(app, /Exakt fortsetzen/);
+  assert.match(app, /Session abgeschlossen/);
+  assert.match(app, /Gap Click 3\/1/);
+  assert.match(app, /Stimme ausblenden/);
+  assert.match(app, /Scene speichern/);
 });

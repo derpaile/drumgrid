@@ -10,10 +10,16 @@ import {
   type OriginalFeel, type PracticeEntry, type StepState, type Subdivision, type TempoUnit, type TrainerMode,
 } from "./metronome-core";
 import {
-  DRUM_KIT_OPTIONS, drumHitLevel, drumKitLabel, drumPlaybackRate, drumSampleFor, normalizeDrumKit, primeDrumKit,
+  DRUM_KIT_OPTIONS, drumHitLevel, drumKitLabel, drumKitOfflinePaths, drumPlaybackRate, drumSampleFor, normalizeDrumKit, primeDrumKit,
   type DrumSampleCache,
 } from "./drum-synthesis";
 import { clearLocalData, deleteStore, readStore, writeStore } from "./local-store";
+import {
+  APP_VERSION, createScene, dailyRecommendations, DATA_SCHEMA_VERSION, isVoiceAudible, ladderFor,
+  matchesLearningFilters, migrateLegacyPractice, migrateLegacyPresets, nextStepFor, practiceModeLabel,
+  SKILLS, skillLabelsFor,
+  type LastSessionSnapshot, type LibraryFilters, type PracticeModeConfig, type PracticeResult, type Scene,
+} from "./practice-model";
 
 type PlaybackPhase = "stopped" | "starting" | "running" | "lifecycle-paused" | "recovering";
 type SessionCheckpoint = { nextStep: number; bars: number; bpm: number; trainerDirection: 1 | -1 };
@@ -21,6 +27,7 @@ type AppSection = "trainer" | "library" | "mine";
 type SessionKind = "free" | "timing" | "groove" | "speed";
 type PwaStatus = "checking" | "ready" | "offline" | "update" | "error";
 type FeelMode = "quantized" | "original";
+type OfflineStatus = { appReady: boolean; availableKits: number; totalKits: number; totalAudioBytes: number; buildRevision?: string };
 type BeforeInstallPromptEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: "accepted" | "dismissed" }> };
 type MidiInputLike = { onmidimessage: ((event: { data: Uint8Array }) => void) | null };
 type MidiAccessLike = { inputs: Map<string, MidiInputLike>; onstatechange: (() => void) | null };
@@ -182,11 +189,18 @@ export default function MetronomeApp() {
   const [library, setLibrary] = useState<Pattern[]>(FALLBACK_PATTERNS);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [presets, setPresets] = useState<Pattern[]>([]);
+  const [scenes, setScenes] = useState<Scene[]>([]);
   const [recent, setRecent] = useState<Pattern[]>([]);
-  const [practiceHistory, setPracticeHistory] = useState<PracticeEntry[]>([]);
+  const [practiceHistory, setPracticeHistory] = useState<PracticeResult[]>([]);
+  const [lastSnapshot, setLastSnapshot] = useState<LastSessionSnapshot | null>(null);
+  const [recap, setRecap] = useState<PracticeResult | null>(null);
+  const [practiceMode, setPracticeMode] = useState<PracticeModeConfig>({ type: "normal" });
+  const [currentStage, setCurrentStage] = useState("original");
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("Alle");
   const [patternTypeFilter, setPatternTypeFilter] = useState("Alle");
+  const [learningFilters, setLearningFilters] = useState<LibraryFilters>({ difficulty: "Alle", skillId: "Alle", meter: "Alle", subdivision: "Alle", feel: false, length: "Alle", kit: "Alle", tempo: null, unpracticed: false, difficult: false });
+  const [expandedPatternId, setExpandedPatternId] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(18);
   const [editorOpen, setEditorOpen] = useState(false);
   const [presetName, setPresetName] = useState("Mein Pattern");
@@ -199,6 +213,8 @@ export default function MetronomeApp() {
   const [online, setOnline] = useState(true);
   const [libraryStatus, setLibraryStatus] = useState<"loading" | "ready" | "fallback">("loading");
   const [pwaStatus, setPwaStatus] = useState<PwaStatus>("checking");
+  const [offlineStatus, setOfflineStatus] = useState<OfflineStatus>({ appReady: false, availableKits: 1, totalKits: 12, totalAudioBytes: 0 });
+  const [offlineDownloadPending, setOfflineDownloadPending] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [storageError, setStorageError] = useState("");
   const [midiStatus, setMidiStatus] = useState<"idle" | "connected" | "unsupported" | "denied">("idle");
@@ -246,7 +262,7 @@ export default function MetronomeApp() {
   const endAtRef = useRef(0);
   const timerRemainingRef = useRef(0);
   const checkpointRef = useRef<SessionCheckpoint>({ nextStep: 0, bars: 0, bpm, trainerDirection: 1 });
-  const stopRef = useRef<() => void>(() => undefined);
+  const stopRef = useRef<(reason?: PracticeResult["completionReason"]) => void>(() => undefined);
   const startRef = useRef<(recover?: boolean) => Promise<void>>(async () => undefined);
   const pauseLifecycleRef = useRef<() => void>(() => undefined);
   const resumeLifecycleRef = useRef<() => void>(() => undefined);
@@ -255,7 +271,13 @@ export default function MetronomeApp() {
   const patternIdRef = useRef(patternId);
   const sessionStartedAtRef = useRef(0);
   const sessionStartBpmRef = useRef(bpm);
-  const practiceHistoryRef = useRef<PracticeEntry[]>([]);
+  const practiceHistoryRef = useRef<PracticeResult[]>([]);
+  const practiceModeRef = useRef<PracticeModeConfig>(practiceMode);
+  const currentStageRef = useRef(currentStage);
+  const currentPatternRef = useRef<Pattern>(FALLBACK_PATTERNS[0]);
+  const activeSceneIdRef = useRef("session-initial");
+  const activeElapsedMsRef = useRef(0);
+  const activeSliceStartedAtRef = useRef(0);
   const drumGridScrollRef = useRef<HTMLDivElement | null>(null);
   const inlineEditorRef = useRef<HTMLElement | null>(null);
   const editorTriggerRef = useRef<HTMLElement | null>(null);
@@ -285,6 +307,8 @@ export default function MetronomeApp() {
   useEffect(() => { patternNameRef.current = patternName; }, [patternName]);
   useEffect(() => { patternIdRef.current = patternId; }, [patternId]);
   useEffect(() => { practiceHistoryRef.current = practiceHistory; }, [practiceHistory]);
+  useEffect(() => { practiceModeRef.current = practiceMode; }, [practiceMode]);
+  useEffect(() => { currentStageRef.current = currentStage; }, [currentStage]);
 
   const persistStore = useCallback(async (key: string, value: unknown) => {
     try {
@@ -309,8 +333,18 @@ export default function MetronomeApp() {
       setInstallPrompt(event as BeforeInstallPromptEvent);
     };
     const installedHandler = () => setInstallPrompt(null);
-    const serviceWorkerMessage = (event: MessageEvent<{ type?: string }>) => {
-      if (event.data?.type === "OFFLINE_READY") setPwaStatus(navigator.onLine ? "ready" : "offline");
+    const serviceWorkerMessage = (event: MessageEvent<{ type?: string } & Partial<OfflineStatus>>) => {
+      if (event.data?.type !== "OFFLINE_STATUS") return;
+      const next = {
+        appReady: Boolean(event.data.appReady),
+        availableKits: Number(event.data.availableKits || 1),
+        totalKits: Number(event.data.totalKits || 12),
+        totalAudioBytes: Number(event.data.totalAudioBytes || 0),
+        buildRevision: event.data.buildRevision,
+      };
+      setOfflineStatus(next);
+      setOfflineDownloadPending(false);
+      setPwaStatus(navigator.onLine ? next.appReady ? "ready" : "checking" : "offline");
     };
     window.addEventListener("online", onlineHandler);
     window.addEventListener("offline", offlineHandler);
@@ -338,12 +372,14 @@ export default function MetronomeApp() {
           });
         });
         const ready = await navigator.serviceWorker.ready;
-        const runtimeUrls = performance.getEntriesByType("resource")
-          .map((entry) => entry.name)
-          .filter((url) => {
-            try { return new URL(url).origin === location.origin; } catch { return false; }
-          });
-        ready.active?.postMessage({ type: "PRECACHE_URLS", urls: [location.href, ...runtimeUrls] });
+        const runtimePaths = [location.href, ...performance.getEntriesByType("resource").map((entry) => entry.name)].flatMap((value) => {
+          try {
+            const url = new URL(value, location.origin);
+            return url.origin === location.origin && !url.pathname.startsWith("/audio/") && !url.pathname.startsWith("/data/") ? [url.pathname + url.search] : [];
+          } catch { return []; }
+        });
+        ready.active?.postMessage({ type: "CACHE_RUNTIME", paths: [...new Set(runtimePaths)] });
+        ready.active?.postMessage({ type: "CACHE_KIT", paths: drumKitOfflinePaths(soundRef.current) });
       }).catch(() => setPwaStatus("error"));
     } else queueMicrotask(() => setPwaStatus("error"));
     Promise.all([
@@ -351,23 +387,33 @@ export default function MetronomeApp() {
       readStore<Pattern[]>("presets", []),
       readStore<Pattern[]>("recent", []),
       readStore<PracticeEntry[]>("practiceHistory", []),
-      readStore<number>("libraryVersion", 1),
-    ]).then(([savedFavorites, savedPresets, savedRecent, savedPractice, savedVersion]) => {
-      const compatible = savedVersion === 2;
-      setFavorites(compatible ? savedFavorites : []);
+      readStore<Scene[]>("scenes", []),
+      readStore<PracticeResult[]>("practiceResults", []),
+      readStore<LastSessionSnapshot | null>("lastSessionSnapshot", null),
+      readStore<number>("dataSchemaVersion", 1),
+    ]).then(([savedFavorites, savedPresets, savedRecent, savedPractice, savedScenes, savedResults, savedSnapshot, savedSchema]) => {
+      setFavorites(Array.isArray(savedFavorites) ? savedFavorites : []);
       setPresets(Array.isArray(savedPresets) ? savedPresets.filter((item) => item?.id?.startsWith("custom-") && item.drumTracks) : []);
-      setRecent(compatible ? savedRecent : []);
-      setPracticeHistory(Array.isArray(savedPractice) ? savedPractice.slice(0, 100) : []);
-      if (!compatible) {
-        void persistStore("favorites", []);
-        void persistStore("recent", []);
+      setRecent(Array.isArray(savedRecent) ? savedRecent : []);
+      const nextScenes = Array.isArray(savedScenes) && savedScenes.length ? savedScenes : migrateLegacyPresets(Array.isArray(savedPresets) ? savedPresets : []);
+      const nextResults = Array.isArray(savedResults) && savedResults.length ? savedResults : migrateLegacyPractice(Array.isArray(savedPractice) ? savedPractice : []);
+      setScenes(nextScenes);
+      setPracticeHistory(nextResults.slice(0, 100));
+      setLastSnapshot(savedSnapshot?.scene ? savedSnapshot : null);
+      practiceHistoryRef.current = nextResults.slice(0, 100);
+      if (savedSchema < DATA_SCHEMA_VERSION) {
+        void Promise.all([
+          persistStore("scenes", nextScenes),
+          persistStore("practiceResults", nextResults.slice(0, 100)),
+          persistStore("dataSchemaVersion", DATA_SCHEMA_VERSION),
+          persistStore("appVersion", APP_VERSION),
+        ]);
       }
     });
-    fetch("/data/patterns-v1.json")
-      .then((response) => {
-        if (!response.ok) throw new Error("Bibliothek nicht erreichbar");
-        return response.json();
-      })
+    fetch("/asset-manifest.json", { cache: "no-store" })
+      .then(async (response): Promise<{ catalogPath?: string }> => response.ok ? response.json() : {})
+      .then((manifest) => fetch(manifest.catalogPath || "/data/patterns-v1.json", { cache: "no-store" }))
+      .then((response) => response.ok ? response.json() : Promise.reject(new Error("Bibliothek nicht erreichbar")))
       .then((data: { version?: number; patterns?: Pattern[] }) => {
         const drums = Array.isArray(data.patterns)
           ? data.patterns.filter((pattern) => pattern.drumOnly === true && pattern.drumTracks)
@@ -459,26 +505,70 @@ export default function MetronomeApp() {
     }
   }, []);
 
-  const stopPlayback = useCallback(() => {
-    const startedAt = sessionStartedAtRef.current;
-    const elapsedSeconds = startedAt ? Math.round((Date.now() - startedAt) / 1000) : 0;
-    if (elapsedSeconds >= 10 && barsRef.current > 0) {
-      const entry: PracticeEntry = {
+  const activeMilliseconds = useCallback(() => activeElapsedMsRef.current + (activeSliceStartedAtRef.current ? Date.now() - activeSliceStartedAtRef.current : 0), []);
+
+  const currentScene = useCallback((id = activeSceneIdRef.current): Scene => createScene(currentPatternRef.current, {
+    id,
+    name: patternNameRef.current,
+    bpm: bpmRef.current,
+    kit: soundRef.current,
+    voiceVolumes: voiceVolumesRef.current,
+    swing: swingRef.current,
+    feelAmount: feelModeRef.current === "original" ? 1 : 0,
+    trainer: trainerRef.current ? {
+      mode: trainerModeRef.current,
+      step: trainerStepRef.current,
+      every: trainerEveryRef.current,
+      min: trainerMinRef.current,
+      max: trainerMaxRef.current,
+    } : undefined,
+    practiceMode: practiceModeRef.current,
+  }), []);
+
+  const saveLastSnapshot = useCallback((activeMs = activeMilliseconds()) => {
+    const snapshot: LastSessionSnapshot = {
+      scene: currentScene(),
+      currentStage: currentStageRef.current,
+      activeSeconds: Math.round(activeMs / 1000),
+      barsCompleted: barsRef.current,
+      savedAt: new Date().toISOString(),
+    };
+    setLastSnapshot(snapshot);
+    void persistStore("lastSessionSnapshot", snapshot);
+  }, [activeMilliseconds, currentScene, persistStore]);
+
+  const stopPlayback = useCallback((reason: PracticeResult["completionReason"] = "manual") => {
+    if (activeSliceStartedAtRef.current) {
+      activeElapsedMsRef.current += Date.now() - activeSliceStartedAtRef.current;
+      activeSliceStartedAtRef.current = 0;
+    }
+    const elapsedSeconds = Math.round(activeElapsedMsRef.current / 1000);
+    if (elapsedSeconds >= 5 && barsRef.current > 0) {
+      const scene = currentScene();
+      const entry: PracticeResult = {
         id: `session-${Date.now()}`,
-        patternId: patternIdRef.current,
-        patternName: patternNameRef.current,
-        durationSeconds: elapsedSeconds,
-        bars: barsRef.current,
+        sceneId: scene.id,
+        sceneName: scene.name,
+        patternId: patternIdRef.current || undefined,
+        activeSeconds: elapsedSeconds,
+        barsCompleted: barsRef.current,
         bpmStart: sessionStartBpmRef.current,
         bpmEnd: bpmRef.current,
+        completed: reason === "timer" || reason === "bars",
+        completionReason: reason,
+        practiceMode: practiceModeRef.current,
+        currentStage: currentStageRef.current,
         completedAt: new Date().toISOString(),
       };
       const nextHistory = [entry, ...practiceHistoryRef.current].slice(0, 100);
       practiceHistoryRef.current = nextHistory;
       setPracticeHistory(nextHistory);
-      void persistStore("practiceHistory", nextHistory);
+      setRecap(entry);
+      void persistStore("practiceResults", nextHistory);
     }
+    if (sessionStartedAtRef.current) saveLastSnapshot(activeElapsedMsRef.current);
     sessionStartedAtRef.current = 0;
+    activeElapsedMsRef.current = 0;
     wantsPlaybackRef.current = false;
     generationRef.current += 1;
     recoveryPromiseRef.current = null;
@@ -490,7 +580,7 @@ export default function MetronomeApp() {
     endAtRef.current = 0;
     timerRemainingRef.current = timerMinutesRef.current * 60_000;
     setTimerText(timerMinutesRef.current ? `${timerMinutesRef.current}:00` : "∞");
-  }, [clearRuntime, persistStore, setPlaybackPhase]);
+  }, [clearRuntime, currentScene, persistStore, saveLastSnapshot, setPlaybackPhase]);
   useEffect(() => { stopRef.current = stopPlayback; }, [stopPlayback]);
 
   const scheduleDrumVoice = useCallback((context: AudioContext, when: number, voice: DrumVoice, state: DrumHitState, velocityMultiplier = 1) => {
@@ -547,12 +637,18 @@ export default function MetronomeApp() {
     }
     soundRef.current = nextKit;
     setSound(nextKit);
+    navigator.serviceWorker?.controller?.postMessage({ type: "CACHE_KIT", paths: drumKitOfflinePaths(nextKit) });
   }, [showToast]);
 
   const pauseForLifecycle = useCallback(() => {
     if (!wantsPlaybackRef.current) return;
     if (phaseRef.current === "lifecycle-paused" && schedulerRef.current === null) return;
     generationRef.current += 1;
+    if (activeSliceStartedAtRef.current) {
+      activeElapsedMsRef.current += Date.now() - activeSliceStartedAtRef.current;
+      activeSliceStartedAtRef.current = 0;
+      saveLastSnapshot(activeElapsedMsRef.current);
+    }
     if (endAtRef.current) timerRemainingRef.current = Math.max(0, endAtRef.current - Date.now());
     endAtRef.current = 0;
     const context = audioRef.current;
@@ -573,7 +669,7 @@ export default function MetronomeApp() {
           await withAudioTimeout(context.suspend(), 2000).catch(() => undefined);
         });
     }
-  }, [clearRuntime, setPlaybackPhase]);
+  }, [clearRuntime, saveLastSnapshot, setPlaybackPhase]);
   useEffect(() => { pauseLifecycleRef.current = pauseForLifecycle; }, [pauseForLifecycle]);
 
   const startPlayback = useCallback(async (recover = false) => {
@@ -590,6 +686,9 @@ export default function MetronomeApp() {
       barsRef.current = 0;
       setSessionBars(0);
       sessionStartedAtRef.current = Date.now();
+      activeElapsedMsRef.current = 0;
+      activeSliceStartedAtRef.current = 0;
+      activeSceneIdRef.current = `session-${Date.now()}`;
       sessionStartBpmRef.current = bpmRef.current;
       nextStepRef.current = 0;
       trainerDirectionRef.current = 1;
@@ -685,7 +784,7 @@ export default function MetronomeApp() {
       let planned = 0;
       while (nextTimeRef.current < context.currentTime + .12 && planned < 32) {
         if (endAtRef.current && Date.now() + Math.max(0, nextTimeRef.current - context.currentTime) * 1000 >= endAtRef.current) {
-          stopRef.current();
+          stopRef.current("timer");
           break;
         }
         planned += 1;
@@ -703,6 +802,7 @@ export default function MetronomeApp() {
         if (drumTracksRef.current) {
           for (const voice of DRUM_VOICES) {
             const state = drumTracksRef.current[voice]?.[stepIndex] || "mute";
+            if (!isVoiceAudible(practiceModeRef.current, barsRef.current, voice)) continue;
             const feel = feelModeRef.current === "original" ? originalFeelRef.current : null;
             const timingMs = feel?.timingMs?.[voice]?.[stepIndex] ?? 0;
             const velocityMultiplier = feel?.velocityMultipliers?.[voice]?.[stepIndex] ?? 1;
@@ -711,7 +811,7 @@ export default function MetronomeApp() {
             scheduleDrumVoice(context, feelTime, voice, state, velocityMultiplier);
           }
         } else {
-          scheduleDrumVoice(context, nextTimeRef.current, "rim", stepsRef.current[stepIndex] || "normal");
+          if (isVoiceAudible(practiceModeRef.current, barsRef.current, "rim")) scheduleDrumVoice(context, nextTimeRef.current, "rim", stepsRef.current[stepIndex] || "normal");
         }
 
         const visualDelay = Math.max(0, (nextTimeRef.current - context.currentTime) * 1000);
@@ -735,7 +835,7 @@ export default function MetronomeApp() {
             if (repeatBarsRef.current && barsRef.current >= repeatBarsRef.current) {
               const stopTimer = window.setTimeout(() => {
                 visualTimersRef.current.delete(stopTimer);
-                if (generationRef.current === token) stopRef.current();
+                if (generationRef.current === token) stopRef.current("bars");
               }, visualDelay + stepSeconds * 1000 + 20);
               visualTimersRef.current.add(stopTimer);
               stopAfterStep = true;
@@ -774,7 +874,7 @@ export default function MetronomeApp() {
         timerRemainingRef.current = Math.max(0, endAtRef.current - Date.now());
         const remaining = Math.ceil(timerRemainingRef.current / 1000);
         setTimerText(`${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, "0")}`);
-        if (remaining <= 0) stopRef.current();
+        if (remaining <= 0) stopRef.current("timer");
       }
     };
 
@@ -786,6 +886,7 @@ export default function MetronomeApp() {
       return;
     }
     setPlaybackPhase("running");
+    activeSliceStartedAtRef.current = Date.now();
     context.onstatechange = () => {
       if (generationRef.current !== token || audioRef.current !== context || context.state === "running") return;
       recoverEngine();
@@ -1105,6 +1206,8 @@ export default function MetronomeApp() {
     const nextTimerMinutes = playback.timerMinutes ?? 0;
     const nextRepeatBars = playback.repeatBars ?? 0;
     const nextTrainer = playback.trainer;
+    currentPatternRef.current = pattern;
+    activeSceneIdRef.current = `session-${pattern.id}`;
     meterRef.current = nextMeter;
     subdivisionRef.current = pattern.subdivision;
     stepsRef.current = nextSteps;
@@ -1142,6 +1245,10 @@ export default function MetronomeApp() {
     setPatternInstruction(pattern.instruction);
     setPatternAttribution(pattern.attribution || (pattern.source ? "Quellenbasierte Übungsrekonstruktion" : "Genreübung"));
     setPatternGoals(learningGoalsFor(pattern));
+    currentStageRef.current = "original";
+    setCurrentStage("original");
+    practiceModeRef.current = { type: "normal" };
+    setPracticeMode({ type: "normal" });
     originalFeelRef.current = pattern.originalFeel || null;
     feelModeRef.current = "quantized";
     setOriginalFeel(pattern.originalFeel || null);
@@ -1165,6 +1272,139 @@ export default function MetronomeApp() {
       void persistStore("favorites", next);
       return next;
     });
+  };
+
+  const loadScene = (scene: Scene, patternOnly = false, bpmOffset = 0) => {
+    const pattern = scene.customPattern || library.find((item) => item.id === scene.patternId) || presets.find((item) => item.id === scene.patternId);
+    if (!pattern) return showToast("Das Pattern dieser Scene ist nicht mehr verfügbar.");
+    const retainedKit = soundRef.current;
+    loadPattern(pattern);
+    activeSceneIdRef.current = scene.id;
+    if (patternOnly) {
+      void changeDrumKit(retainedKit);
+      return;
+    }
+    updateBpm(scene.bpm + bpmOffset);
+    void changeDrumKit(scene.kit);
+    voiceVolumesRef.current = { ...DEFAULT_VOICE_VOLUMES, ...scene.voiceVolumes };
+    setVoiceVolumes({ ...DEFAULT_VOICE_VOLUMES, ...scene.voiceVolumes });
+    swingRef.current = scene.swing;
+    setSwing(scene.swing);
+    const nextFeel = scene.feelAmount > 0 && pattern.originalFeel ? "original" : "quantized";
+    feelModeRef.current = nextFeel;
+    setFeelMode(nextFeel);
+    trainerRef.current = Boolean(scene.trainer);
+    setTrainer(Boolean(scene.trainer));
+    if (scene.trainer) {
+      trainerModeRef.current = scene.trainer.mode;
+      trainerStepRef.current = scene.trainer.step;
+      trainerEveryRef.current = scene.trainer.every;
+      trainerMinRef.current = scene.trainer.min;
+      trainerMaxRef.current = scene.trainer.max;
+      setTrainerMode(scene.trainer.mode);
+      setTrainerStep(scene.trainer.step);
+      setTrainerEvery(scene.trainer.every);
+      setTrainerMin(scene.trainer.min);
+      setTrainerMax(scene.trainer.max);
+    }
+    const nextMode = scene.practiceMode || { type: "normal" };
+    practiceModeRef.current = nextMode;
+    setPracticeMode(nextMode);
+    showToast(`${scene.name} vollständig geladen`);
+  };
+
+  const saveCurrentScene = async () => {
+    const scene = currentScene(`scene-${Date.now()}`);
+    const next = [scene, ...scenes];
+    if (!await persistStore("scenes", next)) return;
+    setScenes(next);
+    activeSceneIdRef.current = scene.id;
+    showToast("Scene vollständig gespeichert");
+  };
+
+  const duplicateScene = async (scene: Scene) => {
+    const copy: Scene = { ...scene, id: `scene-${Date.now()}`, name: `${scene.name} · Variante`, sourceSceneId: scene.id, createdAt: new Date().toISOString() };
+    const next = [copy, ...scenes];
+    if (!await persistStore("scenes", next)) return;
+    setScenes(next);
+    showToast("Scene-Variante erstellt");
+  };
+
+  const deleteSceneById = async (id: string) => {
+    const next = scenes.filter((scene) => scene.id !== id);
+    if (!await persistStore("scenes", next)) return;
+    setScenes(next);
+    showToast("Scene gelöscht");
+  };
+
+  const selectLadderStage = (stageId: string) => {
+    const pattern = currentPatternRef.current;
+    currentStageRef.current = stageId;
+    setCurrentStage(stageId);
+    if (stageId === "skeleton" && pattern.drumTracks) {
+      const length = pattern.pattern.length;
+      const barLength = stepsPerBar(parseMeter(pattern.meter), pattern.subdivision);
+      const skeleton = Object.fromEntries(DRUM_VOICES.flatMap((voice) => {
+        const track = pattern.drumTracks?.[voice];
+        if (!track) return [];
+        const lane = track.map((hit, index) => {
+          if (["crash", "openHat", "ride", "highTom", "lowTom"].includes(voice)) return "mute";
+          if (hit === "ghost") return "mute";
+          if (voice === "closedHat" && index % Math.max(1, Math.round(barLength / parseMeter(pattern.meter).beats)) !== 0) return "mute";
+          return hit;
+        });
+        return [[voice, lane]];
+      })) as DrumTracks;
+      const summary = mergeDrumTracks(skeleton, length);
+      drumTracksRef.current = skeleton;
+      stepsRef.current = summary;
+      setDrumTracks(skeleton);
+      setStepsState(summary);
+    } else if (["original", "dynamics", "pocket"].includes(stageId)) {
+      const tracks = normalizedDrumTracks(pattern.drumTracks, pattern.pattern.length);
+      drumTracksRef.current = tracks;
+      stepsRef.current = [...pattern.pattern];
+      setDrumTracks(tracks);
+      setStepsState([...pattern.pattern]);
+    }
+    const mode: PracticeModeConfig = stageId === "internal-time" ? { type: "gap", audibleBars: 3, silentBars: 1 }
+      : stageId === "independence" ? { type: "voice-dropout", voices: ["closedHat"], schedule: { audibleBars: 3, silentBars: 1 } }
+        : { type: "normal" };
+    practiceModeRef.current = mode;
+    setPracticeMode(mode);
+    if (stageId === "pocket" && pattern.originalFeel) { feelModeRef.current = "original"; setFeelMode("original"); }
+    if (stageId === "tempo") { trainerRef.current = true; setTrainer(true); }
+  };
+
+  const rateResult = (rating: PracticeResult["selfRating"]) => {
+    if (!recap || !rating) return;
+    const rated = { ...recap, selfRating: rating };
+    const next = practiceHistoryRef.current.map((result) => result.id === rated.id ? rated : result);
+    practiceHistoryRef.current = next;
+    setPracticeHistory(next);
+    setRecap(rated);
+    void persistStore("practiceResults", next);
+  };
+
+  const cacheAllKits = () => {
+    setOfflineDownloadPending(true);
+    navigator.serviceWorker?.controller?.postMessage({ type: "CACHE_ALL_KITS" });
+  };
+
+  const resumeSnapshot = (restart = false, bpmOffset = 0) => {
+    if (!lastSnapshot) return;
+    loadScene(lastSnapshot.scene, false, bpmOffset);
+    const stage = restart ? "original" : lastSnapshot.currentStage || "original";
+    currentStageRef.current = stage;
+    setCurrentStage(stage);
+    barsRef.current = restart ? 0 : lastSnapshot.barsCompleted;
+    setSessionBars(barsRef.current);
+    nextStepRef.current = 0;
+    activeElapsedMsRef.current = restart ? 0 : lastSnapshot.activeSeconds * 1000;
+    sessionStartedAtRef.current = 1;
+    sessionStartBpmRef.current = lastSnapshot.scene.bpm + bpmOffset;
+    checkpointRef.current = { nextStep: 0, bars: barsRef.current, bpm: lastSnapshot.scene.bpm + bpmOffset, trainerDirection: 1 };
+    void startPlayback(true);
   };
 
   const savePreset = async () => {
@@ -1210,18 +1450,34 @@ export default function MetronomeApp() {
       : [preset, ...presets];
     const saved = await persistStore("presets", nextPresets);
     if (!saved) return;
+    const scene = createScene(preset, {
+      id: `scene-${Date.now()}`,
+      name: preset.name,
+      bpm,
+      kit: sound,
+      voiceVolumes,
+      swing,
+      feelAmount: feelMode === "original" ? 1 : 0,
+      trainer: trainer ? { mode: trainerMode, step: trainerStep, every: trainerEvery, min: trainerMin, max: trainerMax } : undefined,
+      practiceMode,
+    });
+    const nextScenes = [scene, ...scenes];
+    await persistStore("scenes", nextScenes);
     setPresets(nextPresets);
+    setScenes(nextScenes);
+    activeSceneIdRef.current = scene.id;
     setPatternId(preset.id);
     setPatternName(preset.name);
     setPatternInstruction(preset.instruction);
     setPatternAttribution("Eigenes Preset");
     setPatternGoals(["Eigene Übung"]);
+    currentPatternRef.current = preset;
     setEditingPresetId(preset.id);
     drumTracksRef.current = cloneDrumTracks(editorTracks);
     stepsRef.current = [...editorSteps];
     setDrumTracks(cloneDrumTracks(editorTracks));
     setStepsState([...editorSteps]);
-    showToast(editingPresetId ? "Preset aktualisiert" : "Preset offline gespeichert");
+    showToast(editingPresetId ? "Pattern aktualisiert" : "Pattern offline gespeichert");
   };
 
   const deletePresetById = async (id: string) => {
@@ -1233,7 +1489,7 @@ export default function MetronomeApp() {
   };
 
   const exportLocalData = () => {
-    const payload = JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), presets, favorites, practiceHistory }, null, 2);
+    const payload = JSON.stringify({ version: DATA_SCHEMA_VERSION, appVersion: APP_VERSION, exportedAt: new Date().toISOString(), presets, scenes, favorites, practiceResults: practiceHistory, lastSessionSnapshot: lastSnapshot }, null, 2);
     const url = URL.createObjectURL(new Blob([payload], { type: "application/json" }));
     const link = document.createElement("a");
     link.href = url;
@@ -1244,18 +1500,25 @@ export default function MetronomeApp() {
 
   const importLocalData = async (file: File) => {
     try {
-      const data = JSON.parse(await file.text()) as { presets?: Pattern[]; favorites?: string[]; practiceHistory?: PracticeEntry[] };
+      const data = JSON.parse(await file.text()) as { presets?: Pattern[]; scenes?: Scene[]; favorites?: string[]; practiceHistory?: PracticeEntry[]; practiceResults?: PracticeResult[]; lastSessionSnapshot?: LastSessionSnapshot };
       const importedPresets = Array.isArray(data.presets) ? data.presets.filter((item) => item?.id && item?.drumTracks && Array.isArray(item.pattern)) : [];
       const merged = [...importedPresets, ...presets.filter((item) => !importedPresets.some((candidate) => candidate.id === item.id))];
+      const importedScenes = Array.isArray(data.scenes) ? data.scenes.filter((scene) => scene?.id && (scene.patternId || scene.customPattern)) : migrateLegacyPresets(importedPresets);
+      const mergedScenes = [...importedScenes, ...scenes.filter((scene) => !importedScenes.some((candidate) => candidate.id === scene.id))];
+      const importedResults = Array.isArray(data.practiceResults) ? data.practiceResults : migrateLegacyPractice(Array.isArray(data.practiceHistory) ? data.practiceHistory : []);
       await Promise.all([
         persistStore("presets", merged),
+        persistStore("scenes", mergedScenes),
         persistStore("favorites", Array.isArray(data.favorites) ? data.favorites : favorites),
-        persistStore("practiceHistory", Array.isArray(data.practiceHistory) ? data.practiceHistory : practiceHistory),
+        persistStore("practiceResults", importedResults.length ? importedResults : practiceHistory),
+        persistStore("lastSessionSnapshot", data.lastSessionSnapshot || lastSnapshot),
       ]);
       setPresets(merged);
+      setScenes(mergedScenes);
       if (Array.isArray(data.favorites)) setFavorites(data.favorites);
-      if (Array.isArray(data.practiceHistory)) setPracticeHistory(data.practiceHistory);
-      showToast(`${importedPresets.length} Presets importiert`);
+      if (importedResults.length) setPracticeHistory(importedResults);
+      if (data.lastSessionSnapshot) setLastSnapshot(data.lastSessionSnapshot);
+      showToast(`${importedScenes.length} Scenes importiert`);
     } catch {
       setStorageError("Diese Backup-Datei ist ungültig.");
     }
@@ -1263,12 +1526,33 @@ export default function MetronomeApp() {
 
   const categories = useMemo(() => ["Alle", ...PATTERN_CATEGORIES.filter((item) => library.some((pattern) => pattern.category === item))], [library]);
   const patternTypes = useMemo(() => ["Alle", ...PATTERN_TYPES.filter((item) => library.some((pattern) => pattern.patternType === item))], [library]);
+  const meters = useMemo(() => ["Alle", ...new Set(library.map((pattern) => pattern.meter))], [library]);
   const filteredPatterns = useMemo(() => library.filter((pattern) => {
     const query = search.toLocaleLowerCase("de");
     return (!query || `${pattern.name} ${pattern.category} ${pattern.patternType || "Groove"} ${pattern.instruction} ${learningGoalsFor(pattern).join(" ")}`.toLocaleLowerCase("de").includes(query))
       && (category === "Alle" || pattern.category === category)
-      && (patternTypeFilter === "Alle" || pattern.patternType === patternTypeFilter);
-  }), [library, search, category, patternTypeFilter]);
+      && (patternTypeFilter === "Alle" || pattern.patternType === patternTypeFilter)
+      && matchesLearningFilters(pattern, learningFilters, practiceHistory);
+  }), [library, search, category, patternTypeFilter, learningFilters, practiceHistory]);
+
+  const recommendations = useMemo(() => dailyRecommendations(library, practiceHistory, favorites), [library, practiceHistory, favorites]);
+  const activeFilterChips = useMemo(() => [
+    learningFilters.difficulty !== "Alle" ? ["difficulty", learningFilters.difficulty] : null,
+    learningFilters.skillId !== "Alle" ? ["skillId", SKILLS.find((skill) => skill.id === learningFilters.skillId)?.label || learningFilters.skillId] : null,
+    learningFilters.meter !== "Alle" ? ["meter", learningFilters.meter] : null,
+    learningFilters.subdivision !== "Alle" ? ["subdivision", learningFilters.subdivision] : null,
+    learningFilters.feel ? ["feel", "Original Feel"] : null,
+    learningFilters.length !== "Alle" ? ["length", learningFilters.length] : null,
+    learningFilters.kit !== "Alle" ? ["kit", learningFilters.kit] : null,
+    learningFilters.tempo !== null ? ["tempo", `${learningFilters.tempo} BPM`] : null,
+    learningFilters.unpracticed ? ["unpracticed", "Noch nicht geübt"] : null,
+    learningFilters.difficult ? ["difficult", "Zuletzt schwierig"] : null,
+  ].filter(Boolean) as Array<[keyof LibraryFilters, string]>, [learningFilters]);
+
+  const clearLearningFilter = (key: keyof LibraryFilters) => setLearningFilters((current) => ({
+    ...current,
+    [key]: key === "feel" || key === "unpracticed" || key === "difficult" ? false : key === "tempo" ? null : "Alle",
+  }));
 
   const resetControls = () => {
     volumeRef.current = 72; soundRef.current = "Studio"; swingRef.current = 50; timerMinutesRef.current = 0;
@@ -1321,7 +1605,7 @@ export default function MetronomeApp() {
   const clearAllLocalData = async () => {
     try {
       await clearLocalData();
-      setFavorites([]); setPresets([]); setRecent([]); setPracticeHistory([]);
+      setFavorites([]); setPresets([]); setScenes([]); setRecent([]); setPracticeHistory([]); setLastSnapshot(null); setRecap(null);
       showToast("Lokale Daten gelöscht");
     } catch {
       setStorageError("Lokale Daten konnten nicht gelöscht werden.");
@@ -1332,13 +1616,22 @@ export default function MetronomeApp() {
   const isPlaying = phase === "running";
   const cycleBars = Math.max(1, Math.round(steps.length / stepsPerBar(meter, subdivision)));
   const favoritePatterns = library.filter((item) => favorites.includes(item.id));
-  const practicedMinutes = Math.round(practiceHistory.reduce((sum, item) => sum + item.durationSeconds, 0) / 60);
+  const practicedMinutes = Math.round(practiceHistory.reduce((sum, item) => sum + item.activeSeconds, 0) / 60);
   const activeDrumEntries = useMemo<Array<[DrumVoice, DrumHitState[]]>>(() => DRUM_VOICES.flatMap((voice) => {
     const track = drumTracks?.[voice];
     return track?.some((state) => state !== "mute") ? [[voice, track] as [DrumVoice, DrumHitState[]]] : [];
   }), [drumTracks]);
+  const ladderStages = useMemo(() => ladderFor(library.find((pattern) => pattern.id === patternId) || presets.find((pattern) => pattern.id === patternId) || FALLBACK_PATTERNS[0]), [library, patternId, presets]);
   const phaseLabel = phase === "running" ? "Läuft" : phase === "starting" ? "Startet …" : phase === "recovering" ? "Audio kommt zurück …" : phase === "lifecycle-paused" ? "Im Hintergrund pausiert" : "Bereit";
-  const pwaLabel = !online ? "Offline" : pwaStatus === "ready" ? "Offline bereit" : pwaStatus === "update" ? "Update bereit" : pwaStatus === "error" ? "Nur online" : "Wird vorbereitet";
+  const pwaLabel = pwaStatus === "update" ? "Update bereit" : !online ? offlineStatus.appReady ? "App offline bereit" : "Offline eingeschränkt" : offlineStatus.appReady
+    ? offlineStatus.availableKits >= offlineStatus.totalKits ? "Offline bereit" : `App offline · ${offlineStatus.availableKits}/${offlineStatus.totalKits} Kits`
+    : pwaStatus === "error" ? "Nur online" : "Wird vorbereitet";
+
+  useEffect(() => {
+    if (phase !== "running") return;
+    const interval = window.setInterval(() => saveLastSnapshot(), 5000);
+    return () => window.clearInterval(interval);
+  }, [phase, saveLastSnapshot]);
 
   return (
     <main className="app-shell">
@@ -1349,7 +1642,7 @@ export default function MetronomeApp() {
           <span className="title-rail" aria-hidden="true" />
           <div className="app-brand"><strong>KLANGMASS</strong><small>DRUM GROOVE WORKSTATION</small></div>
           <span className="title-rail" aria-hidden="true" />
-          <span className="title-version">V2.0</span>
+          <span className="title-version">V3.0</span>
         </header>
         <section className="practice-bar" id="trainer" aria-label="Training wählen">
           <h1 className="sr-only">Klangmaß Drum-Trainer</h1>
@@ -1365,6 +1658,17 @@ export default function MetronomeApp() {
           </div>
           <button className={`status-pill ${pwaStatus}`} onClick={pwaStatus === "update" ? applyUpdate : installPrompt ? installApp : undefined} title={pwaLabel} aria-label={pwaLabel}><span className="status-dot" /><span>{installPrompt && pwaStatus === "ready" ? "Installieren" : pwaLabel}</span></button>
         </section>
+        <section className="coach-deck" aria-label="Dein Übecoach">
+          {lastSnapshot && <article className="continue-card">
+            <div><small>Weiterüben</small><strong>{lastSnapshot.scene.name} · {lastSnapshot.scene.bpm} BPM · {drumKitLabel(lastSnapshot.scene.kit)}</strong><span>{new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "short" }).format(new Date(lastSnapshot.savedAt))} · {Math.max(1, Math.round(lastSnapshot.activeSeconds / 60))} Min. · {lastSnapshot.currentStage || "Originalform"}</span></div>
+            <div className="coach-actions"><button className="primary" onClick={() => resumeSnapshot(false)}>▶ Exakt fortsetzen</button><button onClick={() => resumeSnapshot(true)}>Neu beginnen</button><button onClick={() => resumeSnapshot(false, 3)}>+3 BPM</button></div>
+          </article>}
+          <article className="daily-card">
+            <div className="coach-card-head"><div><small>Heute für dich</small><strong>10 Minuten · lokal zusammengestellt</strong></div><span>Warm-up · Fokus · Neu · Internal Time</span></div>
+            <div className="daily-list">{recommendations.map(({ pattern, reason }, index) => <button key={pattern.id} onClick={() => loadPattern(pattern)}><b>{index + 1}</b><span><strong>{pattern.name}</strong><small>{index === 0 ? "2 Min." : index === 1 ? "4 Min." : "2 Min."} · {reason}</small></span></button>)}</div>
+          </article>
+          <article className="offline-card"><small>Offline-Stand</small><strong>{offlineStatus.appReady ? "App bereit" : "App wird geprüft"}</strong><span>{offlineStatus.availableKits} von {offlineStatus.totalKits} Kits verfügbar</span>{offlineStatus.availableKits < offlineStatus.totalKits && <button onClick={cacheAllKits} disabled={offlineDownloadPending}>{offlineDownloadPending ? "Wird gespeichert …" : `Alle Kits offline · ${(offlineStatus.totalAudioBytes / 1024 / 1024).toLocaleString("de-DE", { maximumFractionDigits: 2 })} MB`}</button>}</article>
+        </section>
         <section className="workspace" aria-label="Drum-Groove-Trainer">
           <div className="panel metronome-panel">
             <div className="meter-head">
@@ -1375,6 +1679,7 @@ export default function MetronomeApp() {
               <div><span className="authenticity-badge">{patternAttribution}</span><strong>{patternInstruction}</strong></div>
               <div className="goal-tags">{patternGoals.map((goal) => <span key={goal}>{goal}</span>)}</div>
               <div className="session-progress" aria-live="polite"><span>{sessionBars} Takte</span><span>{timerText === "∞" ? "freie Session" : `${timerText} verbleibend`}</span></div>
+              <div className="ladder-control"><label htmlFor="ladder-stage">Lernleiter</label><select id="ladder-stage" value={currentStage} onChange={(event) => selectLadderStage(event.target.value)}>{ladderStages.map((stage) => <option key={stage.id} value={stage.id}>{stage.label} · {stage.description}</option>)}</select><button onClick={() => void saveCurrentScene()}>Scene speichern</button></div>
             </div>
             <div className="tempo-toolbar" aria-label="Tempo">
               <button className="play-button tempo-play" onClick={togglePlayback} aria-label={isPlaying ? "Wiedergabe stoppen" : "Abspielen"} aria-pressed={isPlaying}>{isPlaying ? "Ⅱ" : "▶"}</button>
@@ -1392,7 +1697,7 @@ export default function MetronomeApp() {
                 <button className={`edit-link ${editorOpen ? "active" : ""}`} aria-expanded={editorOpen} aria-controls="inline-pattern-editor" onClick={(event) => editorOpen ? closeEditor() : openEditor(undefined, event.currentTarget)}>{editorOpen ? "Bearbeitung beenden" : "Pattern bearbeiten"}</button>
               </div>
               {editorOpen ? <section id="inline-pattern-editor" className="inline-editor" ref={inlineEditorRef} tabIndex={-1} aria-labelledby="inline-editor-title">
-                <div className="inline-editor-head"><div><strong id="inline-editor-title">Pattern live bearbeiten</strong><span>Änderungen wirken sofort – auch beim laufenden Beat. Speichern ist nur für ein dauerhaftes Preset nötig.</span></div><span className="live-edit-badge">LIVE</span></div>
+                <div className="inline-editor-head"><div><strong id="inline-editor-title">Pattern live bearbeiten</strong><span>Änderungen wirken sofort. Beim Speichern bleiben Pattern, Kit, Tempo und Training gemeinsam als Scene erhalten.</span></div><span className="live-edit-badge">LIVE</span></div>
                 <div className="editor-toolbar">
                   <label>Takte<select value={Math.max(1, Math.round(editorSteps.length / stepsPerBar(meter, subdivision)))} onChange={(event) => resizeEditorBars(Number(event.target.value))}>{[1, 2, 3, 4].map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
                   <button onClick={togglePlayback}>{isPlaying ? "Ⅱ Stop" : "▶ Vorschau"}</button>
@@ -1413,8 +1718,8 @@ export default function MetronomeApp() {
                 </div>
                 <div className="editor-legend"><span><i className="legend-dot accent" />Akzent</span><span><i className="legend-dot" />Schlag</span><span><i className="legend-dot ghost" />Ghostnote</span><span><i className="legend-dot mute" />Stille</span></div>
                 <div className="inline-editor-footer">
-                  <div className="editor-fields"><input className="text-field" value={presetName} onChange={(event) => setPresetName(event.target.value)} placeholder="Name des Patterns" aria-label="Preset-Name" /><select className="field-select" value={presetCategory} onChange={(event) => setPresetCategory(event.target.value)} aria-label="Preset-Kategorie"><option>Eigene Presets</option><option>Groove</option><option>Rudiment</option><option>Timing</option><option>Song</option></select></div>
-                  <div className="inline-editor-actions"><button className="secondary" onClick={closeEditor}>Fertig</button><button className="primary" onClick={() => void savePreset()}>{editingPresetId ? "Änderungen speichern" : "Als Preset speichern"}</button></div>
+                  <div className="editor-fields"><input className="text-field" value={presetName} onChange={(event) => setPresetName(event.target.value)} placeholder="Name der Scene" aria-label="Scene-Name" /><select className="field-select" value={presetCategory} onChange={(event) => setPresetCategory(event.target.value)} aria-label="Pattern-Kategorie"><option>Eigene Presets</option><option>Groove</option><option>Rudiment</option><option>Timing</option><option>Song</option></select></div>
+                  <div className="inline-editor-actions"><button className="secondary" onClick={closeEditor}>Fertig</button><button className="primary" onClick={() => void savePreset()}>{editingPresetId ? "Scene aktualisieren" : "Scene speichern"}</button></div>
                 </div>
               </section> : activeDrumEntries.length ? <div className="drum-grid-scroll" ref={drumGridScrollRef} role="region" aria-label="Aktuelles Drum-Pattern">
                 <div className="drum-grid">
@@ -1474,6 +1779,22 @@ export default function MetronomeApp() {
                 <div className="segmented compact five">{[0, 4, 8, 16, 32].map((value) => <button key={value} className={repeatBars === value ? "active" : ""} aria-pressed={repeatBars === value} onClick={() => { repeatBarsRef.current = value; setRepeatBars(value); }}>{value || "∞"}</button>)}</div>
               </div>}
             </div>
+            <div className="practice-mode-card">
+              <div className="control-label"><span>Übemodus</span><span>{practiceModeLabel(practiceMode)}</span></div>
+              <select className="field-select" value={practiceMode.type} onChange={(event) => {
+                const type = event.target.value;
+                const mode: PracticeModeConfig = type === "gap" ? { type: "gap", audibleBars: 3, silentBars: 1 }
+                  : type === "random-gap" ? { type: "random-gap", probability: .3, maxSilentBars: 2 }
+                    : type === "voice-dropout" ? { type: "voice-dropout", voices: ["closedHat"], schedule: { audibleBars: 3, silentBars: 1 } }
+                      : type === "call-response" ? { type: "call-response", playBars: 2, responseBars: 2 }
+                        : { type: "normal" };
+                practiceModeRef.current = mode; setPracticeMode(mode);
+              }} aria-label="Übemodus"><option value="normal">Normal</option><option value="gap">Gap Click 3/1</option><option value="random-gap">Zufällige Lücken</option><option value="voice-dropout">Stimme ausblenden</option><option value="call-response">Call & Response</option></select>
+              {practiceMode.type === "voice-dropout" && <div className="voice-dropout-choices">{activeDrumEntries.map(([voice]) => <button key={voice} className={practiceMode.voices.includes(voice) ? "active" : ""} aria-pressed={practiceMode.voices.includes(voice)} onClick={() => {
+                const voices = practiceMode.voices.includes(voice) ? practiceMode.voices.filter((item) => item !== voice) : [...practiceMode.voices, voice];
+                const next = { ...practiceMode, voices: voices.length ? voices : [voice] }; practiceModeRef.current = next; setPracticeMode(next);
+              }}>{DRUM_LABELS[voice]}</button>)}</div>}
+            </div>
             <div className="trainer-card settings-trainer">
               <div className="toggle-row"><div><strong>{trainerMode === "pyramid" ? "Tempo-Pyramide" : "Tempo-Trainer"}</strong><small>{trainerMode === "pyramid" ? "Automatisch hoch und wieder herunter" : "Automatisch schneller werden"}</small></div><button className={`switch ${trainer ? "on" : ""}`} onClick={() => { const value = !trainer; trainerRef.current = value; setTrainer(value); }} aria-label="Tempo-Trainer umschalten" aria-pressed={trainer} /></div>
               {trainer && <div className="trainer-settings"><select value={trainerMode} onChange={(event) => { const value = event.target.value as TrainerMode; trainerModeRef.current = value; setTrainerMode(value); }} aria-label="Trainer-Modus"><option value="up">Steigern</option><option value="pyramid">Pyramide</option></select><select value={trainerStep} onChange={(event) => { const value = Number(event.target.value); trainerStepRef.current = value; setTrainerStep(value); }} aria-label="Tempo-Schritt"><option value="2">{trainerMode === "pyramid" ? "±2" : "+2"} BPM</option><option value="5">{trainerMode === "pyramid" ? "±5" : "+5"} BPM</option><option value="10">{trainerMode === "pyramid" ? "±10" : "+10"} BPM</option></select><select value={trainerEvery} onChange={(event) => { const value = Number(event.target.value); trainerEveryRef.current = value; setTrainerEvery(value); }} aria-label="Intervall"><option value="4">alle 4 Takte</option><option value="8">alle 8 Takte</option><option value="16">alle 16 Takte</option></select><label>Start<input type="number" min="20" max="300" value={trainerMin} onChange={(event) => setTrainerMin(Number(event.target.value))} /></label><label>Ziel<input type="number" min="20" max="300" value={trainerMax} onChange={(event) => setTrainerMax(Number(event.target.value))} /></label><p>{bpm} BPM → {trainerMode === "pyramid" ? `${trainerMax} → ${trainerMin}` : trainerMax} · alle {trainerEvery} Takte</p></div>}
@@ -1482,21 +1803,41 @@ export default function MetronomeApp() {
           </aside>
         </section>
 
+        {recap && <section className="recap-card" aria-label="Session-Abschluss" aria-live="polite">
+          <div className="recap-head"><div><small>Session abgeschlossen</small><h2>{recap.sceneName}</h2></div><button onClick={() => setRecap(null)} aria-label="Recap schließen">×</button></div>
+          <div className="recap-stats"><div><strong>{Math.floor(recap.activeSeconds / 60)}:{String(recap.activeSeconds % 60).padStart(2, "0")}</strong><span>aktive Übezeit</span></div><div><strong>{recap.barsCompleted}</strong><span>Takte</span></div><div><strong>{recap.bpmStart}{recap.bpmEnd !== recap.bpmStart ? ` → ${recap.bpmEnd}` : ""}</strong><span>BPM</span></div><div><strong>{practiceModeLabel(recap.practiceMode || { type: "normal" })}</strong><span>Übemodus</span></div></div>
+          <div className="rating-row"><span>Wie fühlte es sich an?</span>{(["unsicher", "stabil", "leicht"] as const).map((rating) => <button key={rating} className={recap.selfRating === rating ? "active" : ""} aria-pressed={recap.selfRating === rating} onClick={() => rateResult(rating)}>{rating}</button>)}</div>
+          <p className="next-step"><strong>Nächster Schritt:</strong> {nextStepFor(recap)}</p>
+        </section>}
+
         <section className="section" id="bibliothek">
           <div className="library-bar">
             <h2>Patterns <span>{libraryStatus === "loading" ? "…" : library.length}</span></h2>
             <label className="search-field"><input className="text-field" placeholder="Name, Stil, Ziel …" value={search} onChange={(event) => setSearch(event.target.value)} aria-label="Patterns durchsuchen" /></label>
           </div>
+          <div className="collection-strip" aria-label="Entdecken"><span>Entdecken</span><button onClick={() => setLearningFilters((current) => ({ ...current, difficulty: "Leicht" }))}>Einsteiger</button><button onClick={() => setLearningFilters((current) => ({ ...current, feel: true }))}>Original Feel</button><button onClick={() => setLearningFilters((current) => ({ ...current, meter: "7/8" }))}>Ungerade Takte</button><button onClick={() => setLearningFilters((current) => ({ ...current, difficult: true }))}>Weiterlernen</button></div>
           <div className="library-filters">
             <div className="library-filter-row"><span>Stil</span><div className="category-chips" aria-label="Stile">{categories.map((item) => <button key={item} className={`chip ${category === item ? "active" : ""}`} aria-pressed={category === item} onClick={() => { setCategory(item); setVisibleCount(18); }}>{item === "Alle" ? "Alle Stile" : item}</button>)}</div></div>
             <div className="library-filter-row"><span>Art</span><div className="category-chips" aria-label="Patternarten">{patternTypes.map((item) => <button key={item} className={`chip ${patternTypeFilter === item ? "active" : ""}`} aria-pressed={patternTypeFilter === item} onClick={() => { setPatternTypeFilter(item); setVisibleCount(18); }}>{item === "Alle" ? "Alle Arten" : item}</button>)}</div></div>
+            <div className="precision-filters" aria-label="Präzise Filter">
+              <label>Schwierigkeit<select value={learningFilters.difficulty} onChange={(event) => setLearningFilters((current) => ({ ...current, difficulty: event.target.value }))}><option>Alle</option><option>Leicht</option><option>Mittel</option><option>Fortgeschritten</option></select></label>
+              <label>Lernziel<select value={learningFilters.skillId} onChange={(event) => setLearningFilters((current) => ({ ...current, skillId: event.target.value }))}><option value="Alle">Alle</option>{SKILLS.map((skill) => <option key={skill.id} value={skill.id}>{skill.group} · {skill.label}</option>)}</select></label>
+              <label>Takt<select value={learningFilters.meter} onChange={(event) => setLearningFilters((current) => ({ ...current, meter: event.target.value }))}>{meters.map((item) => <option key={item}>{item}</option>)}</select></label>
+              <label>Unterteilung<select value={learningFilters.subdivision} onChange={(event) => setLearningFilters((current) => ({ ...current, subdivision: event.target.value }))}><option>Alle</option>{SUBDIVISIONS.map((item) => <option key={item}>{item}</option>)}</select></label>
+              <label>Länge<select value={learningFilters.length} onChange={(event) => setLearningFilters((current) => ({ ...current, length: event.target.value }))}><option>Alle</option><option>1 Takt</option><option>Mehrere Takte</option></select></label>
+              <label>Bevorzugtes Kit<select value={learningFilters.kit} onChange={(event) => setLearningFilters((current) => ({ ...current, kit: event.target.value }))}><option>Alle</option>{DRUM_KIT_OPTIONS.map((kit) => <option key={kit.value} value={kit.value}>{kit.label}</option>)}</select></label>
+            </div>
+            <div className="filter-toggles"><button className={learningFilters.feel ? "active" : ""} onClick={() => setLearningFilters((current) => ({ ...current, feel: !current.feel }))}>Original Feel</button><button className={learningFilters.unpracticed ? "active" : ""} onClick={() => setLearningFilters((current) => ({ ...current, unpracticed: !current.unpracticed }))}>Noch nicht geübt</button><button className={learningFilters.difficult ? "active" : ""} onClick={() => setLearningFilters((current) => ({ ...current, difficult: !current.difficult }))}>Zuletzt schwierig</button><button className={learningFilters.tempo !== null ? "active" : ""} onClick={() => setLearningFilters((current) => ({ ...current, tempo: current.tempo === null ? bpm : null }))}>Passend zu {bpm} BPM</button></div>
+            {activeFilterChips.length > 0 && <div className="active-filter-chips" aria-label="Aktive Filter">{activeFilterChips.map(([key, label]) => <button key={key} onClick={() => clearLearningFilter(key)}>{label} ×</button>)}<button className="clear-all" onClick={() => setLearningFilters({ difficulty: "Alle", skillId: "Alle", meter: "Alle", subdivision: "Alle", feel: false, length: "Alle", kit: "Alle", tempo: null, unpracticed: false, difficult: false })}>Alle lösen</button></div>}
           </div>
           <div className="pattern-grid">
             {filteredPatterns.slice(0, visibleCount).map((pattern) => (
               <article className="pattern-card" key={pattern.id}>
                 <div className="card-top"><div><div className="card-category" title={pattern.attribution}>{pattern.category} · {pattern.patternType || "Groove"} · {pattern.attribution || (pattern.source ? "Übungsrekonstruktion" : "Genreübung")}</div><h3>{pattern.name}</h3></div><button className={`favorite ${favorites.includes(pattern.id) ? "on" : ""}`} onClick={() => toggleFavorite(pattern.id)} aria-label={favorites.includes(pattern.id) ? "Aus Favoriten entfernen" : "Zu Favoriten hinzufügen"} aria-pressed={favorites.includes(pattern.id)}>{favorites.includes(pattern.id) ? "♥" : "♡"}</button></div>
                 <div className="mini-pattern">{pattern.pattern.slice(0, 32).map((step, index) => <span key={index} className={`mini-step ${step}`} />)}</div>
-                <div className="card-footer"><div className="card-meta"><span>{pattern.meter}</span><span>{pattern.subdivision}</span><span>{pattern.bpmMin}–{pattern.bpmMax}</span>{(pattern.bars || 1) > 1 && <span>{pattern.bars}T</span>}{(pattern.playback?.swing ?? 50) > 50 && <span>Swing {Math.round(((pattern.playback?.swing ?? 50) - 50) * 2)}%</span>}{pattern.originalFeel && <span>Original Feel</span>}<span>{pattern.difficulty}</span>{pattern.source && <a className="source-link" href={pattern.source.url} target="_blank" rel="noreferrer" title={pattern.source.label}>Quelle</a>}</div><div className="card-actions"><button className="start-small" onClick={() => loadPattern(pattern, true)}>Starten</button></div></div>
+                <div className="card-skills">{skillLabelsFor(pattern).map((skill) => <span key={skill}>{skill}</span>)}<span>Start {pattern.playback?.bpm || Math.round((pattern.bpmMin + pattern.bpmMax) / 2)} BPM</span></div>
+                <div className="card-footer"><div className="card-meta"><span>{pattern.meter}</span><span>{pattern.subdivision}</span><span>{pattern.bpmMin}–{pattern.bpmMax}</span>{(pattern.bars || 1) > 1 && <span>{pattern.bars}T</span>}{(pattern.playback?.swing ?? 50) > 50 && <span>Swing {Math.round(((pattern.playback?.swing ?? 50) - 50) * 2)}%</span>}{pattern.originalFeel && <span>Original Feel</span>}<span>{pattern.difficulty}</span></div><div className="card-actions"><button onClick={() => setExpandedPatternId((current) => current === pattern.id ? null : pattern.id)} aria-expanded={expandedPatternId === pattern.id}>Details</button><button onClick={() => loadPattern(pattern, true)}>Anhören</button><button className="start-small" onClick={() => loadPattern(pattern)}>Üben</button></div></div>
+                {expandedPatternId === pattern.id && <div className="pattern-details"><p><strong>Worauf hören?</strong>{pattern.instruction}</p><p><strong>Warum interessant?</strong>{pattern.whyInteresting}</p><p><strong>Typischer Stolperstein</strong>{pattern.difficulty === "Leicht" ? "Tempo nicht vor Klangbalance stellen." : pattern.difficulty === "Mittel" ? "Kernpuls bei Ghostnotes und Synkopen nicht verlieren." : "Dichte Passagen taktweise isolieren, bevor du die Form verbindest."}</p><p><strong>Vereinfachen / steigern</strong>Erst Skeleton und langsamer; danach Original Feel, Gap Click oder Voice Dropout.</p>{pattern.source && <a className="source-link" href={pattern.source.url} target="_blank" rel="noreferrer">{pattern.source.label} · Quelle öffnen</a>}</div>}
               </article>
             ))}
             {!filteredPatterns.length && <div className="empty-state">Kein Pattern passt zu diesen Filtern. Ändere Suche oder Auswahl.</div>}
@@ -1506,13 +1847,14 @@ export default function MetronomeApp() {
 
         <section className="section mine-section" id="meine-grooves">
           <div className="section-head"><div><div className="section-eyebrow">Auf diesem Gerät</div><h2>Meine Grooves.</h2></div><div className="mine-actions"><button onClick={exportLocalData}>Backup exportieren</button><button onClick={() => importInputRef.current?.click()}>Backup importieren</button><button className="primary" onClick={(event) => openEditor(undefined, event.currentTarget)}>＋ Eigenes Pattern</button><input ref={importInputRef} type="file" accept="application/json" hidden onChange={(event) => { const file = event.target.files?.[0]; if (file) void importLocalData(file); event.target.value = ""; }} /></div></div>
-          <div className="practice-summary"><div><strong>{practicedMinutes}</strong><span>Minuten geübt</span></div><div><strong>{practiceHistory.length}</strong><span>Sessions</span></div><div><strong>{favorites.length}</strong><span>Favoriten</span></div><div><strong>{presets.length}</strong><span>Eigene Presets</span></div></div>
+          <div className="practice-summary"><div><strong>{practicedMinutes}</strong><span>aktive Minuten</span></div><div><strong>{practiceHistory.length}</strong><span>Sessions</span></div><div><strong>{favorites.length}</strong><span>Favoriten</span></div><div><strong>{scenes.length}</strong><span>Scenes</span></div></div>
 
           <div className="mine-block"><div className="mine-block-head"><h3>Favoriten</h3><span>{favoritePatterns.length}</span></div><div className="compact-cards">{favoritePatterns.length ? favoritePatterns.map((pattern) => <button key={pattern.id} onClick={() => loadPattern(pattern)}><small>{pattern.category}</small><strong>{pattern.name}</strong><span>{pattern.meter} · {pattern.difficulty}</span></button>) : <p>Noch keine Favoriten. Markiere interessante Übungen mit ♥.</p>}</div></div>
           <div className="mine-block"><div className="mine-block-head"><h3>Zuletzt verwendet</h3><span>{recent.length}</span></div><div className="compact-cards">{recent.length ? recent.map((pattern) => <button key={pattern.id} onClick={() => loadPattern(pattern)}><small>{pattern.category}</small><strong>{pattern.name}</strong><span>{pattern.meter} · {pattern.subdivision}</span></button>) : <p>Deine zuletzt geladenen Grooves erscheinen hier.</p>}</div></div>
-          <div className="mine-block"><div className="mine-block-head"><h3>Eigene Presets</h3><span>{presets.length}</span></div><div className="preset-manager">{presets.length ? presets.map((preset) => <article key={preset.id}><div><small>{preset.category}</small><strong>{preset.name}</strong><span>{preset.meter} · {preset.subdivision} · {preset.bpmMin} BPM</span></div><div><button onClick={() => loadPattern(preset)}>Laden</button><button onClick={(event) => openEditor(preset, event.currentTarget)}>Bearbeiten</button><button onClick={() => openEditor({ ...preset, id: `copy-${preset.id}`, name: `${preset.name} Kopie` }, undefined)}>Duplizieren</button><button className="danger" onClick={() => void deletePresetById(preset.id)}>Löschen</button></div></article>) : <button className="empty-preset" onClick={(event) => openEditor(undefined, event.currentTarget)}>＋ Erstes Pattern bauen</button>}</div></div>
-          <div className="mine-block"><div className="mine-block-head"><h3>Übungsverlauf</h3><span>{practiceHistory.length}</span></div><div className="history-list">{practiceHistory.slice(0, 20).map((entry) => <div key={entry.id}><strong>{entry.patternName}</strong><span>{Math.max(1, Math.round(entry.durationSeconds / 60))} Min. · {entry.bars} Takte · {entry.bpmStart}{entry.bpmEnd !== entry.bpmStart ? ` → ${entry.bpmEnd}` : ""} BPM</span><time dateTime={entry.completedAt}>{new Intl.DateTimeFormat("de-DE", { dateStyle: "medium" }).format(new Date(entry.completedAt))}</time></div>)}</div></div>
-          <div className="local-data-note"><div><strong>Privat und lokal</strong><span>Keine Aufnahme, kein Konto, keine Telemetrie.</span></div><button className="danger" onClick={() => { if (window.confirm("Alle Favoriten, Presets und Übungsverläufe auf diesem Gerät löschen?")) void clearAllLocalData(); }}>Lokale Daten löschen</button></div>
+          <div className="mine-block"><div className="mine-block-head"><h3>Scenes</h3><span>{scenes.length}</span></div><div className="preset-manager">{scenes.length ? scenes.map((scene) => <article key={scene.id}><div><small>{practiceModeLabel(scene.practiceMode || { type: "normal" })}</small><strong>{scene.name}</strong><span>{scene.bpm} BPM · {drumKitLabel(scene.kit)} · Swing {Math.round((scene.swing - 50) * 2)}%</span></div><div><button onClick={() => loadScene(scene)}>Komplett laden</button><button onClick={() => loadScene(scene, true)}>Nur Pattern</button><button onClick={() => void duplicateScene(scene)}>Duplizieren</button><button className="danger" onClick={() => void deleteSceneById(scene.id)}>Löschen</button></div></article>) : <button className="empty-preset" onClick={() => void saveCurrentScene()}>＋ Aktuelle Scene speichern</button>}</div></div>
+          <div className="mine-block"><div className="mine-block-head"><h3>Eigene Patterns</h3><span>{presets.length}</span></div><div className="preset-manager">{presets.length ? presets.map((preset) => <article key={preset.id}><div><small>{preset.category}</small><strong>{preset.name}</strong><span>{preset.meter} · {preset.subdivision} · {preset.bpmMin} BPM</span></div><div><button onClick={() => loadPattern(preset)}>Laden</button><button onClick={(event) => openEditor(preset, event.currentTarget)}>Bearbeiten</button><button className="danger" onClick={() => void deletePresetById(preset.id)}>Löschen</button></div></article>) : <button className="empty-preset" onClick={(event) => openEditor(undefined, event.currentTarget)}>＋ Erstes Pattern bauen</button>}</div></div>
+          <div className="mine-block"><div className="mine-block-head"><h3>Übungsverlauf</h3><span>{practiceHistory.length}</span></div><div className="history-list">{practiceHistory.slice(0, 20).map((entry) => <div key={entry.id}><strong>{entry.sceneName}</strong><span>{Math.max(1, Math.round(entry.activeSeconds / 60))} Min. aktiv · {entry.barsCompleted} Takte · {entry.bpmStart}{entry.bpmEnd !== entry.bpmStart ? ` → ${entry.bpmEnd}` : ""} BPM{entry.selfRating ? ` · ${entry.selfRating}` : ""}</span><time dateTime={entry.completedAt}>{new Intl.DateTimeFormat("de-DE", { dateStyle: "medium" }).format(new Date(entry.completedAt))}</time></div>)}</div></div>
+          <div className="local-data-note"><div><strong>Privat und lokal</strong><span>Keine Aufnahme, kein Konto, keine Telemetrie.</span></div><button className="danger" onClick={() => { if (window.confirm("Alle Favoriten, Scenes und Übungsverläufe auf diesem Gerät löschen?")) void clearAllLocalData(); }}>Lokale Daten löschen</button></div>
         </section>
 
         <footer className="footer"><span>KLANGMASS · Sample- &amp; Synthese-Kits</span><span>Installierbar · Offline · Kompakt · Präzise</span></footer>

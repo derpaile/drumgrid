@@ -1,9 +1,8 @@
 # Klangmaß
 
-Installierbarer Drum-Groove-Trainer mit 194 kuratierten Schlagzeugübungen sowie
-kompakten Sample- und Synthese-Kits. Die App funktioniert ohne Konto und nach dem ersten
-Aufruf vollständig offline. Songbezogene Grooves sind als Übungsrekonstruktion
-gekennzeichnet; Genreübungen geben keine falsche Transkriptionsgenauigkeit vor.
+Lokaler, adaptiver Übecoach mit 194 kuratierten Schlagzeugübungen sowie kompakten
+Sample- und Synthese-Kits. Scenes halten Pattern, Klang und Trainingslogik zusammen;
+Practice Results verbinden Weiterüben, Recap und nachvollziehbare Tagesempfehlungen.
 
 ## Enthalten
 
@@ -12,13 +11,15 @@ gekennzeichnet; Genreübungen geben keine falsche Transkriptionsgenauigkeit vor.
 - mehrspuriges Groove-Raster mit Ghostnotes und Akzenten
 - pro Pattern umschaltbar zwischen quantisiertem Raster und belegtem Original-Feel mit Mikro-Timing/Dynamik
 - Session-Start für freies Üben, 5-Minuten-Timing, 10-Minuten-Groove und Tempo-Pyramide
-- Timer, Wiederholungen, Tempo-Trainer und Übeverlauf
-- Lernpfade und Filter nach Ziel, Takt, Schwierigkeit und Unterteilung
+- Timer, Wiederholungen, Tempo-Trainer und aktive Übezeit ohne Hintergrundzeit
+- automatische Lernleitern, Gap Click, zufällige Lücken, Voice Dropout und Call & Response
+- normalisierte Skill-Taxonomie und Filter nach Ziel, Takt, Schwierigkeit, Tempo, Länge, Kit und Verlauf
+- vollständige Scenes, „Weiterüben“, Session-Recap und lokal erklärtes „Heute für dich“
 - breite Stilbibliothek von Jazz, Country und Gospel bis Progressive Metal, Afro-Karibik und Clubmusik
 - Pattern-Editor mit mehreren Takten, Undo, Spur-Löschen sowie Import/Export
-- Favoriten, Verlauf und eigene Presets in IndexedDB
+- Favoriten, Verlauf, eigene Patterns, Scenes und verlustfreie Migrationen in IndexedDB
 - Tastatursteuerung (`Leertaste`, `T`, `+`, `-`) und optionaler MIDI-Start
-- robuste Offline-Installation, Update-Hinweis, Wake Lock und mobile Navigation
+- buildrevidiertes Asset-Manifest, atomare Updates, genauer Kit-Offline-Status, Wake Lock und mobile Navigation
 
 ## Lokal starten
 

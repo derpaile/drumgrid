@@ -1,6 +1,6 @@
 const DB_NAME = "klangmass";
 const STORE_NAME = "kv";
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 function openStore(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {

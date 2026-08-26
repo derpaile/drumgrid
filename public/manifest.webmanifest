@@ -1,7 +1,7 @@
 {
-  "name": "Klangmaß — Drum-Groove-Trainer",
+  "name": "Klangmaß — Lokaler Übecoach",
   "short_name": "Klangmaß",
-  "description": "Kuratierte Drum-Grooves mit kompakten Sample-Kits, präzisem Timing und Offline-Modus.",
+  "description": "Lokaler Übecoach mit 194 Drum-Grooves, Scenes, Lernleitern und Gap Click.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#101116",

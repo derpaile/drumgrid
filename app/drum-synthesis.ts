@@ -90,6 +90,12 @@ const SAMPLE_MANIFESTS: Record<RecordedDrumKit, SampleManifest> = {
   "PSS-795": completeKit("pss795"),
 };
 
+export function drumKitOfflinePaths(kit: DrumKit): string[] {
+  const normalized = normalizeDrumKit(kit);
+  if (normalized === PROCEDURAL_KIT) return [];
+  return [...new Set(Object.values(SAMPLE_MANIFESTS[normalized]).flat())];
+}
+
 const PLAYABLE_KITS = new Set<PlayableDrumKit>(DRUM_KIT_OPTIONS.map((option) => option.value));
 const FIXED_PITCH_KITS = new Set<PlayableDrumKit>(["Elektronisch", "Holzwerk", "Quartz Click", PROCEDURAL_KIT, "707", "808", "808 Deep", "909", "PSS-795"]);
 
