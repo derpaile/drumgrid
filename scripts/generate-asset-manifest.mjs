@@ -46,7 +46,6 @@ const buildRevision = digest(Buffer.from(assets.map((asset) => `${asset.path}:${
 const manifest = {
   version: 1,
   buildRevision,
-  generatedAt: new Date().toISOString(),
   catalogPath: `/data/${catalogName}`,
   catalogRevision,
   assets,
