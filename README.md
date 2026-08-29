@@ -12,6 +12,7 @@ Practice Results verbinden Weiterüben, Recap und nachvollziehbare Tagesempfehlu
 - pro Pattern umschaltbar zwischen quantisiertem Raster und belegtem Original-Feel mit Mikro-Timing/Dynamik
 - Session-Start für freies Üben, 5-Minuten-Timing, 10-Minuten-Groove und Tempo-Pyramide
 - Timer, Wiederholungen, Tempo-Trainer und aktive Übezeit ohne Hintergrundzeit
+- optionale Echtzeit-Transientenanalyse per Mikrofon mit Raster-Markern, Session-Auswertung und kalibrierbarer Bluetooth-Latenzkorrektur
 - automatische Lernleitern, Gap Click, zufällige Lücken, Voice Dropout und Call & Response
 - normalisierte Skill-Taxonomie und Filter nach Ziel, Takt, Schwierigkeit, Tempo, Länge, Kit und Verlauf
 - vollständige Scenes, „Weiterüben“, Session-Recap und lokal erklärtes „Heute für dich“

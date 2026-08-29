@@ -482,3 +482,35 @@ test("uses one scene and practice-result model across the local learning loop", 
   assert.match(app, /Stimme ausblenden/);
   assert.match(app, /Scene speichern/);
 });
+
+test("captures microphone transients for calibrated live timing feedback", async () => {
+  const app = await readFile(new URL("../app/metronome-app.tsx", import.meta.url), "utf8");
+  const model = await readFile(new URL("../app/audio-feedback.ts", import.meta.url), "utf8");
+  const worklet = await readFile(new URL("../public/audio-onset-processor.js", import.meta.url), "utf8");
+  const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+  assert.match(app, /navigator\.mediaDevices\.getUserMedia/);
+  assert.match(app, /audioWorklet\.addModule\("\/audio-onset-processor\.js"\)/);
+  assert.match(app, /Bluetooth-Latenz messen/);
+  assert.match(app, /className="drum-lane feedback-lane"/);
+  assert.match(app, /TAKT-TIMELINE/);
+  assert.match(app, /Drum-Hits \+ Transienten/);
+  assert.match(app, /\(\[8, 16\] as const\)/);
+  assert.match(app, /className="timing-film-canvas"/);
+  assert.match(app, /Math\.min\(window\.devicePixelRatio \|\| 1, 1\.5\)/);
+  assert.match(app, /timingResult/);
+  assert.match(model, /addDetectedTransient/);
+  assert.match(model, /latencyCompensationMs/);
+  assert.match(worklet, /registerProcessor\("audio-onset-processor"/);
+  assert.match(css, /\.feedback-marker\.missed/);
+  assert.match(css, /\.timing-film-scroll/);
+  assert.match(css, /\.timing-film-canvas/);
+  assert.match(css, /\.timing-recap-plot/);
+});
+
+test("uses the iOS media audio session without breaking microphone feedback", async () => {
+  const app = await readFile(new URL("../app/metronome-app.tsx", import.meta.url), "utf8");
+  assert.match(app, /session\.type = type/);
+  assert.match(app, /setAudioSessionType\(audioFeedbackEnabledRef\.current \? "play-and-record" : "playback"\)/);
+  assert.match(app, /setAudioFeedbackStatus\("requesting"\);\s*setAudioSessionType\("play-and-record"\);\s*try \{\s*const stream = await navigator\.mediaDevices\.getUserMedia/);
+  assert.match(app, /audioInputStreamRef\.current = null;\s*setAudioSessionType\("playback"\)/);
+});

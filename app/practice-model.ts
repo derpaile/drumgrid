@@ -55,17 +55,30 @@ export type LastSessionSnapshot = {
 };
 
 export type TimingObservation = {
-  voice: DrumVoice;
+  voice: DrumVoice | "all";
   medianMs: number;
   meanAbsoluteMs: number;
   spreadMs: number;
   hitRate: number;
 };
 
+export type TimingSample = {
+  stepIndex: number;
+  offsetMs: number;
+  classification: "early" | "on-time" | "late";
+  strength?: number;
+  voices?: DrumVoice[];
+};
+
 export type TimingResult = {
-  input: "midi";
+  input: "audio" | "midi";
   latencyMs: number;
+  latencySource?: "estimated" | "calibrated" | "manual";
   observations: TimingObservation[];
+  matchedHits?: number;
+  missedHits?: number;
+  extraHits?: number;
+  samples?: TimingSample[];
 };
 
 export type PracticeResult = {
@@ -220,6 +233,15 @@ export function practiceModeLabel(mode: PracticeModeConfig): string {
 }
 
 export function nextStepFor(result: PracticeResult): string {
+  const timing = result.timingResult?.observations.find((item) => item.voice === "all") || result.timingResult?.observations[0];
+  if (timing && result.timingResult?.matchedHits !== 0) {
+    if (timing.hitRate < 70) return `Trefferquote ${Math.round(timing.hitRate)}%: Tempo um 5 BPM senken und das Raster sichern.`;
+    if (timing.meanAbsoluteMs > 55) return `Ø ${Math.round(timing.meanAbsoluteMs)} ms Abweichung: bei gleichem Tempo mit Viertel-Click wiederholen.`;
+    if (timing.medianMs < -25) return `Tendenz ${Math.abs(Math.round(timing.medianMs))} ms zu früh: tiefer in den Puls setzen.`;
+    if (timing.medianMs > 25) return `Tendenz ${Math.round(timing.medianMs)} ms zu spät: Bewegungsbeginn etwas vorziehen.`;
+    if (timing.spreadMs > 30) return `Timing liegt mittig; die Streuung von ${Math.round(timing.spreadMs)} ms als Nächstes verkleinern.`;
+    return "Timing ist stabil: Tempo leicht erhöhen oder Gap Click ergänzen.";
+  }
   if (!result.selfRating) return "Bewerte kurz dein Gefühl, damit die nächste Übung passt.";
   if (result.selfRating === "unsicher") return `Gleiche Stufe bei ${Math.max(20, result.bpmEnd - 5)} BPM wiederholen.`;
   if (result.selfRating === "stabil") return `Bei ${Math.min(300, result.bpmEnd + 3)} BPM festigen oder Gap Click ergänzen.`;

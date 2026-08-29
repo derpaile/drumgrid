@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   cloneDrumTracks, cycleDrumHit, cycleStep, defaultDrumTracks, defaultGrouping, defaultTempoUnit,
   DRUM_LABELS, DRUM_VOICES, FALLBACK_PATTERNS, firstValidSubdivision, hasExactGrid, HIT_LABELS,
@@ -15,10 +15,14 @@ import {
 } from "./drum-synthesis";
 import { clearLocalData, deleteStore, readStore, writeStore } from "./local-store";
 import {
+  type AudioFeedbackAnalysis, type AudioFeedbackSession, type ExpectedAudioHit,
+  addDetectedTransient, addExpectedAudioHit, createAudioFeedbackSession, expirePendingHits, snapshotAudioFeedback,
+} from "./audio-feedback";
+import {
   APP_VERSION, createScene, dailyRecommendations, DATA_SCHEMA_VERSION, isVoiceAudible, ladderFor,
   matchesLearningFilters, migrateLegacyPractice, migrateLegacyPresets, nextStepFor, practiceModeLabel,
   SKILLS, skillLabelsFor,
-  type LastSessionSnapshot, type LibraryFilters, type PracticeModeConfig, type PracticeResult, type Scene,
+  type LastSessionSnapshot, type LibraryFilters, type PracticeModeConfig, type PracticeResult, type Scene, type TimingResult,
 } from "./practice-model";
 
 type PlaybackPhase = "stopped" | "starting" | "running" | "lifecycle-paused" | "recovering";
@@ -31,6 +35,13 @@ type OfflineStatus = { appReady: boolean; availableKits: number; totalKits: numb
 type BeforeInstallPromptEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: "accepted" | "dismissed" }> };
 type MidiInputLike = { onmidimessage: ((event: { data: Uint8Array }) => void) | null };
 type MidiAccessLike = { inputs: Map<string, MidiInputLike>; onstatechange: (() => void) | null };
+type AudioFeedbackStatus = "idle" | "requesting" | "ready" | "listening" | "denied" | "unsupported" | "error";
+type LatencySource = "estimated" | "calibrated" | "manual";
+type AudioFeedbackConfig = { latencyMs: number; latencySource: LatencySource; deviceId?: string };
+type AudioInputOption = { deviceId: string; label: string };
+type OnsetWorkletMessage = { type?: string; contextTime?: number; strength?: number; confidence?: number };
+type AudioSessionType = "playback" | "play-and-record";
+type AudioSessionNavigator = Navigator & { audioSession?: { type: AudioSessionType | "auto" } };
 
 type WakeLockHandle = { release: () => Promise<void> };
 type OpenHatHandle = { source: AudioBufferSourceNode; gain: GainNode; level: number; endAt: number };
@@ -40,6 +51,12 @@ const DEFAULT_VOICE_VOLUMES: Record<DrumVoice, number> = {
   kick: 100, snare: 100, closedHat: 100, openHat: 100, ride: 100,
   crash: 100, rim: 100, highTom: 100, lowTom: 100,
 };
+
+function setAudioSessionType(type: AudioSessionType) {
+  const session = (navigator as AudioSessionNavigator).audioSession;
+  if (!session) return;
+  try { session.type = type; } catch { /* Unsupported or restricted WebKit implementation. */ }
+}
 
 function VoiceLaneLabel({
   voice, volume, onVolumeChange, onClear,
@@ -141,6 +158,267 @@ function FftSpectrum({ analyserRef, active }: { analyserRef: { current: Analyser
   return <canvas ref={canvasRef} className="spectrum" aria-hidden="true" data-visible-bins={VISIBLE_FFT_BINS} />;
 }
 
+type TimingVoiceGroup = { label: string; voices: readonly DrumVoice[] };
+
+const TIMING_VOICE_GROUPS: readonly TimingVoiceGroup[] = [
+  { label: "KICK", voices: ["kick"] },
+  { label: "SNARE / RIM", voices: ["snare", "rim"] },
+  { label: "HI-HAT", voices: ["closedHat", "openHat"] },
+  { label: "BECKEN", voices: ["ride", "crash"] },
+  { label: "TOMS", voices: ["highTom", "lowTom"] },
+];
+const TIMING_BAR_WIDTH = 148;
+const TIMING_LANE_HEIGHT = 26;
+const TIMING_HEADER_HEIGHT = 30;
+const TIMING_LABEL_WIDTH = 74;
+
+const clampTiming = (value: number, minimum: number, maximum: number) => Math.max(minimum, Math.min(maximum, value));
+const medianTiming = (values: readonly number[]) => {
+  if (!values.length) return 0;
+  const sorted = [...values].sort((left, right) => left - right);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[middle]! : (sorted[middle - 1]! + sorted[middle]!) / 2;
+};
+
+function TimingDiagnostics({
+  analysis, barSteps, stepDurationMs, drumTracks, steps,
+}: {
+  analysis: AudioFeedbackAnalysis | null;
+  barSteps: number;
+  stepDurationMs: number;
+  drumTracks: DrumTracks | null;
+  steps: readonly StepState[];
+}) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [visibleBars, setVisibleBars] = useState<8 | 16>(8);
+  const safeBarSteps = Math.max(1, barSteps);
+  const safeStepDuration = Math.max(1, stepDurationMs);
+
+  const voiceGroups = useMemo(() => {
+    const isActive = (voice: DrumVoice) => drumTracks
+      ? !!drumTracks[voice]?.some((state) => state !== "mute")
+      : voice === "rim" && steps.some((state) => state !== "mute");
+    const active = TIMING_VOICE_GROUPS.filter((group) => group.voices.some(isActive));
+    return active.length ? active : [TIMING_VOICE_GROUPS[1]!];
+  }, [drumTracks, steps]);
+
+  const timeline = useMemo(() => {
+    let anchor: ExpectedAudioHit | undefined;
+    for (const candidate of [
+      analysis?.matched.at(-1)?.expected,
+      analysis?.missed.at(-1)?.expected,
+      analysis?.pending.at(-1),
+    ]) {
+      if (candidate && (!anchor || candidate.timeMs > anchor.timeMs)) anchor = candidate;
+    }
+    const latestBar = anchor ? Math.floor(anchor.sequenceStepIndex / safeBarSteps) : 0;
+    const startBar = Math.max(0, latestBar - visibleBars + 1);
+    const endBar = startBar + visibleBars - 1;
+    const matched: AudioFeedbackAnalysis["matched"] = [];
+    const missed: AudioFeedbackAnalysis["missed"] = [];
+
+    for (let index = (analysis?.matched.length || 0) - 1; index >= 0; index -= 1) {
+      const item = analysis!.matched[index]!;
+      const bar = Math.floor(item.expected.sequenceStepIndex / safeBarSteps);
+      if (bar < startBar) break;
+      if (bar <= endBar) matched.push(item);
+    }
+    for (let index = (analysis?.missed.length || 0) - 1; index >= 0; index -= 1) {
+      const item = analysis!.missed[index]!;
+      const bar = Math.floor(item.expected.sequenceStepIndex / safeBarSteps);
+      if (bar < startBar) break;
+      if (bar <= endBar) missed.push(item);
+    }
+
+    const extras: Array<{ globalStep: number; strength: number }> = [];
+    if (anchor) {
+      const minimumStep = startBar * safeBarSteps - .5;
+      const maximumStep = (endBar + 1) * safeBarSteps + .5;
+      for (let index = (analysis?.extra.length || 0) - 1; index >= 0 && extras.length < 256; index -= 1) {
+        const item = analysis!.extra[index]!;
+        const globalStep = anchor.sequenceStepIndex + (item.correctedTimeMs - anchor.timeMs) / safeStepDuration;
+        if (globalStep < minimumStep) break;
+        if (globalStep <= maximumStep) extras.push({ globalStep, strength: Math.max(0, item.transient.strength || 0) });
+      }
+    }
+
+    const barStats = new Map<number, { offsets: number[]; matched: number; missed: number }>();
+    for (let bar = startBar; bar <= endBar; bar += 1) barStats.set(bar, { offsets: [], matched: 0, missed: 0 });
+    for (const item of matched) {
+      const stats = barStats.get(Math.floor(item.expected.sequenceStepIndex / safeBarSteps));
+      if (stats) { stats.matched += 1; stats.offsets.push(item.offsetMs); }
+    }
+    for (const item of missed) {
+      const stats = barStats.get(Math.floor(item.expected.sequenceStepIndex / safeBarSteps));
+      if (stats) stats.missed += 1;
+    }
+
+    const strongest = Math.max(1,
+      ...matched.map((item) => Math.max(0, item.transient.strength || 0)),
+      ...extras.map((item) => item.strength),
+    );
+    return { startBar, endBar, latestBar, matched, missed, extras, barStats, strongest };
+  }, [analysis, safeBarSteps, safeStepDuration, visibleBars]);
+
+  const plotWidth = visibleBars * TIMING_BAR_WIDTH;
+  const plotHeight = TIMING_HEADER_HEIGHT + voiceGroups.length * TIMING_LANE_HEIGHT;
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const frame = window.requestAnimationFrame(() => {
+      const ratio = Math.min(window.devicePixelRatio || 1, 1.5);
+      canvas.width = Math.round(plotWidth * ratio);
+      canvas.height = Math.round(plotHeight * ratio);
+      const graphics = canvas.getContext("2d", { alpha: false });
+      if (!graphics) return;
+      graphics.setTransform(ratio, 0, 0, ratio, 0, 0);
+      graphics.fillStyle = "#010401";
+      graphics.fillRect(0, 0, plotWidth, plotHeight);
+      const stepWidth = TIMING_BAR_WIDTH / safeBarSteps;
+      const patternLength = Math.max(1, steps.length);
+      const xForGlobalStep = (globalStep: number) => (globalStep - timeline.startBar * safeBarSteps + .5) * stepWidth;
+      const classificationColor = (classification: "early" | "on-time" | "late") => classification === "early" ? "#72a8ff" : classification === "late" ? "#ff9c55" : "#30f22a";
+
+      graphics.font = '9px "SFMono-Regular", "Courier New", monospace';
+      graphics.textBaseline = "middle";
+      for (let barOffset = 0; barOffset < visibleBars; barOffset += 1) {
+        const barIndex = timeline.startBar + barOffset;
+        const barX = barOffset * TIMING_BAR_WIDTH;
+        graphics.fillStyle = barOffset % 2 ? "#020703" : "#030904";
+        graphics.fillRect(barX, 0, TIMING_BAR_WIDTH, plotHeight);
+        graphics.fillStyle = "#071108";
+        graphics.fillRect(barX, 0, TIMING_BAR_WIDTH, TIMING_HEADER_HEIGHT);
+        graphics.strokeStyle = "#47714b";
+        graphics.lineWidth = 1;
+        graphics.beginPath(); graphics.moveTo(barX + .5, 0); graphics.lineTo(barX + .5, plotHeight); graphics.stroke();
+
+        for (let step = 1; step < safeBarSteps; step += 1) {
+          const x = barX + step * stepWidth + .5;
+          graphics.strokeStyle = step % Math.max(1, safeBarSteps / 4) === 0 ? "rgba(72,110,76,.42)" : "rgba(72,110,76,.18)";
+          graphics.beginPath(); graphics.moveTo(x, TIMING_HEADER_HEIGHT); graphics.lineTo(x, plotHeight); graphics.stroke();
+        }
+
+        const stats = timeline.barStats.get(barIndex)!;
+        const resolved = stats.matched + stats.missed;
+        const median = medianTiming(stats.offsets);
+        graphics.fillStyle = barIndex === timeline.latestBar ? "#30f22a" : "#86bd89";
+        graphics.fillText(`TAKT ${barIndex + 1}`, barX + 6, 10);
+        graphics.fillStyle = "#567a59";
+        graphics.fillText(resolved ? `${stats.matched}/${resolved} · ${median > 0 ? "+" : ""}${Math.round(median)} ms` : "noch offen", barX + 6, 22);
+
+        for (let row = 0; row <= voiceGroups.length; row += 1) {
+          const y = TIMING_HEADER_HEIGHT + row * TIMING_LANE_HEIGHT + .5;
+          graphics.strokeStyle = "rgba(57,91,61,.35)";
+          graphics.beginPath(); graphics.moveTo(barX, y); graphics.lineTo(barX + TIMING_BAR_WIDTH, y); graphics.stroke();
+        }
+      }
+
+      for (const extra of timeline.extras) {
+        const x = xForGlobalStep(extra.globalStep);
+        if (x < 0 || x > plotWidth) continue;
+        const level = Math.sqrt(clampTiming(extra.strength / timeline.strongest, 0, 1));
+        graphics.save();
+        graphics.globalAlpha = .42 + level * .4;
+        graphics.strokeStyle = "#e0c36a";
+        graphics.lineWidth = 1 + level * 2;
+        graphics.setLineDash([3, 3]);
+        graphics.beginPath(); graphics.moveTo(x, TIMING_HEADER_HEIGHT + 2); graphics.lineTo(x, plotHeight - 2); graphics.stroke();
+        graphics.restore();
+      }
+
+      for (const match of timeline.matched) {
+        const targetGlobal = match.expected.sequenceStepIndex;
+        const actualGlobal = targetGlobal + match.offsetMs / safeStepDuration;
+        const targetX = xForGlobalStep(targetGlobal);
+        const actualX = xForGlobalStep(actualGlobal);
+        if (actualX < 0 || actualX > plotWidth) continue;
+        const color = classificationColor(match.classification);
+        const level = Math.sqrt(clampTiming((match.transient.strength || 0) / timeline.strongest, 0, 1));
+
+        graphics.save();
+        graphics.globalAlpha = .35 + level * .5;
+        graphics.strokeStyle = color;
+        graphics.lineWidth = 1 + level * 2.4;
+        graphics.beginPath(); graphics.moveTo(actualX, TIMING_HEADER_HEIGHT + 2); graphics.lineTo(actualX, plotHeight - 2); graphics.stroke();
+        graphics.fillStyle = color;
+        graphics.beginPath(); graphics.moveTo(actualX - 4, TIMING_HEADER_HEIGHT + 2); graphics.lineTo(actualX + 4, TIMING_HEADER_HEIGHT + 2); graphics.lineTo(actualX, TIMING_HEADER_HEIGHT + 8); graphics.closePath(); graphics.fill();
+        graphics.restore();
+
+        voiceGroups.forEach((group, row) => {
+          if (!group.voices.some((voice) => match.expected.voices.includes(voice))) return;
+          const y = TIMING_HEADER_HEIGHT + row * TIMING_LANE_HEIGHT + TIMING_LANE_HEIGHT / 2;
+          graphics.strokeStyle = color;
+          graphics.lineWidth = 1;
+          graphics.beginPath(); graphics.moveTo(targetX, y); graphics.lineTo(actualX, y); graphics.stroke();
+          graphics.fillStyle = color;
+          graphics.beginPath(); graphics.arc(actualX, y, 3, 0, Math.PI * 2); graphics.fill();
+        });
+      }
+
+      for (let barOffset = 0; barOffset < visibleBars; barOffset += 1) {
+        const barIndex = timeline.startBar + barOffset;
+        for (let step = 0; step < safeBarSteps; step += 1) {
+          const patternIndex = ((barIndex * safeBarSteps + step) % patternLength + patternLength) % patternLength;
+          const x = barOffset * TIMING_BAR_WIDTH + (step + .5) * stepWidth;
+          voiceGroups.forEach((group, row) => {
+            const states = group.voices.map((voice) => drumTracks?.[voice]?.[patternIndex] || (!drumTracks && voice === "rim" ? steps[patternIndex] : "mute"));
+            const state: DrumHitState = states.includes("accent") ? "accent" : states.includes("normal") ? "normal" : states.includes("ghost") ? "ghost" : "mute";
+            if (state === "mute") return;
+            const y = TIMING_HEADER_HEIGHT + row * TIMING_LANE_HEIGHT + TIMING_LANE_HEIGHT / 2;
+            if (state === "ghost") {
+              graphics.strokeStyle = "#e0c36a"; graphics.lineWidth = 1;
+              graphics.strokeRect(x - 2.5, y - 2.5, 5, 5);
+            } else {
+              const size = state === "accent" ? 8 : 6;
+              graphics.fillStyle = state === "accent" ? "#b7ffac" : "#4ca950";
+              graphics.fillRect(x - size / 2, y - size / 2, size, size);
+            }
+          });
+        }
+      }
+
+      for (const miss of timeline.missed) {
+        const x = xForGlobalStep(miss.expected.sequenceStepIndex);
+        voiceGroups.forEach((group, row) => {
+          if (!group.voices.some((voice) => miss.expected.voices.includes(voice))) return;
+          const y = TIMING_HEADER_HEIGHT + row * TIMING_LANE_HEIGHT + TIMING_LANE_HEIGHT / 2;
+          graphics.strokeStyle = "#ff665d"; graphics.lineWidth = 2;
+          graphics.beginPath(); graphics.moveTo(x - 4, y - 4); graphics.lineTo(x + 4, y + 4); graphics.moveTo(x + 4, y - 4); graphics.lineTo(x - 4, y + 4); graphics.stroke();
+        });
+      }
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [drumTracks, plotHeight, plotWidth, safeBarSteps, safeStepDuration, steps, timeline, visibleBars, voiceGroups]);
+
+  const metrics = analysis?.overall;
+  const measurementCount = (analysis?.matched.length || 0) + (analysis?.missed.length || 0) + (analysis?.extra.length || 0);
+  return <section className="timing-film" aria-label="Timing-Timeline mit Drum-Hits und erkannten Transienten">
+    <div className="timing-film-head">
+      <div><small>TAKT-TIMELINE</small><strong>Drum-Hits + Transienten</strong></div>
+      <div className="timing-film-summary">
+        <span><b>{metrics?.matchedHits ? `${Math.round(metrics.medianMs)} ms` : "—"}</b>Versatz</span>
+        <span><b>{metrics?.expectedHits ? `${Math.round(metrics.hitRate)}%` : "—"}</b>Erkannt</span>
+        <div className="timing-window-switch" aria-label="Anzahl sichtbarer Takte">
+          {([8, 16] as const).map((count) => <button key={count} className={visibleBars === count ? "active" : ""} aria-pressed={visibleBars === count} onClick={() => setVisibleBars(count)}>{count} Takte</button>)}
+        </div>
+      </div>
+    </div>
+    <div className="timing-film-legend" aria-label="Legende"><span><i className="drum" />Drum-Hit</span><span><i className="on-time" />Transiente passend</span><span><i className="early" />früh</span><span><i className="late" />spät</span><span><i className="extra" />zusätzlich</span><span><i className="missed">×</i>verpasst</span></div>
+    <div className="timing-film-scroll">
+      <div className="timing-film-stage" style={{ width: `${TIMING_LABEL_WIDTH + plotWidth}px`, height: `${plotHeight}px` }}>
+        <div className="timing-film-labels" style={{ width: `${TIMING_LABEL_WIDTH}px`, height: `${plotHeight}px`, gridTemplateRows: `${TIMING_HEADER_HEIGHT}px repeat(${voiceGroups.length}, ${TIMING_LANE_HEIGHT}px)` }}>
+          <b>TAKT</b>{voiceGroups.map((group) => <span key={group.label}>{group.label}</span>)}
+        </div>
+        <canvas ref={canvasRef} className="timing-film-canvas" style={{ left: `${TIMING_LABEL_WIDTH}px`, width: `${plotWidth}px`, height: `${plotHeight}px` }} aria-label={`${visibleBars} Takte; ${measurementCount} ausgewertete Transienten`} />
+      </div>
+    </div>
+    <div className="timing-film-foot"><span>Quadrat = Sollschlag · Linie/Punkt = erkannte Transiente</span><span>{measurementCount ? `letzte Takte ${timeline.startBar + 1}–${timeline.endBar + 1}` : "Starten und mit Kopfhörern spielen"}</span></div>
+  </section>;
+}
+
+const MemoizedTimingDiagnostics = memo(TimingDiagnostics);
+
 const withAudioTimeout = <T,>(promise: Promise<T>, milliseconds = 2500): Promise<T> => new Promise((resolve, reject) => {
   const timer = window.setTimeout(() => reject(new Error("Audio transition timed out")), milliseconds);
   promise.then((value) => {
@@ -151,6 +429,13 @@ const withAudioTimeout = <T,>(promise: Promise<T>, milliseconds = 2500): Promise
     reject(error);
   });
 });
+
+function estimateAudioRoundTripLatencyMs(context: AudioContext, stream: MediaStream): number {
+  const inputSettings = stream.getAudioTracks()[0]?.getSettings() as (MediaTrackSettings & { latency?: number }) | undefined;
+  const inputLatency = Number(inputSettings?.latency) || 0;
+  const outputLatency = Number((context as AudioContext & { outputLatency?: number }).outputLatency) || 0;
+  return Math.max(0, Math.min(600, Math.round((inputLatency + context.baseLatency + outputLatency) * 1000)));
+}
 
 export default function MetronomeApp() {
   const [bpm, setBpm] = useState(92);
@@ -218,6 +503,14 @@ export default function MetronomeApp() {
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [storageError, setStorageError] = useState("");
   const [midiStatus, setMidiStatus] = useState<"idle" | "connected" | "unsupported" | "denied">("idle");
+  const [audioFeedbackEnabled, setAudioFeedbackEnabled] = useState(false);
+  const [audioFeedbackStatus, setAudioFeedbackStatus] = useState<AudioFeedbackStatus>("idle");
+  const [audioFeedbackConfig, setAudioFeedbackConfig] = useState<AudioFeedbackConfig>({ latencyMs: 0, latencySource: "estimated" });
+  const [audioInputOptions, setAudioInputOptions] = useState<AudioInputOption[]>([]);
+  const [audioInputDeviceId, setAudioInputDeviceId] = useState("");
+  const [audioFeedbackAnalysis, setAudioFeedbackAnalysis] = useState<AudioFeedbackAnalysis | null>(null);
+  const [calibratingLatency, setCalibratingLatency] = useState(false);
+  const [calibrationProgress, setCalibrationProgress] = useState(0);
 
   const audioRef = useRef<AudioContext | null>(null);
   const schedulerRef = useRef<number | null>(null);
@@ -283,6 +576,16 @@ export default function MetronomeApp() {
   const editorTriggerRef = useRef<HTMLElement | null>(null);
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const midiAccessRef = useRef<MidiAccessLike | null>(null);
+  const audioFeedbackEnabledRef = useRef(false);
+  const audioFeedbackConfigRef = useRef<AudioFeedbackConfig>({ latencyMs: 0, latencySource: "estimated" });
+  const audioInputDeviceIdRef = useRef("");
+  const audioInputStreamRef = useRef<MediaStream | null>(null);
+  const audioInputSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  const audioOnsetNodeRef = useRef<AudioWorkletNode | null>(null);
+  const audioFeedbackSinkRef = useRef<GainNode | null>(null);
+  const audioFeedbackSessionRef = useRef<AudioFeedbackSession>(createAudioFeedbackSession());
+  const audioFeedbackRenderFrameRef = useRef<number | null>(null);
+  const expectedAudioHitCounterRef = useRef(0);
   const updateRegistrationRef = useRef<ServiceWorkerRegistration | null>(null);
 
   useEffect(() => { bpmRef.current = bpm; }, [bpm]);
@@ -309,6 +612,8 @@ export default function MetronomeApp() {
   useEffect(() => { practiceHistoryRef.current = practiceHistory; }, [practiceHistory]);
   useEffect(() => { practiceModeRef.current = practiceMode; }, [practiceMode]);
   useEffect(() => { currentStageRef.current = currentStage; }, [currentStage]);
+  useEffect(() => { audioFeedbackConfigRef.current = audioFeedbackConfig; }, [audioFeedbackConfig]);
+  useEffect(() => { audioInputDeviceIdRef.current = audioInputDeviceId; }, [audioInputDeviceId]);
 
   const persistStore = useCallback(async (key: string, value: unknown) => {
     try {
@@ -391,7 +696,8 @@ export default function MetronomeApp() {
       readStore<PracticeResult[]>("practiceResults", []),
       readStore<LastSessionSnapshot | null>("lastSessionSnapshot", null),
       readStore<number>("dataSchemaVersion", 1),
-    ]).then(([savedFavorites, savedPresets, savedRecent, savedPractice, savedScenes, savedResults, savedSnapshot, savedSchema]) => {
+      readStore<AudioFeedbackConfig>("audioFeedbackConfig", { latencyMs: 0, latencySource: "estimated" }),
+    ]).then(([savedFavorites, savedPresets, savedRecent, savedPractice, savedScenes, savedResults, savedSnapshot, savedSchema, savedAudioFeedback]) => {
       setFavorites(Array.isArray(savedFavorites) ? savedFavorites : []);
       setPresets(Array.isArray(savedPresets) ? savedPresets.filter((item) => item?.id?.startsWith("custom-") && item.drumTracks) : []);
       setRecent(Array.isArray(savedRecent) ? savedRecent : []);
@@ -401,6 +707,15 @@ export default function MetronomeApp() {
       setPracticeHistory(nextResults.slice(0, 100));
       setLastSnapshot(savedSnapshot?.scene ? savedSnapshot : null);
       practiceHistoryRef.current = nextResults.slice(0, 100);
+      const nextFeedbackConfig: AudioFeedbackConfig = {
+        latencyMs: Math.max(0, Math.min(600, Number(savedAudioFeedback?.latencyMs) || 0)),
+        latencySource: ["estimated", "calibrated", "manual"].includes(savedAudioFeedback?.latencySource) ? savedAudioFeedback.latencySource : "estimated",
+        ...(savedAudioFeedback?.deviceId ? { deviceId: savedAudioFeedback.deviceId } : {}),
+      };
+      audioFeedbackConfigRef.current = nextFeedbackConfig;
+      audioInputDeviceIdRef.current = nextFeedbackConfig.deviceId || "";
+      setAudioFeedbackConfig(nextFeedbackConfig);
+      setAudioInputDeviceId(nextFeedbackConfig.deviceId || "");
       if (savedSchema < DATA_SCHEMA_VERSION) {
         void Promise.all([
           persistStore("scenes", nextScenes),
@@ -446,6 +761,8 @@ export default function MetronomeApp() {
       window.removeEventListener("focus", focusHandler);
       navigator.serviceWorker?.removeEventListener("message", serviceWorkerMessage);
       midiAccessRef.current?.inputs.forEach((input) => { input.onmidimessage = null; });
+      audioInputStreamRef.current?.getTracks().forEach((track) => track.stop());
+      if (audioFeedbackRenderFrameRef.current !== null) window.cancelAnimationFrame(audioFeedbackRenderFrameRef.current);
       stopRef.current();
     };
   }, [persistStore]);
@@ -475,6 +792,35 @@ export default function MetronomeApp() {
     setVoiceVolumes(next);
   }, []);
 
+  const saveAudioFeedbackConfig = useCallback((next: AudioFeedbackConfig) => {
+    const normalized: AudioFeedbackConfig = {
+      latencyMs: Math.max(0, Math.min(600, Math.round(next.latencyMs))),
+      latencySource: next.latencySource,
+      ...(next.deviceId ? { deviceId: next.deviceId } : {}),
+    };
+    audioFeedbackConfigRef.current = normalized;
+    setAudioFeedbackConfig(normalized);
+    void persistStore("audioFeedbackConfig", normalized);
+  }, [persistStore]);
+
+  const refreshAudioFeedback = useCallback(() => {
+    if (audioFeedbackRenderFrameRef.current !== null) return;
+    audioFeedbackRenderFrameRef.current = window.requestAnimationFrame(() => {
+      audioFeedbackRenderFrameRef.current = null;
+      setAudioFeedbackAnalysis(snapshotAudioFeedback(audioFeedbackSessionRef.current));
+    });
+  }, []);
+
+  const disconnectAudioFeedbackGraph = useCallback(() => {
+    if (audioOnsetNodeRef.current) audioOnsetNodeRef.current.port.onmessage = null;
+    try { audioInputSourceRef.current?.disconnect(); } catch { /* Already disconnected. */ }
+    try { audioOnsetNodeRef.current?.disconnect(); } catch { /* Already disconnected. */ }
+    try { audioFeedbackSinkRef.current?.disconnect(); } catch { /* Already disconnected. */ }
+    audioInputSourceRef.current = null;
+    audioOnsetNodeRef.current = null;
+    audioFeedbackSinkRef.current = null;
+  }, []);
+
   const clearRuntime = useCallback((closeContext = true) => {
     if (schedulerRef.current !== null) window.clearInterval(schedulerRef.current);
     schedulerRef.current = null;
@@ -490,6 +836,7 @@ export default function MetronomeApp() {
     try { masterGainRef.current?.disconnect(); } catch { /* Already disconnected. */ }
     try { compressorRef.current?.disconnect(); } catch { /* Already disconnected. */ }
     try { analyserRef.current?.disconnect(); } catch { /* Already disconnected. */ }
+    disconnectAudioFeedbackGraph();
     masterGainRef.current = null;
     compressorRef.current = null;
     analyserRef.current = null;
@@ -503,7 +850,49 @@ export default function MetronomeApp() {
       contextTransitionRef.current = Promise.resolve();
       if (context.state !== "closed") void context.close().catch(() => undefined);
     }
-  }, []);
+  }, [disconnectAudioFeedbackGraph]);
+
+  const attachAudioFeedback = useCallback(async (context: AudioContext, token: number) => {
+    const stream = audioInputStreamRef.current;
+    if (!audioFeedbackEnabledRef.current || !stream?.active) return false;
+    disconnectAudioFeedbackGraph();
+    try {
+      await context.audioWorklet.addModule("/audio-onset-processor.js");
+      if (generationRef.current !== token || audioRef.current !== context || !audioFeedbackEnabledRef.current) return false;
+      const source = context.createMediaStreamSource(stream);
+      const onset = new AudioWorkletNode(context, "audio-onset-processor", {
+        numberOfInputs: 1,
+        numberOfOutputs: 1,
+        channelCount: 1,
+        channelCountMode: "explicit",
+        processorOptions: { config: { refractoryMs: 42, warmupMs: 140 } },
+      });
+      const silentSink = context.createGain();
+      silentSink.gain.value = 0;
+      source.connect(onset).connect(silentSink).connect(context.destination);
+      onset.port.onmessage = (event: MessageEvent<OnsetWorkletMessage>) => {
+        const message = event.data;
+        if (message?.type !== "onset" || !Number.isFinite(message.contextTime) || generationRef.current !== token || !audioFeedbackEnabledRef.current) return;
+        try {
+          addDetectedTransient(audioFeedbackSessionRef.current, {
+            id: `onset-${token}-${Math.round(Number(message.contextTime) * context.sampleRate)}`,
+            timeMs: Number(message.contextTime) * 1000,
+            strength: Number(message.strength) || 0,
+          });
+          refreshAudioFeedback();
+        } catch { /* Ignore stale render-thread messages after a lifecycle transition. */ }
+      };
+      audioInputSourceRef.current = source;
+      audioOnsetNodeRef.current = onset;
+      audioFeedbackSinkRef.current = silentSink;
+      setAudioFeedbackStatus("listening");
+      return true;
+    } catch {
+      disconnectAudioFeedbackGraph();
+      setAudioFeedbackStatus("error");
+      return false;
+    }
+  }, [disconnectAudioFeedbackGraph, refreshAudioFeedback]);
 
   const activeMilliseconds = useCallback(() => activeElapsedMsRef.current + (activeSliceStartedAtRef.current ? Date.now() - activeSliceStartedAtRef.current : 0), []);
 
@@ -545,6 +934,42 @@ export default function MetronomeApp() {
     const elapsedSeconds = Math.round(activeElapsedMsRef.current / 1000);
     if (elapsedSeconds >= 5 && barsRef.current > 0) {
       const scene = currentScene();
+      let timingResult: TimingResult | undefined;
+      if (audioFeedbackEnabledRef.current) {
+        const feedbackSession = audioFeedbackSessionRef.current;
+        const contextTimeMs = (audioRef.current?.currentTime || 0) * 1000;
+        try { expirePendingHits(feedbackSession, contextTimeMs + feedbackSession.config.matchWindowMs); } catch { /* Session may already be finalized. */ }
+        const feedback = snapshotAudioFeedback(feedbackSession);
+        if (feedback.overall.expectedHits > 0) {
+          const observationFor = (voice: DrumVoice | "all", values = feedback.overall) => ({
+            voice,
+            medianMs: Math.round(values.medianMs * 10) / 10,
+            meanAbsoluteMs: Math.round(values.meanAbsoluteMs * 10) / 10,
+            spreadMs: Math.round(values.spreadMs * 10) / 10,
+            hitRate: Math.round(values.hitRate * 10) / 10,
+          });
+          timingResult = {
+            input: "audio",
+            latencyMs: feedbackSession.config.latencyCompensationMs,
+            latencySource: audioFeedbackConfigRef.current.latencySource,
+            observations: [
+              observationFor("all"),
+              ...DRUM_VOICES.flatMap((voice) => feedback.byVoice[voice] ? [observationFor(voice, feedback.byVoice[voice])] : []),
+            ],
+            matchedHits: feedback.matched.length,
+            missedHits: feedback.missed.length,
+            extraHits: feedback.extra.length,
+            samples: feedback.matched.slice(-96).map((item) => ({
+              stepIndex: item.expected.stepIndex,
+              offsetMs: Math.round(item.offsetMs * 10) / 10,
+              classification: item.classification,
+              strength: item.transient.strength,
+              voices: [...item.expected.voices],
+            })),
+          };
+          setAudioFeedbackAnalysis(feedback);
+        }
+      }
       const entry: PracticeResult = {
         id: `session-${Date.now()}`,
         sceneId: scene.id,
@@ -556,6 +981,7 @@ export default function MetronomeApp() {
         bpmEnd: bpmRef.current,
         completed: reason === "timer" || reason === "bars",
         completionReason: reason,
+        ...(timingResult ? { timingResult } : {}),
         practiceMode: practiceModeRef.current,
         currentStage: currentStageRef.current,
         completedAt: new Date().toISOString(),
@@ -573,6 +999,7 @@ export default function MetronomeApp() {
     generationRef.current += 1;
     recoveryPromiseRef.current = null;
     clearRuntime(true);
+    if (audioFeedbackEnabledRef.current) setAudioFeedbackStatus("ready");
     setPlaybackPhase("stopped");
     setCurrentStep(-1);
     nextStepRef.current = 0;
@@ -651,6 +1078,7 @@ export default function MetronomeApp() {
     }
     if (endAtRef.current) timerRemainingRef.current = Math.max(0, endAtRef.current - Date.now());
     endAtRef.current = 0;
+    audioFeedbackSessionRef.current.pending.splice(0);
     const context = audioRef.current;
     clearRuntime(false);
     const checkpoint = checkpointRef.current;
@@ -673,6 +1101,7 @@ export default function MetronomeApp() {
   useEffect(() => { pauseLifecycleRef.current = pauseForLifecycle; }, [pauseForLifecycle]);
 
   const startPlayback = useCallback(async (recover = false) => {
+    const recoveringExistingContext = Boolean(recover && audioRef.current && audioRef.current.state !== "closed");
     const token = generationRef.current + 1;
     generationRef.current = token;
     wantsPlaybackRef.current = true;
@@ -682,7 +1111,7 @@ export default function MetronomeApp() {
       setPlaybackPhase("lifecycle-paused");
       return;
     }
-    if (!recover) {
+    if (!recover || !recoveringExistingContext) {
       barsRef.current = 0;
       setSessionBars(0);
       sessionStartedAtRef.current = Date.now();
@@ -716,6 +1145,7 @@ export default function MetronomeApp() {
 
     let context: AudioContext;
     try {
+      setAudioSessionType(audioFeedbackEnabledRef.current ? "play-and-record" : "playback");
       if (recover) await withAudioTimeout(contextTransitionRef.current, 2500);
       if (generationRef.current !== token || !wantsPlaybackRef.current || document.hidden) {
         if (document.hidden && wantsPlaybackRef.current) setPlaybackPhase("lifecycle-paused");
@@ -733,6 +1163,22 @@ export default function MetronomeApp() {
       return;
     }
     if (context.state !== "running") return fail("Audio bleibt pausiert. Tippe zum Fortsetzen auf ▶.");
+
+    if (!recover) {
+      expectedAudioHitCounterRef.current = 0;
+      if (audioFeedbackEnabledRef.current && audioInputStreamRef.current?.active && audioFeedbackConfigRef.current.latencySource === "estimated") {
+        saveAudioFeedbackConfig({
+          ...audioFeedbackConfigRef.current,
+          latencyMs: estimateAudioRoundTripLatencyMs(context, audioInputStreamRef.current),
+        });
+      }
+      audioFeedbackSessionRef.current = createAudioFeedbackSession({
+        latencyCompensationMs: audioFeedbackConfigRef.current.latencyMs,
+        matchWindowMs: 120,
+        onTimeWindowMs: 25,
+      });
+      setAudioFeedbackAnalysis(audioFeedbackEnabledRef.current ? snapshotAudioFeedback(audioFeedbackSessionRef.current) : null);
+    }
 
     try {
       await withAudioTimeout(primeDrumKit(context, drumSampleCacheRef.current, soundRef.current, DRUM_VOICES), 8000);
@@ -758,7 +1204,9 @@ export default function MetronomeApp() {
     masterGainRef.current = master;
     compressorRef.current = compressor;
     analyserRef.current = analyser;
-    nextTimeRef.current = context.currentTime + .07;
+    const feedbackAttached = await attachAudioFeedback(context, token);
+    if (generationRef.current !== token || audioRef.current !== context) return;
+    nextTimeRef.current = context.currentTime + (feedbackAttached ? .25 : .07);
     endAtRef.current = timerRemainingRef.current ? Date.now() + timerRemainingRef.current : 0;
     let lastContextTime = context.currentTime;
     let stalledTicks = 0;
@@ -799,6 +1247,37 @@ export default function MetronomeApp() {
         ) / barSteps;
         const stepIndex = nextStepRef.current;
         const stepInBar = stepIndex % barSteps;
+        if (audioFeedbackEnabledRef.current && audioOnsetNodeRef.current) {
+          const feedbackVoices: DrumVoice[] = [];
+          const feedbackStates: ExpectedAudioHit["states"] = {};
+          if (drumTracksRef.current) {
+            for (const voice of DRUM_VOICES) {
+              const state = drumTracksRef.current[voice]?.[stepIndex] || "mute";
+              if (state === "mute") continue;
+              feedbackVoices.push(voice);
+              feedbackStates[voice] = state;
+            }
+          } else {
+            const state = stepsRef.current[stepIndex] || "mute";
+            if (state !== "mute") {
+              feedbackVoices.push("rim");
+              feedbackStates.rim = state;
+            }
+          }
+          if (feedbackVoices.length) {
+            const sequenceStepIndex = barsRef.current * barSteps + stepInBar;
+            const target: ExpectedAudioHit = {
+              id: `audio-target-${token}-${expectedAudioHitCounterRef.current++}`,
+              timeMs: nextTimeRef.current * 1000,
+              stepIndex,
+              sequenceStepIndex,
+              cycleIndex: Math.floor(sequenceStepIndex / cycleSteps),
+              voices: feedbackVoices,
+              states: feedbackStates,
+            };
+            try { addExpectedAudioHit(audioFeedbackSessionRef.current, target); } catch { /* Ignore a stale target after recovery. */ }
+          }
+        }
         if (drumTracksRef.current) {
           for (const voice of DRUM_VOICES) {
             const state = drumTracksRef.current[voice]?.[stepIndex] || "mute";
@@ -870,6 +1349,12 @@ export default function MetronomeApp() {
           break;
         }
       }
+      if (audioFeedbackEnabledRef.current && audioOnsetNodeRef.current) {
+        try {
+          const expired = expirePendingHits(audioFeedbackSessionRef.current, Math.max(0, context.currentTime - .08) * 1000);
+          if (expired.length) refreshAudioFeedback();
+        } catch { /* A render-thread onset may have advanced the same clock first. */ }
+      }
       if (endAtRef.current) {
         timerRemainingRef.current = Math.max(0, endAtRef.current - Date.now());
         const remaining = Math.ceil(timerRemainingRef.current / 1000);
@@ -899,7 +1384,7 @@ export default function MetronomeApp() {
         })
         .catch(() => undefined);
     }
-  }, [clearRuntime, scheduleDrumVoice, setPlaybackPhase, showToast]);
+  }, [attachAudioFeedback, clearRuntime, refreshAudioFeedback, saveAudioFeedbackConfig, scheduleDrumVoice, setPlaybackPhase, showToast]);
   useEffect(() => { startRef.current = startPlayback; }, [startPlayback]);
 
   const resumeFromLifecycle = useCallback(() => {
@@ -916,6 +1401,10 @@ export default function MetronomeApp() {
   useEffect(() => { resumeLifecycleRef.current = resumeFromLifecycle; }, [resumeFromLifecycle]);
 
   const togglePlayback = useCallback(() => {
+    if (calibratingLatency) {
+      showToast("Latenzmessung läuft noch.");
+      return;
+    }
     if (phaseRef.current === "running" || phaseRef.current === "starting") stopPlayback();
     else if (wantsPlaybackRef.current) {
       generationRef.current += 1;
@@ -924,7 +1413,158 @@ export default function MetronomeApp() {
       void startPlayback(true);
     }
     else void startPlayback(false);
-  }, [clearRuntime, startPlayback, stopPlayback]);
+  }, [calibratingLatency, clearRuntime, showToast, startPlayback, stopPlayback]);
+
+  const enableAudioFeedback = async (requestedDeviceId = audioInputDeviceIdRef.current) => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setAudioFeedbackStatus("unsupported");
+      return;
+    }
+    setAudioFeedbackStatus("requesting");
+    setAudioSessionType("play-and-record");
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          ...(requestedDeviceId ? { deviceId: { exact: requestedDeviceId } } : {}),
+          channelCount: { ideal: 1 },
+          echoCancellation: { ideal: false },
+          noiseSuppression: { ideal: false },
+          autoGainControl: { ideal: false },
+          latency: { ideal: 0 },
+        } as MediaTrackConstraints & { latency: { ideal: number } },
+      });
+      const previousStream = audioInputStreamRef.current;
+      disconnectAudioFeedbackGraph();
+      audioInputStreamRef.current = stream;
+      previousStream?.getTracks().forEach((track) => track.stop());
+      audioFeedbackEnabledRef.current = true;
+      setAudioFeedbackEnabled(true);
+
+      const actualDeviceId = stream.getAudioTracks()[0]?.getSettings().deviceId || requestedDeviceId;
+      audioInputDeviceIdRef.current = actualDeviceId;
+      setAudioInputDeviceId(actualDeviceId);
+      const inputs = (await navigator.mediaDevices.enumerateDevices())
+        .filter((device) => device.kind === "audioinput")
+        .map((device, index) => ({ deviceId: device.deviceId, label: device.label || `Mikrofon ${index + 1}` }));
+      setAudioInputOptions(inputs);
+
+      let nextConfig: AudioFeedbackConfig = {
+        ...audioFeedbackConfigRef.current,
+        ...(actualDeviceId ? { deviceId: actualDeviceId } : {}),
+      };
+      if (requestedDeviceId !== audioFeedbackConfigRef.current.deviceId) nextConfig = { ...nextConfig, latencyMs: 0, latencySource: "estimated" };
+      const context = audioRef.current;
+      if (context?.state === "running") {
+        if (nextConfig.latencySource === "estimated") nextConfig = { ...nextConfig, latencyMs: estimateAudioRoundTripLatencyMs(context, stream) };
+        saveAudioFeedbackConfig(nextConfig);
+        audioFeedbackSessionRef.current = createAudioFeedbackSession({ latencyCompensationMs: nextConfig.latencyMs, matchWindowMs: 120, onTimeWindowMs: 25 });
+        setAudioFeedbackAnalysis(snapshotAudioFeedback(audioFeedbackSessionRef.current));
+        await attachAudioFeedback(context, generationRef.current);
+      } else {
+        saveAudioFeedbackConfig(nextConfig);
+        setAudioFeedbackStatus("ready");
+      }
+    } catch (error) {
+      setAudioSessionType(audioInputStreamRef.current?.active ? "play-and-record" : "playback");
+      const name = error instanceof DOMException ? error.name : "";
+      setAudioFeedbackStatus(name === "NotAllowedError" || name === "SecurityError" ? "denied" : "error");
+    }
+  };
+
+  const disableAudioFeedback = () => {
+    audioFeedbackEnabledRef.current = false;
+    setAudioFeedbackEnabled(false);
+    disconnectAudioFeedbackGraph();
+    audioInputStreamRef.current?.getTracks().forEach((track) => track.stop());
+    audioInputStreamRef.current = null;
+    setAudioSessionType("playback");
+    audioFeedbackSessionRef.current = createAudioFeedbackSession();
+    setAudioFeedbackAnalysis(null);
+    setAudioFeedbackStatus("idle");
+  };
+
+  const setManualAudioLatency = (latencyMs: number) => {
+    saveAudioFeedbackConfig({ ...audioFeedbackConfigRef.current, latencyMs, latencySource: "manual" });
+  };
+
+  const calibrateAudioLatency = async () => {
+    const stream = audioInputStreamRef.current;
+    if (!stream?.active || wantsPlaybackRef.current || calibratingLatency) return;
+    const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextClass) return;
+    setCalibratingLatency(true);
+    setCalibrationProgress(0);
+    setAudioFeedbackStatus("requesting");
+    setAudioSessionType("play-and-record");
+    let context: AudioContext | null = null;
+    try {
+      context = new AudioContextClass({ latencyHint: "interactive" });
+      await context.resume();
+      await context.audioWorklet.addModule("/audio-onset-processor.js");
+      const microphone = context.createMediaStreamSource(stream);
+      const detector = new AudioWorkletNode(context, "audio-onset-processor", { processorOptions: { config: { warmupMs: 180, refractoryMs: 55 } } });
+      const silentSink = context.createGain();
+      silentSink.gain.value = 0;
+      microphone.connect(detector).connect(silentSink).connect(context.destination);
+      const detections: Array<{ time: number; strength: number }> = [];
+      detector.port.onmessage = (event: MessageEvent<OnsetWorkletMessage>) => {
+        if (event.data?.type !== "onset" || !Number.isFinite(event.data.contextTime)) return;
+        detections.push({ time: Number(event.data.contextTime), strength: Number(event.data.strength) || 0 });
+      };
+
+      const clickCount = 6;
+      const intervalSeconds = .8;
+      const firstClick = context.currentTime + .65;
+      const scheduledTimes: number[] = [];
+      const clickBuffer = context.createBuffer(1, Math.round(context.sampleRate * .018), context.sampleRate);
+      const clickData = clickBuffer.getChannelData(0);
+      for (let index = 0; index < clickData.length; index += 1) {
+        const envelope = Math.exp(-index / (context.sampleRate * .0028));
+        clickData[index] = (Math.random() * 2 - 1) * envelope * .75;
+      }
+      for (let index = 0; index < clickCount; index += 1) {
+        const when = firstClick + index * intervalSeconds;
+        const click = context.createBufferSource();
+        const gain = context.createGain();
+        click.buffer = clickBuffer;
+        gain.gain.value = .65;
+        click.connect(gain).connect(context.destination);
+        click.start(when);
+        scheduledTimes.push(when);
+        window.setTimeout(() => setCalibrationProgress(index + 1), Math.max(0, (when - context!.currentTime) * 1000));
+      }
+      await new Promise((resolve) => window.setTimeout(resolve, (firstClick + (clickCount - 1) * intervalSeconds + .7 - context!.currentTime) * 1000));
+
+      const offsets = scheduledTimes.flatMap((scheduled, index) => {
+        const end = index + 1 < scheduledTimes.length ? scheduled + intervalSeconds * .75 : scheduled + .65;
+        const candidates = detections.filter((item) => item.time >= scheduled + .008 && item.time <= end);
+        if (!candidates.length) return [];
+        const strongest = candidates.reduce((best, item) => item.strength > best.strength ? item : best);
+        return [(strongest.time - scheduled) * 1000];
+      }).filter((value) => value >= 5 && value <= 600).sort((left, right) => left - right);
+      if (offsets.length < 3) throw new Error("Zu wenige Kalibrierimpulse erkannt");
+      const middle = Math.floor(offsets.length / 2);
+      const median = offsets.length % 2 ? offsets[middle] : (offsets[middle - 1] + offsets[middle]) / 2;
+      const stable = offsets.filter((value) => Math.abs(value - median) <= 45);
+      if (stable.length < 3) throw new Error("Latenz schwankt zu stark");
+      const stableMiddle = Math.floor(stable.length / 2);
+      const measured = stable.length % 2 ? stable[stableMiddle] : (stable[stableMiddle - 1] + stable[stableMiddle]) / 2;
+      saveAudioFeedbackConfig({ ...audioFeedbackConfigRef.current, latencyMs: measured, latencySource: "calibrated" });
+      setAudioFeedbackStatus("ready");
+      showToast(`Latenz gemessen: ${Math.round(measured)} ms`);
+      detector.port.onmessage = null;
+      microphone.disconnect();
+      detector.disconnect();
+      silentSink.disconnect();
+    } catch {
+      setAudioFeedbackStatus("ready");
+      showToast("Kalibrierung fehlgeschlagen. Kopfhörer direkt ans Mikrofon halten oder Latenz manuell einstellen.");
+    } finally {
+      if (context && context.state !== "closed") await context.close().catch(() => undefined);
+      setCalibratingLatency(false);
+      setCalibrationProgress(0);
+    }
+  };
 
   const updateBpm = useCallback((value: number) => {
     const next = Math.max(20, Math.min(300, Math.round(value)));
@@ -1621,11 +2261,38 @@ export default function MetronomeApp() {
     const track = drumTracks?.[voice];
     return track?.some((state) => state !== "mute") ? [[voice, track] as [DrumVoice, DrumHitState[]]] : [];
   }), [drumTracks]);
+  const audioFeedbackMarkers = useMemo(() => {
+    const markers = new Map<number, { timeMs: number; kind: "matched" | "missed"; offsetMs?: number; classification?: "early" | "on-time" | "late" }>();
+    for (const item of audioFeedbackAnalysis?.missed || []) {
+      const current = markers.get(item.expected.stepIndex);
+      if (!current || current.timeMs <= item.expected.timeMs) markers.set(item.expected.stepIndex, { timeMs: item.expected.timeMs, kind: "missed" });
+    }
+    for (const item of audioFeedbackAnalysis?.matched || []) {
+      const current = markers.get(item.expected.stepIndex);
+      if (!current || current.timeMs <= item.expected.timeMs) markers.set(item.expected.stepIndex, {
+        timeMs: item.expected.timeMs,
+        kind: "matched",
+        offsetMs: item.offsetMs,
+        classification: item.classification,
+      });
+    }
+    return markers;
+  }, [audioFeedbackAnalysis]);
   const ladderStages = useMemo(() => ladderFor(library.find((pattern) => pattern.id === patternId) || presets.find((pattern) => pattern.id === patternId) || FALLBACK_PATTERNS[0]), [library, patternId, presets]);
   const phaseLabel = phase === "running" ? "Läuft" : phase === "starting" ? "Startet …" : phase === "recovering" ? "Audio kommt zurück …" : phase === "lifecycle-paused" ? "Im Hintergrund pausiert" : "Bereit";
   const pwaLabel = pwaStatus === "update" ? "Update bereit" : !online ? offlineStatus.appReady ? "App offline bereit" : "Offline eingeschränkt" : offlineStatus.appReady
     ? offlineStatus.availableKits >= offlineStatus.totalKits ? "Offline bereit" : `App offline · ${offlineStatus.availableKits}/${offlineStatus.totalKits} Kits`
     : pwaStatus === "error" ? "Nur online" : "Wird vorbereitet";
+  const feedbackStatusLabel = audioFeedbackStatus === "listening" ? "Hört zu" : audioFeedbackStatus === "ready" ? "Bereit" : audioFeedbackStatus === "requesting" ? calibratingLatency ? `Kalibrierung ${calibrationProgress}/6` : "Mikrofon wird geöffnet" : audioFeedbackStatus === "denied" ? "Mikrofon abgelehnt" : audioFeedbackStatus === "unsupported" ? "Nicht unterstützt" : audioFeedbackStatus === "error" ? "Audiofehler" : "Aus";
+  const latencySourceLabel = audioFeedbackConfig.latencySource === "calibrated" ? "gemessen" : audioFeedbackConfig.latencySource === "manual" ? "manuell" : "geschätzt";
+  const liveFeedback = audioFeedbackAnalysis?.overall;
+  const feedbackStepDurationMs = useMemo(() => {
+    const barSteps = Math.max(1, stepsPerBar(meter, subdivision));
+    const tempoUnitScale = tempoUnit === "dotted-quarter" ? 1.5 : tempoUnit === "eighth" ? .5 : 1;
+    return (meter.beats * 4 / meter.denominator) / tempoUnitScale * (60_000 / Math.max(20, bpm)) / barSteps;
+  }, [bpm, meter, subdivision, tempoUnit]);
+  const recapTiming = recap?.timingResult;
+  const recapOverallTiming = recapTiming?.observations.find((item) => item.voice === "all") || recapTiming?.observations[0];
 
   useEffect(() => {
     if (phase !== "running") return;
@@ -1694,7 +2361,7 @@ export default function MetronomeApp() {
             <div className="beat-strip">
               <div className="beat-strip-top">
                 <div><div className="pattern-name">{patternName}</div><div className="pattern-meta">{meterLabel} · {subdivision} · {steps.length} Schritte{cycleBars > 1 ? ` · ${cycleBars} Takte` : ""}</div></div>
-                <button className={`edit-link ${editorOpen ? "active" : ""}`} aria-expanded={editorOpen} aria-controls="inline-pattern-editor" onClick={(event) => editorOpen ? closeEditor() : openEditor(undefined, event.currentTarget)}>{editorOpen ? "Bearbeitung beenden" : "Pattern bearbeiten"}</button>
+                <div className="beat-strip-actions">{audioFeedbackEnabled && <span className={`feedback-live-pill ${audioFeedbackStatus}`}><i />{feedbackStatusLabel}{liveFeedback?.matchedHits ? ` · ${Math.round(liveFeedback.meanAbsoluteMs)} ms · ${Math.round(liveFeedback.hitRate)}%` : ""}</span>}<button className={`edit-link ${editorOpen ? "active" : ""}`} aria-expanded={editorOpen} aria-controls="inline-pattern-editor" onClick={(event) => editorOpen ? closeEditor() : openEditor(undefined, event.currentTarget)}>{editorOpen ? "Bearbeitung beenden" : "Pattern bearbeiten"}</button></div>
               </div>
               {editorOpen ? <section id="inline-pattern-editor" className="inline-editor" ref={inlineEditorRef} tabIndex={-1} aria-labelledby="inline-editor-title">
                 <div className="inline-editor-head"><div><strong id="inline-editor-title">Pattern live bearbeiten</strong><span>Änderungen wirken sofort. Beim Speichern bleiben Pattern, Kit, Tempo und Training gemeinsam als Scene erhalten.</span></div><span className="live-edit-badge">LIVE</span></div>
@@ -1724,6 +2391,18 @@ export default function MetronomeApp() {
               </section> : activeDrumEntries.length ? <div className="drum-grid-scroll" ref={drumGridScrollRef} role="region" aria-label="Aktuelles Drum-Pattern">
                 <div className="drum-grid">
                   <div className="drum-lane drum-ruler" style={{ gridTemplateColumns: `82px repeat(${steps.length}, minmax(24px, 1fr))` }}><span className="drum-lane-label">Takt</span>{steps.map((_, index) => <span key={index} className={index % stepsPerBar(meter, subdivision) === 0 ? "bar-start" : ""}>{index % stepsPerBar(meter, subdivision) === 0 ? Math.floor(index / stepsPerBar(meter, subdivision)) + 1 : ""}</span>)}</div>
+                  {audioFeedbackEnabled && <div className="drum-lane feedback-lane" style={{ gridTemplateColumns: `82px repeat(${steps.length}, minmax(24px, 1fr))` }}>
+                    <span className="drum-lane-label feedback-lane-label"><strong>DU</strong><small>{liveFeedback?.matchedHits ? `${Math.round(liveFeedback.medianMs)} ms` : "Timing"}</small></span>
+                    {steps.map((_, index) => {
+                      const marker = audioFeedbackMarkers.get(index);
+                      const offset = marker?.offsetMs || 0;
+                      const markerLeft = Math.max(8, Math.min(92, 50 + offset / 120 * 42));
+                      const description = marker?.kind === "missed" ? "verpasst" : marker ? `${offset < 0 ? Math.abs(Math.round(offset)) + " ms zu früh" : offset > 0 ? Math.round(offset) + " ms zu spät" : "genau"}` : "noch kein Messwert";
+                      return <span key={index} className={`feedback-cell ${currentStep === index ? "current" : ""} ${index % stepsPerBar(meter, subdivision) === 0 ? "bar-start" : ""}`} aria-label={`Dein Spiel, Schritt ${index + 1}: ${description}`}>
+                        {marker && <i className={`feedback-marker ${marker.kind === "missed" ? "missed" : marker.classification}`} style={{ left: `${markerLeft}%` }} title={description}>{marker.kind === "missed" ? "×" : ""}</i>}
+                      </span>;
+                    })}
+                  </div>}
                   {activeDrumEntries.map(([voice, track]) => <div className="drum-lane" key={voice} style={{ gridTemplateColumns: `82px repeat(${steps.length}, minmax(24px, 1fr))` }}>
                     <VoiceLaneLabel voice={voice} volume={voiceVolumes[voice]} onVolumeChange={updateVoiceVolume} />
                     {track.map((state, index) => <button key={index} data-step={index} className={`drum-cell ${state} ${currentStep === index ? "current" : ""} ${index % stepsPerBar(meter, subdivision) === 0 ? "bar-start" : ""}`} onClick={() => updateDrumHit(voice, index)} aria-label={`${DRUM_LABELS[voice]}, Schritt ${index + 1}: ${HIT_LABELS[state]}`} aria-pressed={state !== "mute"} />)}
@@ -1733,6 +2412,8 @@ export default function MetronomeApp() {
                 {steps.map((step, index) => <button key={index} className={`beat-dot ${step} ${currentStep === index ? "current" : ""}`} onClick={() => updateStep(index)} aria-label={`Schritt ${index + 1}: ${step}`} />)}
               </div>}
             </div>
+
+            {audioFeedbackEnabled && <MemoizedTimingDiagnostics analysis={audioFeedbackAnalysis} barSteps={stepsPerBar(meter, subdivision)} stepDurationMs={feedbackStepDurationMs} drumTracks={drumTracks} steps={steps} />}
 
             <div className="shortcut-hint">Leertaste: Start/Stop · T: Tap Tempo · +/−: BPM</div>
           </div>
@@ -1799,6 +2480,16 @@ export default function MetronomeApp() {
               <div className="toggle-row"><div><strong>{trainerMode === "pyramid" ? "Tempo-Pyramide" : "Tempo-Trainer"}</strong><small>{trainerMode === "pyramid" ? "Automatisch hoch und wieder herunter" : "Automatisch schneller werden"}</small></div><button className={`switch ${trainer ? "on" : ""}`} onClick={() => { const value = !trainer; trainerRef.current = value; setTrainer(value); }} aria-label="Tempo-Trainer umschalten" aria-pressed={trainer} /></div>
               {trainer && <div className="trainer-settings"><select value={trainerMode} onChange={(event) => { const value = event.target.value as TrainerMode; trainerModeRef.current = value; setTrainerMode(value); }} aria-label="Trainer-Modus"><option value="up">Steigern</option><option value="pyramid">Pyramide</option></select><select value={trainerStep} onChange={(event) => { const value = Number(event.target.value); trainerStepRef.current = value; setTrainerStep(value); }} aria-label="Tempo-Schritt"><option value="2">{trainerMode === "pyramid" ? "±2" : "+2"} BPM</option><option value="5">{trainerMode === "pyramid" ? "±5" : "+5"} BPM</option><option value="10">{trainerMode === "pyramid" ? "±10" : "+10"} BPM</option></select><select value={trainerEvery} onChange={(event) => { const value = Number(event.target.value); trainerEveryRef.current = value; setTrainerEvery(value); }} aria-label="Intervall"><option value="4">alle 4 Takte</option><option value="8">alle 8 Takte</option><option value="16">alle 16 Takte</option></select><label>Start<input type="number" min="20" max="300" value={trainerMin} onChange={(event) => setTrainerMin(Number(event.target.value))} /></label><label>Ziel<input type="number" min="20" max="300" value={trainerMax} onChange={(event) => setTrainerMax(Number(event.target.value))} /></label><p>{bpm} BPM → {trainerMode === "pyramid" ? `${trainerMax} → ${trainerMin}` : trainerMax} · alle {trainerEvery} Takte</p></div>}
             </div>
+            <div className={`feedback-card ${audioFeedbackEnabled ? "enabled" : ""}`}>
+              <div className="toggle-row"><div><strong>Audio-Feedback</strong><small>Transienten direkt gegen das Soll-Raster</small></div><button className={`switch ${audioFeedbackEnabled ? "on" : ""}`} onClick={() => audioFeedbackEnabled ? disableAudioFeedback() : void enableAudioFeedback()} aria-label="Audio-Feedback umschalten" aria-pressed={audioFeedbackEnabled} /></div>
+              {audioFeedbackEnabled && <div className="feedback-controls">
+                <div className="feedback-status-row"><span className={`feedback-status-dot ${audioFeedbackStatus}`} /><strong>{feedbackStatusLabel}</strong><span>{audioFeedbackConfig.latencyMs} ms · {latencySourceLabel}</span></div>
+                {audioInputOptions.length > 0 && <label>Mikrofon<select className="field-select" value={audioInputDeviceId} disabled={isPlaying || calibratingLatency} onChange={(event) => void enableAudioFeedback(event.target.value)}>{audioInputOptions.map((input) => <option key={input.deviceId} value={input.deviceId}>{input.label}</option>)}</select></label>}
+                <label className="feedback-latency-control"><span>Latenzkorrektur <b>{audioFeedbackConfig.latencyMs} ms</b></span><input type="range" min="0" max="600" step="1" value={audioFeedbackConfig.latencyMs} disabled={isPlaying || calibratingLatency} onChange={(event) => setManualAudioLatency(Number(event.target.value))} /></label>
+                <button className="feedback-calibrate" disabled={isPlaying || calibratingLatency} onClick={() => void calibrateAudioLatency()}>{calibratingLatency ? `Messung ${calibrationProgress}/6` : "Bluetooth-Latenz messen"}</button>
+                <p>Kopfhörer verwenden, damit der App-Beat nicht als eigener Schlag zählt. Zur Messung einen Hörer direkt ans Mikrofon halten.</p>
+              </div>}
+            </div>
             <button className="midi-button settings-midi" onClick={enableMidi} disabled={midiStatus === "connected"}>{midiStatus === "connected" ? "MIDI verbunden" : midiStatus === "unsupported" ? "Kein MIDI" : midiStatus === "denied" ? "MIDI abgelehnt" : "MIDI verbinden"}</button>
           </aside>
         </section>
@@ -1806,6 +2497,14 @@ export default function MetronomeApp() {
         {recap && <section className="recap-card" aria-label="Session-Abschluss" aria-live="polite">
           <div className="recap-head"><div><small>Session abgeschlossen</small><h2>{recap.sceneName}</h2></div><button onClick={() => setRecap(null)} aria-label="Recap schließen">×</button></div>
           <div className="recap-stats"><div><strong>{Math.floor(recap.activeSeconds / 60)}:{String(recap.activeSeconds % 60).padStart(2, "0")}</strong><span>aktive Übezeit</span></div><div><strong>{recap.barsCompleted}</strong><span>Takte</span></div><div><strong>{recap.bpmStart}{recap.bpmEnd !== recap.bpmStart ? ` → ${recap.bpmEnd}` : ""}</strong><span>BPM</span></div><div><strong>{practiceModeLabel(recap.practiceMode || { type: "normal" })}</strong><span>Übemodus</span></div></div>
+          {recapOverallTiming && <div className="timing-recap">
+            <div className="timing-recap-head"><div><small>Audioanalyse</small><strong>{recapOverallTiming.medianMs < -1 ? `${Math.abs(Math.round(recapOverallTiming.medianMs))} ms früh` : recapOverallTiming.medianMs > 1 ? `${Math.round(recapOverallTiming.medianMs)} ms spät` : "mittig"}</strong></div><span>{recapTiming?.latencyMs || 0} ms Latenz · {recapTiming?.latencySource === "calibrated" ? "gemessen" : recapTiming?.latencySource === "manual" ? "manuell" : "geschätzt"}</span></div>
+            <div className="timing-recap-stats"><div><strong>{Math.round(recapOverallTiming.meanAbsoluteMs)} ms</strong><span>Ø Abweichung</span></div><div><strong>{Math.round(recapOverallTiming.spreadMs)} ms</strong><span>Streuung</span></div><div><strong>{Math.round(recapOverallTiming.hitRate)}%</strong><span>Trefferquote</span></div><div><strong>{recapTiming?.matchedHits || 0}/{(recapTiming?.matchedHits || 0) + (recapTiming?.missedHits || 0)}</strong><span>Erkannt</span></div><div><strong>{recapTiming?.extraHits || 0}</strong><span>Zusätzlich</span></div></div>
+            {!!recapTiming?.samples?.length && <div className="timing-recap-plot" aria-label="Timingverlauf, oben zu früh, unten zu spät"><span className="timing-zero-line" />{recapTiming.samples.slice(-48).map((sample, index) => {
+              const top = Math.max(7, Math.min(93, 50 + sample.offsetMs / 120 * 43));
+              return <i key={`${sample.stepIndex}-${index}`}><b className={sample.classification} style={{ top: `${top}%` }} /></i>;
+            })}</div>}
+          </div>}
           <div className="rating-row"><span>Wie fühlte es sich an?</span>{(["unsicher", "stabil", "leicht"] as const).map((rating) => <button key={rating} className={recap.selfRating === rating ? "active" : ""} aria-pressed={recap.selfRating === rating} onClick={() => rateResult(rating)}>{rating}</button>)}</div>
           <p className="next-step"><strong>Nächster Schritt:</strong> {nextStepFor(recap)}</p>
         </section>}

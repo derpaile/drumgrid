@@ -40,6 +40,9 @@ yarn-error.log*
 /outputs/
 /work/
 
+# local consolidated source dump
+/app/alles.txt
+
 # local source packs; the app ships only curated files from public/audio/
 /samples/
 music-samples-index.tsv

@@ -25,7 +25,7 @@ await copyFile(catalogSource, new URL(catalogName, dataDir));
 
 const staticFiles = (await filesBelow(publicDir.pathname)).filter((path) => {
   const name = basename(path);
-  return name !== "asset-manifest.json" && !/^patterns-v2\.[a-f0-9]+\.json$/.test(name);
+  return name !== ".DS_Store" && name !== "asset-manifest.json" && !/^patterns-v2\.[a-f0-9]+\.json$/.test(name);
 });
 const assets = [];
 for (const path of staticFiles) {
