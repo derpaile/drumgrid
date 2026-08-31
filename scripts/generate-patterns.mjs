@@ -1,6 +1,12 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
+import {
+  REVIEWED_SONG_APP_IDS,
+  REVIEWED_SONG_APP_OVERRIDES,
+  REVIEWED_SONG_STATUSES,
+} from "./reviewed-song-catalog.mjs";
 
 const styleExpansion = JSON.parse(await readFile(new URL("../research/drum-patterns/generated/style-expansion-v1.json", import.meta.url), "utf8"));
+const reviewedCatalog = JSON.parse(await readFile(new URL("../research/drum-patterns/generated/reviewed-drum-patterns-v1.json", import.meta.url), "utf8"));
 
 const FACTOR = { Viertel: 1, Achtel: 2, "16tel": 4, Triolen: 3, Sextolen: 6 };
 const HIT_STATES = ["ghost", "normal", "accent"];
@@ -572,6 +578,20 @@ function expansionExercise(pattern) {
 }
 
 if (!Array.isArray(styleExpansion.patterns) || styleExpansion.count !== styleExpansion.patterns.length) throw new Error("Invalid style-expansion catalog");
+if (!Array.isArray(reviewedCatalog.patterns) || reviewedCatalog.count !== reviewedCatalog.patterns.length) throw new Error("Invalid reviewed pattern catalog");
+
+const reviewedSongPatterns = reviewedCatalog.patterns.filter((pattern) => REVIEWED_SONG_STATUSES.has(reviewedCatalog.review?.[pattern.id]?.status));
+const existingExerciseIds = new Set(exercises.map((entry) => entry.id));
+for (const pattern of reviewedSongPatterns) {
+  const appId = REVIEWED_SONG_APP_IDS[pattern.id];
+  if (!appId) throw new Error(`Reviewed song ${pattern.id} has no app id`);
+  if (existingExerciseIds.has(appId)) continue;
+  const overrides = REVIEWED_SONG_APP_OVERRIDES[pattern.id];
+  if (!overrides) throw new Error(`Reviewed song ${pattern.id} is missing app metadata`);
+  exercises.push(expansionExercise({ ...pattern, ...overrides, id: appId, patternType: "Groove" }));
+  existingExerciseIds.add(appId);
+}
+
 exercises.push(...styleExpansion.patterns.map(expansionExercise));
 
 function parseMeter(meter) {
@@ -647,7 +667,7 @@ const patterns = exercises.map((entry) => {
 });
 
 const target = new URL("../public/data/patterns-v1.json", import.meta.url);
-const output = `${JSON.stringify({ version: 2, updated: "2026-08-25", count: patterns.length, patterns }, null, 2)}\n`;
+const output = `${JSON.stringify({ version: 2, updated: "2026-08-30", count: patterns.length, patterns }, null, 2)}\n`;
 
 if (process.argv.includes("--check")) {
   const current = await readFile(target, "utf8");

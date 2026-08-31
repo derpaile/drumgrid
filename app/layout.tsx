@@ -9,7 +9,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     metadataBase: new URL(origin),
     title: { default: "Klangmaß — Lokaler Übecoach", template: "%s · Klangmaß" },
-    description: "194 Drum-Grooves, adaptive Sessions, Lernleitern und Gap Click — privat, präzise und offline.",
+    description: "200 Drum-Grooves, adaptive Sessions, Lernleitern und Gap Click — privat, präzise und offline.",
     applicationName: "Klangmaß",
     manifest: "/manifest.webmanifest",
     appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Klangmaß" },
@@ -19,7 +19,7 @@ export async function generateMetadata(): Promise<Metadata> {
       type: "website",
       locale: "de_DE",
       title: "Klangmaß — Lokaler Übecoach",
-      description: "194 Drum-Grooves, adaptive Sessions, Lernleitern und Gap Click. Privat, präzise und offline.",
+      description: "200 Drum-Grooves, adaptive Sessions, Lernleitern und Gap Click. Privat, präzise und offline.",
       images: [{ url: `${origin}/og-drums.png`, width: 1731, height: 909, alt: "Klangmaß Drum-Groove-Trainer" }],
     },
     twitter: { card: "summary_large_image", title: "Klangmaß — Lokaler Übecoach", images: [`${origin}/og-drums.png`] },

@@ -5,9 +5,9 @@ import {
   cloneDrumTracks, cycleDrumHit, cycleStep, defaultDrumTracks, defaultGrouping, defaultTempoUnit,
   DRUM_LABELS, DRUM_VOICES, FALLBACK_PATTERNS, firstValidSubdivision, hasExactGrid, HIT_LABELS,
   learningGoalsFor, mergeDrumTracks, normalizedDrumTracks, normalizedSteps, parseMeter, stepsPerBar,
-  PATTERN_CATEGORIES, PATTERN_TYPES, SUBDIVISIONS,
+  PATTERN_CATEGORIES, PATTERN_TYPE_INFO, PATTERN_TYPES, SUBDIVISIONS,
   type DrumHitState, type DrumKit, type DrumTracks, type DrumVoice, type Meter, type Pattern,
-  type OriginalFeel, type PracticeEntry, type StepState, type Subdivision, type TempoUnit, type TrainerMode,
+  type OriginalFeel, type PatternType, type PracticeEntry, type StepState, type Subdivision, type TempoUnit, type TrainerMode,
 } from "./metronome-core";
 import {
   DRUM_KIT_OPTIONS, drumHitLevel, drumKitLabel, drumKitOfflinePaths, drumPlaybackRate, drumSampleFor, normalizeDrumKit, primeDrumKit,
@@ -42,6 +42,8 @@ type AudioInputOption = { deviceId: string; label: string };
 type OnsetWorkletMessage = { type?: string; contextTime?: number; strength?: number; confidence?: number };
 type AudioSessionType = "playback" | "play-and-record";
 type AudioSessionNavigator = Navigator & { audioSession?: { type: AudioSessionType | "auto" } };
+type LibraryFilterKey = keyof LibraryFilters | "category" | "patternType";
+type QuickFilterId = "easy" | "timing" | "pocket" | "break" | "technique" | "continue";
 
 type WakeLockHandle = { release: () => Promise<void> };
 type OpenHatHandle = { source: AudioBufferSourceNode; gain: GainNode; level: number; endAt: number };
@@ -51,6 +53,37 @@ const DEFAULT_VOICE_VOLUMES: Record<DrumVoice, number> = {
   kick: 100, snare: 100, closedHat: 100, openHat: 100, ride: 100,
   crash: 100, rim: 100, highTom: 100, lowTom: 100,
 };
+const EMPTY_LIBRARY_FILTERS: LibraryFilters = {
+  difficulty: "Alle", skillId: "Alle", meter: "Alle", subdivision: "Alle", feel: false,
+  length: "Alle", kit: "Alle", tempo: null, unpracticed: false, difficult: false,
+};
+const STYLE_FAMILIES = [
+  { id: "rock-heavy", label: "Rock & Heavy", categories: ["Rock & Pop", "Punk & Metal", "Progressive & Heavy"] },
+  { id: "funk-soul", label: "Funk, Soul & R&B", categories: ["Funk & Soul", "R&B & Gospel"] },
+  { id: "hiphop-down", label: "Hip-Hop & Downtempo", categories: ["Hip-Hop", "Old School Hip-Hop", "Trip-Hop & Downtempo"] },
+  { id: "electronic", label: "Electronic & Breakbeat", categories: ["Dance & Electronic", "Jungle & Drum and Bass"] },
+  { id: "jazz-roots", label: "Jazz, Blues & Americana", categories: ["Jazz", "Blues & Shuffle", "Country & Americana"] },
+  { id: "global", label: "Latin, Reggae & World", categories: ["Latin & World", "Reggae"] },
+  { id: "cross", label: "Querbeet", categories: ["Genreübergreifend"] },
+] as const;
+const QUICK_FILTERS: Array<{ id: QuickFilterId; label: string; description: string }> = [
+  { id: "easy", label: "Einfach starten", description: "Leichte Patterns" },
+  { id: "timing", label: "Timing", description: "Puls festigen" },
+  { id: "pocket", label: "Pocket", description: "Groove vertiefen" },
+  { id: "break", label: "Drum-Break-Klassiker", description: "Bekannte Ausschnitte" },
+  { id: "technique", label: "Technik", description: "Bewegungen isolieren" },
+  { id: "continue", label: "Weiterüben", description: "Zuletzt schwierig" },
+];
+
+const familySelection = (id: string) => `family:${id}`;
+const styleFamilyFor = (selection: string) => selection.startsWith("family:")
+  ? STYLE_FAMILIES.find((family) => family.id === selection.slice(7))
+  : undefined;
+const styleSelectionLabel = (selection: string) => selection === "Alle" ? "Alle Stile" : styleFamilyFor(selection)?.label || selection;
+const matchesStyleSelection = (pattern: Pattern, selection: string) => selection === "Alle"
+  || (styleFamilyFor(selection)?.categories as readonly string[] | undefined)?.includes(pattern.category)
+  || pattern.category === selection;
+const matchesSearchQuery = (pattern: Pattern, query: string) => !query || `${pattern.name} ${pattern.category} ${pattern.patternType || "Groove"} ${pattern.instruction} ${learningGoalsFor(pattern).join(" ")}`.toLocaleLowerCase("de").includes(query);
 
 function setAudioSessionType(type: AudioSessionType) {
   const session = (navigator as AudioSessionNavigator).audioSession;
@@ -484,7 +517,10 @@ export default function MetronomeApp() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("Alle");
   const [patternTypeFilter, setPatternTypeFilter] = useState("Alle");
-  const [learningFilters, setLearningFilters] = useState<LibraryFilters>({ difficulty: "Alle", skillId: "Alle", meter: "Alle", subdivision: "Alle", feel: false, length: "Alle", kit: "Alle", tempo: null, unpracticed: false, difficult: false });
+  const [learningFilters, setLearningFilters] = useState<LibraryFilters>({ ...EMPTY_LIBRARY_FILTERS });
+  const [stylePickerOpen, setStylePickerOpen] = useState(false);
+  const [filterPanelOpen, setFilterPanelOpen] = useState(false);
+  const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false);
   const [expandedPatternId, setExpandedPatternId] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(18);
   const [editorOpen, setEditorOpen] = useState(false);
@@ -513,6 +549,10 @@ export default function MetronomeApp() {
   const [calibrationProgress, setCalibrationProgress] = useState(0);
 
   const audioRef = useRef<AudioContext | null>(null);
+  const stylePickerTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const filterPanelTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const stylePickerCloseRef = useRef<HTMLButtonElement | null>(null);
+  const filterPanelCloseRef = useRef<HTMLButtonElement | null>(null);
   const schedulerRef = useRef<number | null>(null);
   const visualTimersRef = useRef<Set<number>>(new Set());
   const scheduledSourcesRef = useRef<Set<AudioScheduledSourceNode>>(new Set());
@@ -2164,35 +2204,88 @@ export default function MetronomeApp() {
     }
   };
 
-  const categories = useMemo(() => ["Alle", ...PATTERN_CATEGORIES.filter((item) => library.some((pattern) => pattern.category === item))], [library]);
-  const patternTypes = useMemo(() => ["Alle", ...PATTERN_TYPES.filter((item) => library.some((pattern) => pattern.patternType === item))], [library]);
   const meters = useMemo(() => ["Alle", ...new Set(library.map((pattern) => pattern.meter))], [library]);
-  const filteredPatterns = useMemo(() => library.filter((pattern) => {
-    const query = search.toLocaleLowerCase("de");
-    return (!query || `${pattern.name} ${pattern.category} ${pattern.patternType || "Groove"} ${pattern.instruction} ${learningGoalsFor(pattern).join(" ")}`.toLocaleLowerCase("de").includes(query))
-      && (category === "Alle" || pattern.category === category)
-      && (patternTypeFilter === "Alle" || pattern.patternType === patternTypeFilter)
-      && matchesLearningFilters(pattern, learningFilters, practiceHistory);
-  }), [library, search, category, patternTypeFilter, learningFilters, practiceHistory]);
+  const query = search.trim().toLocaleLowerCase("de");
+  const patternsWithoutStyle = useMemo(() => library.filter((pattern) => matchesSearchQuery(pattern, query)
+    && (patternTypeFilter === "Alle" || pattern.patternType === patternTypeFilter)
+    && matchesLearningFilters(pattern, learningFilters, practiceHistory)), [library, query, patternTypeFilter, learningFilters, practiceHistory]);
+  const filteredPatterns = useMemo(() => patternsWithoutStyle.filter((pattern) => matchesStyleSelection(pattern, category)), [patternsWithoutStyle, category]);
+  const categoryCounts = useMemo(() => new Map(PATTERN_CATEGORIES.map((item) => [item, patternsWithoutStyle.filter((pattern) => pattern.category === item).length])), [patternsWithoutStyle]);
+  const typeCountPatterns = useMemo(() => library.filter((pattern) => matchesSearchQuery(pattern, query)
+    && matchesStyleSelection(pattern, category)
+    && matchesLearningFilters(pattern, learningFilters, practiceHistory)), [library, query, category, learningFilters, practiceHistory]);
+  const patternTypeCounts = useMemo(() => new Map(PATTERN_TYPES.map((item) => [item, typeCountPatterns.filter((pattern) => pattern.patternType === item).length])), [typeCountPatterns]);
+  const availablePatternTypes = useMemo(() => PATTERN_TYPES.filter((item) => library.some((pattern) => pattern.patternType === item)), [library]);
 
   const recommendations = useMemo(() => dailyRecommendations(library, practiceHistory, favorites), [library, practiceHistory, favorites]);
   const activeFilterChips = useMemo(() => [
-    learningFilters.difficulty !== "Alle" ? ["difficulty", learningFilters.difficulty] : null,
-    learningFilters.skillId !== "Alle" ? ["skillId", SKILLS.find((skill) => skill.id === learningFilters.skillId)?.label || learningFilters.skillId] : null,
-    learningFilters.meter !== "Alle" ? ["meter", learningFilters.meter] : null,
-    learningFilters.subdivision !== "Alle" ? ["subdivision", learningFilters.subdivision] : null,
+    category !== "Alle" ? ["category", `Stil · ${styleSelectionLabel(category)}`] : null,
+    patternTypeFilter !== "Alle" ? ["patternType", `Art · ${PATTERN_TYPE_INFO[patternTypeFilter as PatternType].label}`] : null,
+    learningFilters.difficulty !== "Alle" ? ["difficulty", `Niveau · ${learningFilters.difficulty}`] : null,
+    learningFilters.skillId !== "Alle" ? ["skillId", `Ziel · ${SKILLS.find((skill) => skill.id === learningFilters.skillId)?.label || learningFilters.skillId}`] : null,
+    learningFilters.meter !== "Alle" ? ["meter", `Takt · ${learningFilters.meter}`] : null,
+    learningFilters.subdivision !== "Alle" ? ["subdivision", `Raster · ${learningFilters.subdivision}`] : null,
     learningFilters.feel ? ["feel", "Original Feel"] : null,
-    learningFilters.length !== "Alle" ? ["length", learningFilters.length] : null,
-    learningFilters.kit !== "Alle" ? ["kit", learningFilters.kit] : null,
+    learningFilters.length !== "Alle" ? ["length", `Länge · ${learningFilters.length}`] : null,
+    learningFilters.kit !== "Alle" ? ["kit", `Kit · ${drumKitLabel(learningFilters.kit as DrumKit)}`] : null,
     learningFilters.tempo !== null ? ["tempo", `${learningFilters.tempo} BPM`] : null,
     learningFilters.unpracticed ? ["unpracticed", "Noch nicht geübt"] : null,
     learningFilters.difficult ? ["difficult", "Zuletzt schwierig"] : null,
-  ].filter(Boolean) as Array<[keyof LibraryFilters, string]>, [learningFilters]);
+  ].filter(Boolean) as Array<[LibraryFilterKey, string]>, [category, patternTypeFilter, learningFilters]);
+  const detailFilterCount = activeFilterChips.filter(([key]) => key !== "category").length;
+  const hasActiveLibraryCriteria = Boolean(search) || activeFilterChips.length > 0;
+  const advancedFiltersActive = learningFilters.subdivision !== "Alle" || learningFilters.length !== "Alle" || learningFilters.kit !== "Alle" || learningFilters.feel || learningFilters.tempo !== null;
 
-  const clearLearningFilter = (key: keyof LibraryFilters) => setLearningFilters((current) => ({
-    ...current,
-    [key]: key === "feel" || key === "unpracticed" || key === "difficult" ? false : key === "tempo" ? null : "Alle",
-  }));
+  const clearLibraryFilter = (key: LibraryFilterKey) => {
+    if (key === "category") return setCategory("Alle");
+    if (key === "patternType") return setPatternTypeFilter("Alle");
+    setLearningFilters((current) => ({
+      ...current,
+      [key]: key === "feel" || key === "unpracticed" || key === "difficult" ? false : key === "tempo" ? null : "Alle",
+    }));
+  };
+
+  const resetLibraryFilters = (clearSearch = true) => {
+    if (clearSearch) setSearch("");
+    setCategory("Alle");
+    setPatternTypeFilter("Alle");
+    setLearningFilters({ ...EMPTY_LIBRARY_FILTERS });
+    setAdvancedFiltersOpen(false);
+    setVisibleCount(18);
+  };
+
+  const applyQuickFilter = (id: QuickFilterId) => {
+    const next = { ...EMPTY_LIBRARY_FILTERS };
+    let nextType = "Alle";
+    if (id === "easy") next.difficulty = "Leicht";
+    if (id === "timing") next.skillId = "timing-pulse";
+    if (id === "pocket") next.skillId = "pocket-straight";
+    if (id === "break") nextType = "Break";
+    if (id === "technique") nextType = "Technik";
+    if (id === "continue") next.difficult = true;
+    setSearch(""); setCategory("Alle"); setPatternTypeFilter(nextType); setLearningFilters(next); setAdvancedFiltersOpen(false); setVisibleCount(18);
+  };
+
+  const quickFilterActive = (id: QuickFilterId) => id === "easy" ? learningFilters.difficulty === "Leicht"
+    : id === "timing" ? learningFilters.skillId === "timing-pulse"
+      : id === "pocket" ? learningFilters.skillId === "pocket-straight"
+        : id === "break" ? patternTypeFilter === "Break"
+          : id === "technique" ? patternTypeFilter === "Technik"
+            : learningFilters.difficult;
+
+  useEffect(() => {
+    if (!stylePickerOpen && !filterPanelOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    const returnFocusTo = stylePickerOpen ? stylePickerTriggerRef.current : filterPanelTriggerRef.current;
+    const closePanel = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setStylePickerOpen(false); setFilterPanelOpen(false);
+    };
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", closePanel);
+    (stylePickerOpen ? stylePickerCloseRef.current : filterPanelCloseRef.current)?.focus();
+    return () => { document.body.style.overflow = previousOverflow; window.removeEventListener("keydown", closePanel); returnFocusTo?.focus(); };
+  }, [stylePickerOpen, filterPanelOpen]);
 
   const resetControls = () => {
     volumeRef.current = 72; soundRef.current = "Studio"; swingRef.current = 50; timerMinutesRef.current = 0;
@@ -2512,34 +2605,84 @@ export default function MetronomeApp() {
         <section className="section" id="bibliothek">
           <div className="library-bar">
             <h2>Patterns <span>{libraryStatus === "loading" ? "…" : library.length}</span></h2>
-            <label className="search-field"><input className="text-field" placeholder="Name, Stil, Ziel …" value={search} onChange={(event) => setSearch(event.target.value)} aria-label="Patterns durchsuchen" /></label>
+            <div className="search-field"><label className="sr-only" htmlFor="pattern-search">Patterns durchsuchen</label><input id="pattern-search" className="text-field" placeholder="Name, Stil, Ziel …" value={search} onChange={(event) => setSearch(event.target.value)} />{search && <button className="search-clear" onClick={() => setSearch("")} aria-label="Suche löschen">×</button>}</div>
           </div>
-          <div className="collection-strip" aria-label="Entdecken"><span>Entdecken</span><button onClick={() => setLearningFilters((current) => ({ ...current, difficulty: "Leicht" }))}>Einsteiger</button><button onClick={() => setLearningFilters((current) => ({ ...current, feel: true }))}>Original Feel</button><button onClick={() => setLearningFilters((current) => ({ ...current, meter: "7/8" }))}>Ungerade Takte</button><button onClick={() => setLearningFilters((current) => ({ ...current, difficult: true }))}>Weiterlernen</button></div>
-          <div className="library-filters">
-            <div className="library-filter-row"><span>Stil</span><div className="category-chips" aria-label="Stile">{categories.map((item) => <button key={item} className={`chip ${category === item ? "active" : ""}`} aria-pressed={category === item} onClick={() => { setCategory(item); setVisibleCount(18); }}>{item === "Alle" ? "Alle Stile" : item}</button>)}</div></div>
-            <div className="library-filter-row"><span>Art</span><div className="category-chips" aria-label="Patternarten">{patternTypes.map((item) => <button key={item} className={`chip ${patternTypeFilter === item ? "active" : ""}`} aria-pressed={patternTypeFilter === item} onClick={() => { setPatternTypeFilter(item); setVisibleCount(18); }}>{item === "Alle" ? "Alle Arten" : item}</button>)}</div></div>
-            <div className="precision-filters" aria-label="Präzise Filter">
-              <label>Schwierigkeit<select value={learningFilters.difficulty} onChange={(event) => setLearningFilters((current) => ({ ...current, difficulty: event.target.value }))}><option>Alle</option><option>Leicht</option><option>Mittel</option><option>Fortgeschritten</option></select></label>
-              <label>Lernziel<select value={learningFilters.skillId} onChange={(event) => setLearningFilters((current) => ({ ...current, skillId: event.target.value }))}><option value="Alle">Alle</option>{SKILLS.map((skill) => <option key={skill.id} value={skill.id}>{skill.group} · {skill.label}</option>)}</select></label>
-              <label>Takt<select value={learningFilters.meter} onChange={(event) => setLearningFilters((current) => ({ ...current, meter: event.target.value }))}>{meters.map((item) => <option key={item}>{item}</option>)}</select></label>
-              <label>Unterteilung<select value={learningFilters.subdivision} onChange={(event) => setLearningFilters((current) => ({ ...current, subdivision: event.target.value }))}><option>Alle</option>{SUBDIVISIONS.map((item) => <option key={item}>{item}</option>)}</select></label>
-              <label>Länge<select value={learningFilters.length} onChange={(event) => setLearningFilters((current) => ({ ...current, length: event.target.value }))}><option>Alle</option><option>1 Takt</option><option>Mehrere Takte</option></select></label>
-              <label>Bevorzugtes Kit<select value={learningFilters.kit} onChange={(event) => setLearningFilters((current) => ({ ...current, kit: event.target.value }))}><option>Alle</option>{DRUM_KIT_OPTIONS.map((kit) => <option key={kit.value} value={kit.value}>{kit.label}</option>)}</select></label>
+          <div className="library-finder">
+            <div className="finder-toolbar">
+              <div className="finder-result" aria-live="polite"><strong>{filteredPatterns.length}</strong><span>von {library.length} Patterns</span></div>
+              <div className="finder-actions">
+                <button ref={stylePickerTriggerRef} className={`finder-select ${category !== "Alle" ? "active" : ""}`} aria-expanded={stylePickerOpen} aria-controls="style-picker" onClick={() => { setFilterPanelOpen(false); setStylePickerOpen(true); }}><span>Stil</span><strong>{styleSelectionLabel(category)}</strong><b>⌄</b></button>
+                <button ref={filterPanelTriggerRef} className={`finder-select filter-button ${detailFilterCount ? "active" : ""}`} aria-expanded={filterPanelOpen} aria-controls="library-filter-panel" onClick={() => { setStylePickerOpen(false); setAdvancedFiltersOpen(advancedFiltersActive); setFilterPanelOpen(true); }}><span>Filter</span><strong>{detailFilterCount ? `${detailFilterCount} aktiv` : "Verfeinern"}</strong><b>{detailFilterCount || "⌄"}</b></button>
+              </div>
             </div>
-            <div className="filter-toggles"><button className={learningFilters.feel ? "active" : ""} onClick={() => setLearningFilters((current) => ({ ...current, feel: !current.feel }))}>Original Feel</button><button className={learningFilters.unpracticed ? "active" : ""} onClick={() => setLearningFilters((current) => ({ ...current, unpracticed: !current.unpracticed }))}>Noch nicht geübt</button><button className={learningFilters.difficult ? "active" : ""} onClick={() => setLearningFilters((current) => ({ ...current, difficult: !current.difficult }))}>Zuletzt schwierig</button><button className={learningFilters.tempo !== null ? "active" : ""} onClick={() => setLearningFilters((current) => ({ ...current, tempo: current.tempo === null ? bpm : null }))}>Passend zu {bpm} BPM</button></div>
-            {activeFilterChips.length > 0 && <div className="active-filter-chips" aria-label="Aktive Filter">{activeFilterChips.map(([key, label]) => <button key={key} onClick={() => clearLearningFilter(key)}>{label} ×</button>)}<button className="clear-all" onClick={() => setLearningFilters({ difficulty: "Alle", skillId: "Alle", meter: "Alle", subdivision: "Alle", feel: false, length: "Alle", kit: "Alle", tempo: null, unpracticed: false, difficult: false })}>Alle lösen</button></div>}
+            <div className="quick-filter-row" aria-label="Schnellwahl"><span>Schnellwahl</span><div>{QUICK_FILTERS.map((item) => <button key={item.id} className={quickFilterActive(item.id) ? "active" : ""} aria-pressed={quickFilterActive(item.id)} onClick={() => applyQuickFilter(item.id)}><strong>{item.label}</strong><small>{item.description}</small></button>)}</div></div>
+            {hasActiveLibraryCriteria && <div className="active-filter-chips" aria-label="Aktive Filter">{activeFilterChips.map(([key, label]) => <button key={key} onClick={() => clearLibraryFilter(key)}>{label} ×</button>)}<button className="clear-all" onClick={() => resetLibraryFilters(true)}>Alles zurücksetzen</button></div>}
           </div>
+
+          {stylePickerOpen && <div className="library-dialog-layer">
+            <button className="library-dialog-backdrop" tabIndex={-1} onClick={() => setStylePickerOpen(false)} aria-label="Stilauswahl schließen" />
+            <section id="style-picker" className="library-dialog style-dialog" role="dialog" aria-modal="true" aria-labelledby="style-dialog-title">
+              <header><div><small>Patterns eingrenzen</small><h3 id="style-dialog-title">Stil auswählen</h3></div><button ref={stylePickerCloseRef} className="dialog-close" onClick={() => setStylePickerOpen(false)} aria-label="Stilauswahl schließen">×</button></header>
+              <div className="dialog-scroll">
+                <button className={`style-all-option ${category === "Alle" ? "active" : ""}`} aria-pressed={category === "Alle"} onClick={() => setCategory("Alle")}><span><strong>Alle Stile</strong><small>Die gesamte Bibliothek durchsuchen</small></span><b>{patternsWithoutStyle.length}</b></button>
+                <div className="style-family-list">{STYLE_FAMILIES.map((family) => {
+                  const availableCategories = family.categories.filter((item) => library.some((pattern) => pattern.category === item));
+                  if (!availableCategories.length) return null;
+                  const value = familySelection(family.id);
+                  const familyCount = availableCategories.reduce((sum, item) => sum + (categoryCounts.get(item) || 0), 0);
+                  return <section className="style-family" key={family.id}>
+                    <button className={`style-family-option ${category === value ? "active" : ""}`} disabled={familyCount === 0 && category !== value} aria-pressed={category === value} onClick={() => setCategory(value)}><span><strong>{family.label}</strong><small>{availableCategories.join(" · ")}</small></span><b>{familyCount}</b></button>
+                    <div className="style-category-grid">{availableCategories.map((item) => {
+                      const count = categoryCounts.get(item) || 0;
+                      return <button key={item} className={category === item ? "active" : ""} disabled={count === 0 && category !== item} aria-pressed={category === item} onClick={() => setCategory(item)}><span>{item}</span><b>{count}</b></button>;
+                    })}</div>
+                  </section>;
+                })}</div>
+              </div>
+              <footer><button disabled={category === "Alle"} onClick={() => setCategory("Alle")}>Stil entfernen</button><button className="primary" onClick={() => setStylePickerOpen(false)}>{filteredPatterns.length} Patterns anzeigen</button></footer>
+            </section>
+          </div>}
+
+          {filterPanelOpen && <div className="library-dialog-layer">
+            <button className="library-dialog-backdrop" tabIndex={-1} onClick={() => setFilterPanelOpen(false)} aria-label="Filter schließen" />
+            <section id="library-filter-panel" className="library-dialog filter-dialog" role="dialog" aria-modal="true" aria-labelledby="filter-dialog-title">
+              <header><div><small>Patterns eingrenzen</small><h3 id="filter-dialog-title">Filter</h3></div><button ref={filterPanelCloseRef} className="dialog-close" onClick={() => setFilterPanelOpen(false)} aria-label="Filter schließen">×</button></header>
+              <div className="dialog-scroll">
+                <section className="filter-section"><div className="filter-section-head"><div><h4>Übungsart</h4><p>Was möchtest du gerade üben?</p></div><button className={patternTypeFilter === "Alle" ? "active" : ""} onClick={() => setPatternTypeFilter("Alle")}>Alle</button></div>
+                  <div className="pattern-type-grid">{availablePatternTypes.map((item) => {
+                    const count = patternTypeCounts.get(item) || 0;
+                    const info = PATTERN_TYPE_INFO[item];
+                    return <button key={item} className={patternTypeFilter === item ? "active" : ""} disabled={count === 0 && patternTypeFilter !== item} aria-pressed={patternTypeFilter === item} onClick={() => setPatternTypeFilter(item)}><span><strong>{info.label}</strong><small>{info.description}</small></span><b>{count}</b></button>;
+                  })}</div>
+                </section>
+                <section className="filter-section"><div className="filter-section-head"><div><h4>Grundfilter</h4><p>Niveau, Lernziel und Takt</p></div></div>
+                  <div className="filter-field-grid">
+                    <label>Schwierigkeit<select value={learningFilters.difficulty} onChange={(event) => setLearningFilters((current) => ({ ...current, difficulty: event.target.value }))}><option>Alle</option><option>Leicht</option><option>Mittel</option><option>Fortgeschritten</option></select></label>
+                    <label>Lernziel<select value={learningFilters.skillId} onChange={(event) => setLearningFilters((current) => ({ ...current, skillId: event.target.value }))}><option value="Alle">Alle</option>{SKILLS.map((skill) => <option key={skill.id} value={skill.id}>{skill.group} · {skill.label}</option>)}</select></label>
+                    <label>Takt<select value={learningFilters.meter} onChange={(event) => setLearningFilters((current) => ({ ...current, meter: event.target.value }))}>{meters.map((item) => <option key={item}>{item}</option>)}</select></label>
+                  </div>
+                </section>
+                <details className="more-filters" open={advancedFiltersOpen} onToggle={(event) => setAdvancedFiltersOpen(event.currentTarget.open)}><summary>Weitere Filter <span>Raster, Länge, Kit und Feel</span></summary><div className="filter-field-grid">
+                  <label>Unterteilung<select value={learningFilters.subdivision} onChange={(event) => setLearningFilters((current) => ({ ...current, subdivision: event.target.value }))}><option>Alle</option>{SUBDIVISIONS.map((item) => <option key={item}>{item}</option>)}</select></label>
+                  <label>Länge<select value={learningFilters.length} onChange={(event) => setLearningFilters((current) => ({ ...current, length: event.target.value }))}><option>Alle</option><option>1 Takt</option><option>Mehrere Takte</option></select></label>
+                  <label>Bevorzugtes Kit<select value={learningFilters.kit} onChange={(event) => setLearningFilters((current) => ({ ...current, kit: event.target.value }))}><option>Alle</option>{DRUM_KIT_OPTIONS.map((kit) => <option key={kit.value} value={kit.value}>{kit.label}</option>)}</select></label>
+                </div><div className="filter-toggles"><button className={learningFilters.feel ? "active" : ""} aria-pressed={learningFilters.feel} onClick={() => setLearningFilters((current) => ({ ...current, feel: !current.feel }))}>Original Feel</button><button className={learningFilters.tempo !== null ? "active" : ""} aria-pressed={learningFilters.tempo !== null} onClick={() => setLearningFilters((current) => ({ ...current, tempo: current.tempo === null ? bpm : null }))}>Passend zu {bpm} BPM</button></div></details>
+                <section className="filter-section"><div className="filter-section-head"><div><h4>Übeverlauf</h4><p>Passend zu deinem Fortschritt</p></div></div><div className="filter-toggles"><button className={learningFilters.unpracticed ? "active" : ""} aria-pressed={learningFilters.unpracticed} onClick={() => setLearningFilters((current) => ({ ...current, unpracticed: !current.unpracticed }))}>Noch nicht geübt</button><button className={learningFilters.difficult ? "active" : ""} aria-pressed={learningFilters.difficult} onClick={() => setLearningFilters((current) => ({ ...current, difficult: !current.difficult }))}>Zuletzt schwierig</button></div></section>
+              </div>
+              <footer><button disabled={!hasActiveLibraryCriteria} onClick={() => resetLibraryFilters(true)}>Alles zurücksetzen</button><button className="primary" onClick={() => setFilterPanelOpen(false)}>{filteredPatterns.length} Patterns anzeigen</button></footer>
+            </section>
+          </div>}
           <div className="pattern-grid">
             {filteredPatterns.slice(0, visibleCount).map((pattern) => (
               <article className="pattern-card" key={pattern.id}>
-                <div className="card-top"><div><div className="card-category" title={pattern.attribution}>{pattern.category} · {pattern.patternType || "Groove"} · {pattern.attribution || (pattern.source ? "Übungsrekonstruktion" : "Genreübung")}</div><h3>{pattern.name}</h3></div><button className={`favorite ${favorites.includes(pattern.id) ? "on" : ""}`} onClick={() => toggleFavorite(pattern.id)} aria-label={favorites.includes(pattern.id) ? "Aus Favoriten entfernen" : "Zu Favoriten hinzufügen"} aria-pressed={favorites.includes(pattern.id)}>{favorites.includes(pattern.id) ? "♥" : "♡"}</button></div>
+                <div className="card-top"><div><div className="card-category" title={pattern.attribution}>{pattern.category} · {PATTERN_TYPE_INFO[pattern.patternType || "Groove"].label} · {pattern.attribution || (pattern.source ? "Übungsrekonstruktion" : "Genreübung")}</div><h3>{pattern.name}</h3></div><button className={`favorite ${favorites.includes(pattern.id) ? "on" : ""}`} onClick={() => toggleFavorite(pattern.id)} aria-label={favorites.includes(pattern.id) ? "Aus Favoriten entfernen" : "Zu Favoriten hinzufügen"} aria-pressed={favorites.includes(pattern.id)}>{favorites.includes(pattern.id) ? "♥" : "♡"}</button></div>
                 <div className="mini-pattern">{pattern.pattern.slice(0, 32).map((step, index) => <span key={index} className={`mini-step ${step}`} />)}</div>
                 <div className="card-skills">{skillLabelsFor(pattern).map((skill) => <span key={skill}>{skill}</span>)}<span>Start {pattern.playback?.bpm || Math.round((pattern.bpmMin + pattern.bpmMax) / 2)} BPM</span></div>
                 <div className="card-footer"><div className="card-meta"><span>{pattern.meter}</span><span>{pattern.subdivision}</span><span>{pattern.bpmMin}–{pattern.bpmMax}</span>{(pattern.bars || 1) > 1 && <span>{pattern.bars}T</span>}{(pattern.playback?.swing ?? 50) > 50 && <span>Swing {Math.round(((pattern.playback?.swing ?? 50) - 50) * 2)}%</span>}{pattern.originalFeel && <span>Original Feel</span>}<span>{pattern.difficulty}</span></div><div className="card-actions"><button onClick={() => setExpandedPatternId((current) => current === pattern.id ? null : pattern.id)} aria-expanded={expandedPatternId === pattern.id}>Details</button><button onClick={() => loadPattern(pattern, true)}>Anhören</button><button className="start-small" onClick={() => loadPattern(pattern)}>Üben</button></div></div>
                 {expandedPatternId === pattern.id && <div className="pattern-details"><p><strong>Worauf hören?</strong>{pattern.instruction}</p><p><strong>Warum interessant?</strong>{pattern.whyInteresting}</p><p><strong>Typischer Stolperstein</strong>{pattern.difficulty === "Leicht" ? "Tempo nicht vor Klangbalance stellen." : pattern.difficulty === "Mittel" ? "Kernpuls bei Ghostnotes und Synkopen nicht verlieren." : "Dichte Passagen taktweise isolieren, bevor du die Form verbindest."}</p><p><strong>Vereinfachen / steigern</strong>Erst Skeleton und langsamer; danach Original Feel, Gap Click oder Voice Dropout.</p>{pattern.source && <a className="source-link" href={pattern.source.url} target="_blank" rel="noreferrer">{pattern.source.label} · Quelle öffnen</a>}</div>}
               </article>
             ))}
-            {!filteredPatterns.length && <div className="empty-state">Kein Pattern passt zu diesen Filtern. Ändere Suche oder Auswahl.</div>}
+            {!filteredPatterns.length && <div className="empty-state"><p>Kein Pattern passt zu dieser Auswahl.</p><button onClick={() => resetLibraryFilters(true)}>Alles zurücksetzen</button></div>}
           </div>
           {visibleCount < filteredPatterns.length && <button className="load-more" onClick={() => setVisibleCount((count) => count + 18)}>Weitere Patterns</button>}
         </section>

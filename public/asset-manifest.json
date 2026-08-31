@@ -1,8 +1,8 @@
 {
   "version": 1,
-  "buildRevision": "8b1fac4d9063e2a2",
-  "catalogPath": "/data/patterns-v2.44950e4a6138.json",
-  "catalogRevision": "44950e4a6138aa313a374b2f3490046208826d8e6eb3f0b755800fdd7ab85c80",
+  "buildRevision": "e3193b018add4909",
+  "catalogPath": "/data/patterns-v2.7bf1e8517cab.json",
+  "catalogRevision": "7bf1e8517cab5ef9f0bf19ea94a4f45b9d7ed4ff3be57876dc372945e7522aaf",
   "assets": [
     {
       "path": "/audio/drums/707/closed-hat.mp3",
@@ -705,8 +705,8 @@
     },
     {
       "path": "/data/patterns-v1.json",
-      "revision": "44950e4a6138aa313a374b2f3490046208826d8e6eb3f0b755800fdd7ab85c80",
-      "size": 728463,
+      "revision": "7bf1e8517cab5ef9f0bf19ea94a4f45b9d7ed4ff3be57876dc372945e7522aaf",
+      "size": 744170,
       "scope": "catalog"
     },
     {
@@ -723,7 +723,7 @@
     },
     {
       "path": "/manifest.webmanifest",
-      "revision": "a7dd252203051b4da611c2b7830e5c9d8e7741740b2aa53e24cb1bbfd5f95258",
+      "revision": "396232464ed8b19266a5b04335c72e43c115dbafb0024a535cfcbcee04e67d35",
       "size": 590,
       "scope": "app"
     },
@@ -746,14 +746,14 @@
       "scope": "app"
     },
     {
-      "path": "/data/patterns-v2.44950e4a6138.json",
-      "revision": "44950e4a6138aa313a374b2f3490046208826d8e6eb3f0b755800fdd7ab85c80",
-      "size": 728463,
+      "path": "/data/patterns-v2.7bf1e8517cab.json",
+      "revision": "7bf1e8517cab5ef9f0bf19ea94a4f45b9d7ed4ff3be57876dc372945e7522aaf",
+      "size": 744170,
       "scope": "catalog"
     },
     {
       "path": "/",
-      "revision": "44950e4a6138aa31",
+      "revision": "7bf1e8517cab5ef9",
       "size": 0,
       "scope": "app"
     }

@@ -1,6 +1,6 @@
 # Klangmaß
 
-Lokaler, adaptiver Übecoach mit 194 kuratierten Schlagzeugübungen sowie kompakten
+Lokaler, adaptiver Übecoach mit 200 kuratierten Schlagzeugübungen sowie kompakten
 Sample- und Synthese-Kits. Scenes halten Pattern, Klang und Trainingslogik zusammen;
 Practice Results verbinden Weiterüben, Recap und nachvollziehbare Tagesempfehlungen.
 

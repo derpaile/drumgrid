@@ -2,13 +2,14 @@
 
 ## Ergebnis
 
-- `../../public/data/patterns-v1.json`: 194 App-Patterns; darunter 22 klar als Rekonstruktion oder Reduktion bezeichnete Trip-Hop- und Hip-Hop-Presets, elf kostenlose MIDI-basierte Funk-/DnB-Ergänzungen und 109 eigenständige Stilübungen.
+- `../../public/data/patterns-v1.json`: 200 App-Patterns; alle 23 geprüften Song-Rekonstruktionen und -Reduktionen, 22 Trip-Hop- und Hip-Hop-Presets, elf kostenlose MIDI-basierte Funk-/DnB-Ergänzungen und 109 eigenständige Stilübungen.
 - `generated/style-expansion-v1.json`: 74 neue, eigenständige Übungen: Jazz/Roots (24), Progressive/Heavy (22), globale Rhythmen (18) und Clubmusik (10).
 - `generated/reviewed-drum-patterns-v1.json`: 54 eindeutige, geprüfte Patterns.
 - `reviewed-drum-patterns-v1.schema.json`: JSON-Schema inklusive optionalem `originalFeel`.
 - `original/`: unveränderte DeepSeek-Exporte zur Nachvollziehbarkeit.
 - `../../scripts/build-reviewed-drum-patterns.mjs`: reproduzierbarer Generator und alle Korrekturen.
 - `../../scripts/generate-patterns.mjs`: App-Katalog; belegte Breaks besitzen dort ebenfalls korrigierte Noten und Feel-Daten.
+- `../../scripts/reviewed-song-catalog.mjs`: gemeinsame Zuordnung; jede geprüfte Song-Reduktion muss dadurch im App-Katalog vorhanden sein.
 
 ## Wesentliche Prüfergebnisse
 

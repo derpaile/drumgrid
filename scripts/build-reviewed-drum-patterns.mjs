@@ -1,4 +1,5 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { REVIEWED_SONG_APP_IDS } from "./reviewed-song-catalog.mjs";
 
 const root = new URL("../", import.meta.url);
 const [grooveFile, breakFile, appFile] = await Promise.all([
@@ -22,28 +23,16 @@ const excluded = new Map([
 ]);
 
 const mapped = {
+  ...REVIEWED_SONG_APP_IDS,
   "basic-rock": "drum-basic-rock",
   "four-on-the-floor": "drum-four-floor",
   "reggae-one-drop": "drum-one-drop",
   "samba-basic": "drum-samba",
   "bossa-nova": "drum-bossa",
-  "amen-break": "drum-amen",
-  "funky-drummer": "drum-funky-drummer",
-  "rosanna-shuffle-inspired": "drum-rosanna",
-  "fool-in-the-rain-inspired": "drum-fool-rain",
-  "when-the-levee-breaks": "drum-levee",
   "bo-diddley-beat": "drum-bo-diddley",
-  "half-time-shuffle-purdie": "drum-purdie-shuffle",
   "seven-eight-rock": "drum-seven-eight",
   "trap-hihat-rolls": "drum-trap",
   "boom-bap": "drum-boom-bap",
-  "think-break": "drum-think-break",
-  "apache-break": "drum-apache",
-  "impeach-the-president": "drum-impeach",
-  "synthetic-substitution": "drum-synthetic-substitution",
-  "ashleys-roachclip": "drum-roachclip",
-  "the-big-beat": "drum-big-beat",
-  "cissy-strut": "drum-cissy-strut",
 };
 
 const source = {
@@ -250,7 +239,7 @@ const review = Object.fromEntries(order.map((id) => {
 const result = {
   schemaVersion: 1,
   catalogVersion: 2,
-  updated: "2026-08-23",
+  updated: "2026-08-30",
   count: reviewed.length,
   excludedDuplicates: Object.fromEntries(excluded),
   review,

@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 import { readFile, readdir, stat } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import { REVIEWED_SONG_APP_IDS, REVIEWED_SONG_STATUSES } from "../scripts/reviewed-song-catalog.mjs";
 
 const FACTOR = { Viertel: 1, Achtel: 2, "16tel": 4, Triolen: 3, Sextolen: 6 };
 const HIT_STATES = new Set(["mute", "ghost", "normal", "accent"]);
@@ -76,11 +77,11 @@ test("renders the Klangmaß metronome product", async () => {
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape|react-loading-skeleton/i);
 });
 
-test("ships a drum-only v2 library with 194 complete patterns", async () => {
+test("ships a drum-only v2 library with 200 complete patterns", async () => {
   const library = await readLibrary();
   assert.equal(library.version, 2);
-  assert.equal(library.count, 194);
-  assert.equal(library.patterns.length, 194);
+  assert.equal(library.count, 200);
+  assert.equal(library.patterns.length, 200);
   const ids = new Set();
   const names = new Set();
   const musicalSignatures = new Set();
@@ -102,7 +103,7 @@ test("ships a drum-only v2 library with 194 complete patterns", async () => {
     assert.ok(pattern.attribution.trim().length > 0, `${pattern.id} lacks honest attribution`);
     assert.ok(Array.isArray(pattern.learningGoals) && pattern.learningGoals.length > 0, `${pattern.id} lacks learning goals`);
     assert.ok(pattern.whyInteresting.trim().length >= 30, `${pattern.id} lacks a useful rationale`);
-    assert.doesNotMatch(pattern.name, /bill(?:ie|y) jean|back in black/i, `${pattern.id} claims a misleading song preset`);
+    assert.doesNotMatch(pattern.name, /bill(?:ie|y) jean/i, `${pattern.id} claims a misleading song preset`);
 
     assert.ok(Number.isFinite(pattern.bpmMin), `${pattern.id} has invalid bpmMin`);
     assert.ok(Number.isFinite(pattern.bpmMax), `${pattern.id} has invalid bpmMax`);
@@ -177,6 +178,25 @@ test("ships a drum-only v2 library with 194 complete patterns", async () => {
       }
     }
   }
+});
+
+test("ships every reviewed song reduction and reconstruction", async () => {
+  const library = indexedPatterns(await readLibrary());
+  const reviewed = JSON.parse(await readFile(new URL("../research/drum-patterns/generated/reviewed-drum-patterns-v1.json", import.meta.url), "utf8"));
+  const reviewedSongIds = reviewed.patterns
+    .filter((pattern) => REVIEWED_SONG_STATUSES.has(reviewed.review?.[pattern.id]?.status))
+    .map((pattern) => pattern.id)
+    .sort();
+  assert.deepEqual(reviewedSongIds, Object.keys(REVIEWED_SONG_APP_IDS).sort(), "reviewed song registry is incomplete");
+  for (const [reviewId, appId] of Object.entries(REVIEWED_SONG_APP_IDS)) {
+    const pattern = library.get(appId);
+    assert.ok(pattern, `reviewed song ${reviewId} is missing from the app catalog`);
+    assert.ok(pattern.source?.url, `${appId} lacks its research source`);
+  }
+  assert.equal(library.get("drum-take-five")?.name, "Dave Brubeck Quartet — Take Five");
+  assert.equal(library.get("drum-take-five")?.meter, "5/4");
+  assert.equal(library.get("drum-seven-days")?.bars, 2);
+  assert.equal(library.get("drum-good-times-bad-times")?.subdivision, "Sextolen");
 });
 
 test("includes the researched trip-hop and Queensbridge collection", async () => {
@@ -376,7 +396,11 @@ test("applies pattern editor changes to live playback immediately", async () => 
   assert.match(source, /className="inline-editor"/);
   assert.match(source, /aria-expanded=\{editorOpen\}/);
   assert.match(source, /Beim Speichern bleiben Pattern, Kit, Tempo und Training gemeinsam als Scene erhalten/);
-  assert.doesNotMatch(source, /modal-backdrop|aria-modal|role="dialog"/);
+  const inlineEditorStart = source.indexOf('{editorOpen ? <section id="inline-pattern-editor"');
+  const inlineEditorEnd = source.indexOf('</section> : activeDrumEntries.length', inlineEditorStart);
+  assert.ok(inlineEditorStart >= 0 && inlineEditorEnd > inlineEditorStart, "inline editor markup was not found");
+  assert.doesNotMatch(source.slice(inlineEditorStart, inlineEditorEnd), /aria-modal|role="dialog"/);
+  assert.doesNotMatch(source, /modal-backdrop/);
   assert.doesNotMatch(styles, /\.modal-backdrop|\.modal\s*\{/);
   const saveStart = source.indexOf("const savePreset =");
   const saveEnd = source.indexOf("const deletePresetById =", saveStart);
@@ -452,7 +476,7 @@ test("includes complete PWA assets", async () => {
   assert.equal(assets.assets.filter((asset) => asset.scope === "audio").length, 99);
   assert.ok(assets.assets.every((asset) => /^[a-f0-9]{16,64}$/.test(asset.revision) && asset.size >= 0));
   const revisedCatalog = JSON.parse(await readFile(new URL(`../public${assets.catalogPath}`, import.meta.url), "utf8"));
-  assert.equal(revisedCatalog.count, 194, "a cached 120-pattern library must update to the current catalog");
+  assert.equal(revisedCatalog.count, 200, "a cached library must update to the current catalog");
   assert.match(serviceWorker, /caches\.open/);
   assert.match(serviceWorker, /request\.mode === "navigate"/);
   assert.match(serviceWorker, /CACHE_RUNTIME/);

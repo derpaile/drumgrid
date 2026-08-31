@@ -72,6 +72,11 @@ export const PATTERN_CATEGORIES = [
   "Jungle & Drum and Bass", "Reggae", "Latin & World", "Genreübergreifend",
 ] as const;
 export const PATTERN_TYPES: PatternType[] = ["Groove", "Break", "Technik"];
+export const PATTERN_TYPE_INFO: Record<PatternType, { label: string; description: string }> = {
+  Groove: { label: "Groove", description: "Wiederholbare Begleitung für einen Song" },
+  Break: { label: "Drum-Break", description: "Markanter, oft bekannter Schlagzeug-Ausschnitt" },
+  Technik: { label: "Technikübung", description: "Isoliertes Bewegungs- oder Koordinationstraining" },
+};
 export const FACTOR: Record<Subdivision, number> = { Viertel: 1, Achtel: 2, "16tel": 4, Triolen: 3, Sextolen: 6 };
 export const DRUM_LABELS: Record<DrumVoice, string> = {
   kick: "Kick", snare: "Snare", closedHat: "Hi-Hat", openHat: "Open Hat", ride: "Ride",
