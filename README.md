@@ -101,6 +101,15 @@ The production build targets Cloudflare Workers. `NEXT_PUBLIC_SITE_URL` can over
 
 Live deployment: [drumgrid.ricke-schwaene-0f.workers.dev](https://drumgrid.ricke-schwaene-0f.workers.dev)
 
+### Automatic deployment
+
+Every push to `main` now builds and deploys the Worker through GitHub Actions. In the repository settings, add these Actions secrets once under **Settings → Secrets and variables → Actions**:
+
+- `CLOUDFLARE_API_TOKEN` — an API token with **Workers Scripts: Edit** permission
+- `CLOUDFLARE_ACCOUNT_ID` — the Cloudflare account ID that owns the Worker
+
+After that, a push to `main` publishes the current GitHub version automatically. The workflow can also be started manually from the **Actions** tab.
+
 ## Project structure
 
 ```text
