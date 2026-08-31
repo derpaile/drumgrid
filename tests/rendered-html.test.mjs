@@ -378,6 +378,22 @@ test("keeps the selected drum kit global when switching beats", async () => {
   assert.doesNotMatch(loadPattern, /setSound|soundRef\.current|normalizeDrumKit/, "beat loading changes the global drum kit");
 });
 
+test("previews library patterns in place and defaults the workstation to the 707 kit", async () => {
+  const source = await readFile(new URL("../app/metronome-app.tsx", import.meta.url), "utf8");
+  const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+  const start = source.indexOf("const loadPattern =");
+  const end = source.indexOf("const toggleFavorite =", start);
+  const loadPattern = source.slice(start, end);
+  assert.match(source, /useState<DrumKit>\("707"\)/);
+  assert.match(source, /soundRef\.current = "707"/);
+  assert.match(source, /setSound\("707"\)/);
+  assert.match(loadPattern, /focusTrainer = true/);
+  assert.match(loadPattern, /if \(focusTrainer\) \{[\s\S]*setSection\("trainer"\);[\s\S]*window\.scrollTo/);
+  assert.match(source, /loadPattern\(pattern, true, false\)\}>Anhören/);
+  assert.match(source, /className={`pattern-card \$\{patternId === pattern\.id \? "loaded" : ""\}`}/);
+  assert.match(styles, /\.pattern-card\.loaded\s*\{/);
+});
+
 test("applies pattern editor changes to live playback immediately", async () => {
   const source = await readFile(new URL("../app/metronome-app.tsx", import.meta.url), "utf8");
   const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
@@ -437,6 +453,29 @@ test("uses a readable workstation hierarchy with sequencer priority", async () =
   for (const className of ["settings-meter", "settings-subdivision", "settings-swing"]) {
     assert.match(source, new RegExp(`control-group settings-cell ${className}`));
   }
+});
+
+test("separates the main workstation areas with one coherent colorway", async () => {
+  const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+  for (const token of ["coach", "trainer", "settings", "library", "mine"]) {
+    assert.match(styles, new RegExp(`--${token}-accent:`), `missing ${token} section color`);
+  }
+  assert.match(styles, /\.coach-deck\s*\{[^}]*var\(--coach-dark\)/s);
+  assert.match(styles, /\.metronome-panel\s*\{[^}]*var\(--trainer-accent\)/s);
+  assert.match(styles, /\.controls-panel\s*\{[^}]*var\(--settings-accent\)/s);
+  assert.match(styles, /#bibliothek\s*\{[^}]*var\(--library-accent\)/s);
+  assert.match(styles, /\.mine-section\s*\{[^}]*var\(--mine-accent\)/s);
+});
+
+test("keeps the mobile transport large, icon-based and clear of the iOS home indicator", async () => {
+  const source = await readFile(new URL("../app/metronome-app.tsx", import.meta.url), "utf8");
+  const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+  assert.match(source, /function MobileNavIcon/);
+  assert.match(source, /className={`mobile-play \$\{isPlaying \? "playing" : ""\}`}/);
+  assert.match(source, /<MobileNavIcon name=\{isPlaying \? "stop" : "play"\}/);
+  assert.doesNotMatch(source.slice(source.indexOf('<nav className="mobile-nav"'), source.indexOf('</nav>', source.indexOf('<nav className="mobile-nav"'))), /[●⌕♥▶Ⅱ]/);
+  assert.match(styles, /\.mobile-nav\s*\{[^}]*bottom:\s*calc\(12px \+ env\(safe-area-inset-bottom\)\)/s);
+  assert.match(styles, /\.mobile-nav \.mobile-play\s*\{[^}]*width:\s*78px;[^}]*height:\s*78px/s);
 });
 
 test("keeps eleven recorded kits and adds a complete procedural precision kit", async () => {

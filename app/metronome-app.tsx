@@ -44,6 +44,7 @@ type AudioSessionType = "playback" | "play-and-record";
 type AudioSessionNavigator = Navigator & { audioSession?: { type: AudioSessionType | "auto" } };
 type LibraryFilterKey = keyof LibraryFilters | "category" | "patternType";
 type QuickFilterId = "easy" | "timing" | "pocket" | "break" | "technique" | "continue";
+type MobileNavIconName = "practice" | "library" | "mine" | "play" | "stop";
 
 type WakeLockHandle = { release: () => Promise<void> };
 type OpenHatHandle = { source: AudioBufferSourceNode; gain: GainNode; level: number; endAt: number };
@@ -84,6 +85,17 @@ const matchesStyleSelection = (pattern: Pattern, selection: string) => selection
   || (styleFamilyFor(selection)?.categories as readonly string[] | undefined)?.includes(pattern.category)
   || pattern.category === selection;
 const matchesSearchQuery = (pattern: Pattern, query: string) => !query || `${pattern.name} ${pattern.category} ${pattern.patternType || "Groove"} ${pattern.instruction} ${learningGoalsFor(pattern).join(" ")}`.toLocaleLowerCase("de").includes(query);
+
+function MobileNavIcon({ name }: { name: MobileNavIconName }) {
+  const paths: Record<MobileNavIconName, React.ReactNode> = {
+    practice: <><path d="M8.5 20h7M9.5 20l1.2-13h2.6l1.2 13M10.4 10h3.2" /><path d="m12 13 3.2-2.2" /></>,
+    library: <><path d="M5 6h14M5 12h14M5 18h14" /><path d="M7.5 4.5v3M12 10.5v3M16.5 16.5v3" /></>,
+    mine: <><path d="M4.5 7.5h6l1.6 2H19.5v9h-15z" /><path d="M8 14h8M8 17h5" /></>,
+    play: <path d="m9 7 8 5-8 5z" fill="currentColor" stroke="none" />,
+    stop: <rect x="8" y="8" width="8" height="8" rx=".5" fill="currentColor" stroke="none" />,
+  };
+  return <svg className="mobile-nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="square" strokeLinejoin="miter">{paths[name]}</svg>;
+}
 
 function setAudioSessionType(type: AudioSessionType) {
   const session = (navigator as AudioSessionNavigator).audioSession;
@@ -492,7 +504,7 @@ export default function MetronomeApp() {
   const [section, setSection] = useState<AppSection>("trainer");
   const [volume, setVolume] = useState(72);
   const [voiceVolumes, setVoiceVolumes] = useState<Record<DrumVoice, number>>(() => ({ ...DEFAULT_VOICE_VOLUMES }));
-  const [sound, setSound] = useState<DrumKit>("Studio");
+  const [sound, setSound] = useState<DrumKit>("707");
   const [swing, setSwing] = useState(50);
   const [timerMinutes, setTimerMinutes] = useState(0);
   const [repeatBars, setRepeatBars] = useState(0);
@@ -1868,9 +1880,10 @@ export default function MetronomeApp() {
     applyEditorPattern(defaultDrumTracks(meter, subdivision), length);
   };
 
-  const loadPattern = (pattern: Pattern, autoStart = false) => {
+  const loadPattern = (pattern: Pattern, autoStart = false, focusTrainer = true) => {
     const wasPlaying = wantsPlaybackRef.current;
     if (wasPlaying) stopPlayback();
+    setEditorOpen(false);
     const nextMeter = parseMeter(pattern.meter);
     const nextGrouping = pattern.grouping?.reduce((sum, size) => sum + size, 0) === nextMeter.beats
       ? pattern.grouping
@@ -1941,8 +1954,10 @@ export default function MetronomeApp() {
       return next;
     });
     showToast(`${pattern.name} geladen`);
-    setSection("trainer");
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    if (focusTrainer) {
+      setSection("trainer");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
     if (autoStart || wasPlaying) void startPlayback(false);
   };
 
@@ -2288,12 +2303,12 @@ export default function MetronomeApp() {
   }, [stylePickerOpen, filterPanelOpen]);
 
   const resetControls = () => {
-    volumeRef.current = 72; soundRef.current = "Studio"; swingRef.current = 50; timerMinutesRef.current = 0;
+    volumeRef.current = 72; soundRef.current = "707"; swingRef.current = 50; timerMinutesRef.current = 0;
     voiceVolumesRef.current = { ...DEFAULT_VOICE_VOLUMES };
     repeatBarsRef.current = 0; trainerRef.current = false; trainerModeRef.current = "up"; trainerMinRef.current = 20; trainerMaxRef.current = 300; trainerDirectionRef.current = 1;
     timerRemainingRef.current = 0;
     feelModeRef.current = "quantized";
-    setVolume(72); setVoiceVolumes({ ...DEFAULT_VOICE_VOLUMES }); setSound("Studio"); setSwing(50); setTimerMinutes(0); setTimerText("∞"); setRepeatBars(0); setTrainer(false); setTrainerMode("up"); setTrainerMin(20); setTrainerMax(300);
+    setVolume(72); setVoiceVolumes({ ...DEFAULT_VOICE_VOLUMES }); setSound("707"); setSwing(50); setTimerMinutes(0); setTimerText("∞"); setRepeatBars(0); setTrainer(false); setTrainerMode("up"); setTrainerMin(20); setTrainerMax(300);
     setFeelMode("quantized");
     showToast("Einstellungen zurückgesetzt");
   };
@@ -2674,11 +2689,11 @@ export default function MetronomeApp() {
           </div>}
           <div className="pattern-grid">
             {filteredPatterns.slice(0, visibleCount).map((pattern) => (
-              <article className="pattern-card" key={pattern.id}>
-                <div className="card-top"><div><div className="card-category" title={pattern.attribution}>{pattern.category} · {PATTERN_TYPE_INFO[pattern.patternType || "Groove"].label} · {pattern.attribution || (pattern.source ? "Übungsrekonstruktion" : "Genreübung")}</div><h3>{pattern.name}</h3></div><button className={`favorite ${favorites.includes(pattern.id) ? "on" : ""}`} onClick={() => toggleFavorite(pattern.id)} aria-label={favorites.includes(pattern.id) ? "Aus Favoriten entfernen" : "Zu Favoriten hinzufügen"} aria-pressed={favorites.includes(pattern.id)}>{favorites.includes(pattern.id) ? "♥" : "♡"}</button></div>
+              <article className={`pattern-card ${patternId === pattern.id ? "loaded" : ""}`} key={pattern.id}>
+                <div className="card-top"><div><div className="card-category" title={pattern.attribution}>{pattern.category} · {PATTERN_TYPE_INFO[pattern.patternType || "Groove"].label} · {pattern.attribution || (pattern.source ? "Übungsrekonstruktion" : "Genreübung")}</div><h3>{pattern.name}</h3>{patternId === pattern.id && <span className="loaded-badge">Aktuell geladen</span>}</div><button className={`favorite ${favorites.includes(pattern.id) ? "on" : ""}`} onClick={() => toggleFavorite(pattern.id)} aria-label={favorites.includes(pattern.id) ? "Aus Favoriten entfernen" : "Zu Favoriten hinzufügen"} aria-pressed={favorites.includes(pattern.id)}>{favorites.includes(pattern.id) ? "♥" : "♡"}</button></div>
                 <div className="mini-pattern">{pattern.pattern.slice(0, 32).map((step, index) => <span key={index} className={`mini-step ${step}`} />)}</div>
                 <div className="card-skills">{skillLabelsFor(pattern).map((skill) => <span key={skill}>{skill}</span>)}<span>Start {pattern.playback?.bpm || Math.round((pattern.bpmMin + pattern.bpmMax) / 2)} BPM</span></div>
-                <div className="card-footer"><div className="card-meta"><span>{pattern.meter}</span><span>{pattern.subdivision}</span><span>{pattern.bpmMin}–{pattern.bpmMax}</span>{(pattern.bars || 1) > 1 && <span>{pattern.bars}T</span>}{(pattern.playback?.swing ?? 50) > 50 && <span>Swing {Math.round(((pattern.playback?.swing ?? 50) - 50) * 2)}%</span>}{pattern.originalFeel && <span>Original Feel</span>}<span>{pattern.difficulty}</span></div><div className="card-actions"><button onClick={() => setExpandedPatternId((current) => current === pattern.id ? null : pattern.id)} aria-expanded={expandedPatternId === pattern.id}>Details</button><button onClick={() => loadPattern(pattern, true)}>Anhören</button><button className="start-small" onClick={() => loadPattern(pattern)}>Üben</button></div></div>
+                <div className="card-footer"><div className="card-meta"><span>{pattern.meter}</span><span>{pattern.subdivision}</span><span>{pattern.bpmMin}–{pattern.bpmMax}</span>{(pattern.bars || 1) > 1 && <span>{pattern.bars}T</span>}{(pattern.playback?.swing ?? 50) > 50 && <span>Swing {Math.round(((pattern.playback?.swing ?? 50) - 50) * 2)}%</span>}{pattern.originalFeel && <span>Original Feel</span>}<span>{pattern.difficulty}</span></div><div className="card-actions"><button onClick={() => setExpandedPatternId((current) => current === pattern.id ? null : pattern.id)} aria-expanded={expandedPatternId === pattern.id}>Details</button><button onClick={() => loadPattern(pattern, true, false)}>Anhören</button><button className="start-small" onClick={() => loadPattern(pattern)}>Zum Trainer</button></div></div>
                 {expandedPatternId === pattern.id && <div className="pattern-details"><p><strong>Worauf hören?</strong>{pattern.instruction}</p><p><strong>Warum interessant?</strong>{pattern.whyInteresting}</p><p><strong>Typischer Stolperstein</strong>{pattern.difficulty === "Leicht" ? "Tempo nicht vor Klangbalance stellen." : pattern.difficulty === "Mittel" ? "Kernpuls bei Ghostnotes und Synkopen nicht verlieren." : "Dichte Passagen taktweise isolieren, bevor du die Form verbindest."}</p><p><strong>Vereinfachen / steigern</strong>Erst Skeleton und langsamer; danach Original Feel, Gap Click oder Voice Dropout.</p>{pattern.source && <a className="source-link" href={pattern.source.url} target="_blank" rel="noreferrer">{pattern.source.label} · Quelle öffnen</a>}</div>}
               </article>
             ))}
@@ -2701,7 +2716,12 @@ export default function MetronomeApp() {
 
         <footer className="footer"><span>KLANGMASS · Sample- &amp; Synthese-Kits</span><span>Installierbar · Offline · Kompakt · Präzise</span></footer>
       </div>
-      <nav className="mobile-nav" aria-label="Mobile Hauptnavigation"><button className={section === "trainer" ? "active" : ""} onClick={() => navigateTo("trainer")}><span>●</span>Üben</button><button className={section === "library" ? "active" : ""} onClick={() => navigateTo("library")}><span>⌕</span>Bibliothek</button><button className="mobile-play" onClick={togglePlayback} aria-label={isPlaying ? "Wiedergabe stoppen" : "Abspielen"}>{isPlaying ? "Ⅱ" : "▶"}</button><button className={section === "mine" ? "active" : ""} onClick={() => navigateTo("mine")}><span>♥</span>Meine</button></nav>
+      <nav className="mobile-nav" aria-label="Mobile Hauptnavigation">
+        <button className={`mobile-destination mobile-trainer ${section === "trainer" ? "active" : ""}`} aria-current={section === "trainer" ? "page" : undefined} onClick={() => navigateTo("trainer")}><MobileNavIcon name="practice" /><span className="mobile-nav-label">Üben</span></button>
+        <button className={`mobile-destination mobile-library ${section === "library" ? "active" : ""}`} aria-current={section === "library" ? "page" : undefined} onClick={() => navigateTo("library")}><MobileNavIcon name="library" /><span className="mobile-nav-label">Patterns</span></button>
+        <button className={`mobile-play ${isPlaying ? "playing" : ""}`} onClick={togglePlayback} aria-label={isPlaying ? "Wiedergabe stoppen" : "Wiedergabe starten"} aria-pressed={isPlaying}><MobileNavIcon name={isPlaying ? "stop" : "play"} /><span className="mobile-nav-label">{isPlaying ? "Stopp" : "Start"}</span></button>
+        <button className={`mobile-destination mobile-mine ${section === "mine" ? "active" : ""}`} aria-current={section === "mine" ? "page" : undefined} onClick={() => navigateTo("mine")}><MobileNavIcon name="mine" /><span className="mobile-nav-label">Meine</span></button>
+      </nav>
       </div>
       {toast && <div className="toast" role="status">{toast}</div>}
       {storageError && <div className="storage-alert" role="alert"><span>{storageError}</span><button onClick={() => setStorageError("")}>×</button></div>}
