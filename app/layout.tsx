@@ -8,21 +8,21 @@ export async function generateMetadata(): Promise<Metadata> {
     : "http://localhost:3000";
   return {
     metadataBase: new URL(origin),
-    title: { default: "Klangmaß — Lokaler Übecoach", template: "%s · Klangmaß" },
+    title: { default: "drumgrid — Drum Practice Workstation", template: "%s · drumgrid" },
     description: "200 Drum-Grooves, adaptive Sessions, Lernleitern und Gap Click — privat, präzise und offline.",
-    applicationName: "Klangmaß",
+    applicationName: "drumgrid",
     manifest: "/manifest.webmanifest",
-    appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Klangmaß" },
+    appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "drumgrid" },
     formatDetection: { telephone: false },
     icons: { icon: "/icon-192.png", apple: "/icon-192.png" },
     openGraph: {
       type: "website",
       locale: "de_DE",
-      title: "Klangmaß — Lokaler Übecoach",
+      title: "drumgrid — Drum Practice Workstation",
       description: "200 Drum-Grooves, adaptive Sessions, Lernleitern und Gap Click. Privat, präzise und offline.",
-      images: [{ url: `${origin}/og-drums.png`, width: 1731, height: 909, alt: "Klangmaß Drum-Groove-Trainer" }],
+      images: [{ url: `${origin}/og-drums.png`, width: 1731, height: 909, alt: "drumgrid Drum Practice Workstation" }],
     },
-    twitter: { card: "summary_large_image", title: "Klangmaß — Lokaler Übecoach", images: [`${origin}/og-drums.png`] },
+    twitter: { card: "summary_large_image", title: "drumgrid — Drum Practice Workstation", images: [`${origin}/og-drums.png`] },
   };
 }
 

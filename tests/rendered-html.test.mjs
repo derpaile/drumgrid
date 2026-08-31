@@ -66,15 +66,32 @@ async function render() {
   );
 }
 
-test("renders the Klangmaß metronome product", async () => {
+test("renders the drumgrid metronome product", async () => {
   const response = await render();
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
   const html = await response.text();
-  assert.match(html, /KLANGMASS/i);
+  assert.match(html, /drumgrid/i);
   assert.match(html, />TAP</);
   assert.match(html, /manifest\.webmanifest/);
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape|react-loading-skeleton/i);
+});
+
+test("uses drumgrid consistently across product, package and install metadata", async () => {
+  const app = await readFile(new URL("../app/metronome-app.tsx", import.meta.url), "utf8");
+  const layout = await readFile(new URL("../app/layout.tsx", import.meta.url), "utf8");
+  const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  const readme = await readFile(new URL("../README.md", import.meta.url), "utf8");
+  const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
+  const manifest = JSON.parse(await readFile(new URL("../public/manifest.webmanifest", import.meta.url), "utf8"));
+  assert.equal(packageJson.name, "drumgrid");
+  assert.equal(manifest.short_name, "drumgrid");
+  assert.match(manifest.name, /^drumgrid\b/);
+  assert.match(layout, /applicationName: "drumgrid"/);
+  assert.match(app, /<strong>drumgrid<\/strong><small>DRUM PRACTICE WORKSTATION<\/small>/);
+  assert.match(app, /`drumgrid-backup-/);
+  assert.match(readme, /^# drumgrid$/m);
+  assert.doesNotMatch([app, layout, page, readme].join("\n"), /Klangmaß|KLANGMASS/);
 });
 
 test("ships a drum-only v2 library with 200 complete patterns", async () => {
@@ -365,8 +382,20 @@ test("ties the pause symbol to a running audio engine and recovers page lifecycl
   assert.match(source, /nextTimeRef\.current < context\.currentTime - \.1/);
   assert.match(source, /scheduledSourcesRef\.current\.forEach/);
   assert.match(source, /withAudioTimeout\(context\.resume\(\), 2500\)/);
-  assert.match(source, /checkpointRef\.current = checkpoint/);
+  assert.match(source, /checkpointRef\.current = \{ \.\.\.checkpoint, bpm: bpmRef\.current \}/);
   assert.doesNotMatch(source, /setIsPlaying/);
+});
+
+test("keeps rapid live tempo changes from being overwritten by stale scheduler frames", async () => {
+  const source = await readFile(new URL("../app/metronome-app.tsx", import.meta.url), "utf8");
+  assert.match(source, /const tempoRevisionRef = useRef\(0\)/);
+  assert.match(source, /const checkpointTempoRevision = tempoRevisionRef\.current/);
+  assert.match(source, /checkpointRef\.current = \{ \.\.\.checkpoint, bpm: bpmRef\.current \}/);
+  assert.match(source, /if \(checkpointTempoRevision === tempoRevisionRef\.current\) setBpm\(checkpoint\.bpm\)/);
+  assert.match(source, /tempoRevisionRef\.current \+= 1;\s*bpmRef\.current = next;\s*checkpointRef\.current = \{ \.\.\.checkpointRef\.current, bpm: next \}/);
+  assert.doesNotMatch(source, /useEffect\(\(\) => \{ bpmRef\.current = bpm; \}, \[bpm\]\)/);
+  assert.match(source, /updateBpm\(bpmRef\.current - 1\)/);
+  assert.match(source, /updateBpm\(bpmRef\.current \+ 1\)/);
 });
 
 test("keeps the selected drum kit global when switching beats", async () => {
@@ -525,7 +554,8 @@ test("includes complete PWA assets", async () => {
   assert.match(serviceWorker, /verifiedResponse/);
   assert.match(serviceWorker, /if \(hash !== asset\.revision\) throw/);
   assert.match(serviceWorker, /if \(!pending\) throw/);
-  assert.match(serviceWorker, /klangmass-/);
+  assert.match(serviceWorker, /drumgrid-/);
+  assert.match(serviceWorker, /LEGACY_PREFIXES = \["klangmass-"\]/);
   assert.doesNotMatch(serviceWorker, /OFFLINE_READY/);
 });
 

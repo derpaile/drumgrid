@@ -83,7 +83,8 @@ button:disabled { cursor: not-allowed; opacity: .38; }
   box-shadow: var(--bevel), 0 10px 30px rgba(0,0,0,.35);
   text-shadow: 1px 1px 0 #000;
 }
-.brand-glyph { color: var(--amber); font-size: var(--font-ui); transform: rotate(9deg); }
+.brand-glyph { width: 13px; height: 13px; display: grid; grid-template-columns: repeat(2, 5px); grid-template-rows: repeat(2, 5px); gap: 2px; transform: rotate(9deg); }
+.brand-glyph i { display: block; background: var(--amber); box-shadow: 1px 1px 0 #08090d; }
 .title-rail { height: 8px; border-block: 2px solid #b49d54; box-shadow: 0 2px 0 #12131a, inset 0 1px 0 #f1db83; }
 .app-brand { min-width: 0; display: flex; align-items: baseline; gap: 8px; white-space: nowrap; }
 .app-brand strong { font-size: var(--font-ui); letter-spacing: .16em; }

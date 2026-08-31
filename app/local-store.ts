@@ -1,3 +1,4 @@
+// Preserve the existing database identity so the rebrand never loses local scenes or practice history.
 const DB_NAME = "klangmass";
 const STORE_NAME = "kv";
 const DB_VERSION = 3;

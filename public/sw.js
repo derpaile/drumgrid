@@ -1,4 +1,5 @@
-const PREFIX = "klangmass-";
+const PREFIX = "drumgrid-";
+const LEGACY_PREFIXES = ["klangmass-"];
 const META_CACHE = `${PREFIX}meta`;
 let activeManifestPromise = null;
 
@@ -60,7 +61,7 @@ self.addEventListener("activate", (event) => {
     await meta.put("/active-manifest", new Response(JSON.stringify(manifest), { headers: { "Content-Type": "application/json" } }));
     await meta.delete("/pending-manifest");
     const keep = new Set([META_CACHE, ...Object.values(cacheNames(manifest.buildRevision))]);
-    await Promise.all((await caches.keys()).filter((key) => key.startsWith(PREFIX) && !keep.has(key)).map((key) => caches.delete(key)));
+    await Promise.all((await caches.keys()).filter((key) => (key.startsWith(PREFIX) || LEGACY_PREFIXES.some((prefix) => key.startsWith(prefix))) && !keep.has(key)).map((key) => caches.delete(key)));
     activeManifestPromise = Promise.resolve(manifest);
     await self.clients.claim();
   })());

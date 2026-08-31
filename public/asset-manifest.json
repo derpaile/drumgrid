@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "buildRevision": "e3193b018add4909",
+  "buildRevision": "0c8ca3eaa7e10fc3",
   "catalogPath": "/data/patterns-v2.7bf1e8517cab.json",
   "catalogRevision": "7bf1e8517cab5ef9f0bf19ea94a4f45b9d7ed4ff3be57876dc372945e7522aaf",
   "assets": [
@@ -723,8 +723,8 @@
     },
     {
       "path": "/manifest.webmanifest",
-      "revision": "396232464ed8b19266a5b04335c72e43c115dbafb0024a535cfcbcee04e67d35",
-      "size": 590,
+      "revision": "eeed6cd28b4712ba7b2d1568bc86504ca14fd7da4644d335a179c27c32569097",
+      "size": 596,
       "scope": "app"
     },
     {
@@ -741,8 +741,8 @@
     },
     {
       "path": "/sw.js",
-      "revision": "e5ee7b32c5f42de8f852709907fd802aca2773ef511271089b4e7cbd2197f694",
-      "size": 7815,
+      "revision": "5cdc4d2ce2c8cf7c25b1f540cacd4ebe68285af69a610a79d0919184eaa28cd5",
+      "size": 7916,
       "scope": "app"
     },
     {

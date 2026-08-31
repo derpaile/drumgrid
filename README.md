@@ -1,4 +1,4 @@
-# Klangmaß
+# drumgrid
 
 Lokaler, adaptiver Übecoach mit 200 kuratierten Schlagzeugübungen sowie kompakten
 Sample- und Synthese-Kits. Scenes halten Pattern, Klang und Trainingslogik zusammen;

@@ -581,6 +581,7 @@ export default function MetronomeApp() {
   const recoveryPromiseRef = useRef<Promise<void> | null>(null);
   const contextTransitionRef = useRef<Promise<void>>(Promise.resolve());
   const bpmRef = useRef(bpm);
+  const tempoRevisionRef = useRef(0);
   const meterRef = useRef(meter);
   const subdivisionRef = useRef(subdivision);
   const stepsRef = useRef(steps);
@@ -640,7 +641,6 @@ export default function MetronomeApp() {
   const expectedAudioHitCounterRef = useRef(0);
   const updateRegistrationRef = useRef<ServiceWorkerRegistration | null>(null);
 
-  useEffect(() => { bpmRef.current = bpm; }, [bpm]);
   useEffect(() => { meterRef.current = meter; }, [meter]);
   useEffect(() => { subdivisionRef.current = subdivision; }, [subdivision]);
   useEffect(() => { stepsRef.current = steps; }, [steps]);
@@ -1361,6 +1361,7 @@ export default function MetronomeApp() {
                   trainerDirectionRef.current = 1;
                 }
               } else nextBpm = Math.min(trainerMaxRef.current, nextBpm);
+              tempoRevisionRef.current += 1;
               bpmRef.current = nextBpm;
             }
             if (repeatBarsRef.current && barsRef.current >= repeatBarsRef.current) {
@@ -1379,11 +1380,12 @@ export default function MetronomeApp() {
           bpm: bpmRef.current,
           trainerDirection: trainerDirectionRef.current,
         };
+        const checkpointTempoRevision = tempoRevisionRef.current;
         const timerId = window.setTimeout(() => {
           visualTimersRef.current.delete(timerId);
           if (generationRef.current !== token || phaseRef.current !== "running") return;
-          checkpointRef.current = checkpoint;
-          setBpm(checkpoint.bpm);
+          checkpointRef.current = { ...checkpoint, bpm: bpmRef.current };
+          if (checkpointTempoRevision === tempoRevisionRef.current) setBpm(checkpoint.bpm);
           setCurrentStep(stepIndex);
           setSessionBars(checkpoint.bars);
         }, visualDelay);
@@ -1620,7 +1622,9 @@ export default function MetronomeApp() {
 
   const updateBpm = useCallback((value: number) => {
     const next = Math.max(20, Math.min(300, Math.round(value)));
+    tempoRevisionRef.current += 1;
     bpmRef.current = next;
+    checkpointRef.current = { ...checkpointRef.current, bpm: next };
     setBpm(next);
   }, []);
 
@@ -2188,7 +2192,7 @@ export default function MetronomeApp() {
     const url = URL.createObjectURL(new Blob([payload], { type: "application/json" }));
     const link = document.createElement("a");
     link.href = url;
-    link.download = `klangmass-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    link.download = `drumgrid-backup-${new Date().toISOString().slice(0, 10)}.json`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -2413,14 +2417,14 @@ export default function MetronomeApp() {
       <div className="app-content">
       <div className="page">
         <header className="app-titlebar">
-          <span className="brand-glyph" aria-hidden="true">◆</span>
+          <span className="brand-glyph" aria-hidden="true"><i /><i /><i /><i /></span>
           <span className="title-rail" aria-hidden="true" />
-          <div className="app-brand"><strong>KLANGMASS</strong><small>DRUM GROOVE WORKSTATION</small></div>
+          <div className="app-brand"><strong>drumgrid</strong><small>DRUM PRACTICE WORKSTATION</small></div>
           <span className="title-rail" aria-hidden="true" />
           <span className="title-version">V3.0</span>
         </header>
         <section className="practice-bar" id="trainer" aria-label="Training wählen">
-          <h1 className="sr-only">Klangmaß Drum-Trainer</h1>
+          <h1 className="sr-only">drumgrid Drum-Trainer</h1>
           <nav className="desktop-nav" aria-label="Hauptnavigation">
             <button className={section === "trainer" ? "active" : ""} onClick={() => navigateTo("trainer")}>Üben</button>
             <button className={section === "library" ? "active" : ""} onClick={() => navigateTo("library")}>Patterns</button>
@@ -2459,9 +2463,9 @@ export default function MetronomeApp() {
             <div className="tempo-toolbar" aria-label="Tempo">
               <button className="play-button tempo-play" onClick={togglePlayback} aria-label={isPlaying ? "Wiedergabe stoppen" : "Abspielen"} aria-pressed={isPlaying}>{isPlaying ? "Ⅱ" : "▶"}</button>
               <button className="tap-compact" onClick={tapTempo}>TAP</button>
-              <button className="nudge" onClick={() => updateBpm(bpm - 1)} aria-label="Tempo um eins verringern">−</button>
+              <button className="nudge" onClick={() => updateBpm(bpmRef.current - 1)} aria-label="Tempo um eins verringern">−</button>
               <label className="bpm-compact"><input type="number" min="20" max="300" value={bpm} onChange={(event) => updateBpm(Number(event.target.value))} aria-label="Tempo in BPM" /><span>BPM</span></label>
-              <button className="nudge" onClick={() => updateBpm(bpm + 1)} aria-label="Tempo um eins erhöhen">+</button>
+              <button className="nudge" onClick={() => updateBpm(bpmRef.current + 1)} aria-label="Tempo um eins erhöhen">+</button>
               <input className="tempo-range" type="range" min="20" max="300" value={bpm} onChange={(event) => updateBpm(Number(event.target.value))} aria-label="Tempo-Regler" />
               <FftSpectrum analyserRef={analyserRef} active={isPlaying} />
             </div>
@@ -2714,7 +2718,7 @@ export default function MetronomeApp() {
           <div className="local-data-note"><div><strong>Privat und lokal</strong><span>Keine Aufnahme, kein Konto, keine Telemetrie.</span></div><button className="danger" onClick={() => { if (window.confirm("Alle Favoriten, Scenes und Übungsverläufe auf diesem Gerät löschen?")) void clearAllLocalData(); }}>Lokale Daten löschen</button></div>
         </section>
 
-        <footer className="footer"><span>KLANGMASS · Sample- &amp; Synthese-Kits</span><span>Installierbar · Offline · Kompakt · Präzise</span></footer>
+        <footer className="footer"><span>drumgrid · Sample- &amp; Synthese-Kits</span><span>Installierbar · Offline · Kompakt · Präzise</span></footer>
       </div>
       <nav className="mobile-nav" aria-label="Mobile Hauptnavigation">
         <button className={`mobile-destination mobile-trainer ${section === "trainer" ? "active" : ""}`} aria-current={section === "trainer" ? "page" : undefined} onClick={() => navigateTo("trainer")}><MobileNavIcon name="practice" /><span className="mobile-nav-label">Üben</span></button>

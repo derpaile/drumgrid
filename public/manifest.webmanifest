@@ -1,6 +1,6 @@
 {
-  "name": "Klangmaß — Lokaler Übecoach",
-  "short_name": "Klangmaß",
+  "name": "drumgrid — Drum Practice Workstation",
+  "short_name": "drumgrid",
   "description": "Lokaler Übecoach mit 200 Drum-Grooves, Scenes, Lernleitern und Gap Click.",
   "start_url": "/",
   "display": "standalone",
