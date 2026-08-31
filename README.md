@@ -5,7 +5,7 @@
 <h1 align="center">drumgrid</h1>
 
 <p align="center">
-  An offline-first drum practice workstation with 200 curated patterns,<br>
+  An offline-first drum practice workstation with 402 curated patterns,<br>
   adaptive sessions, multi-voice sequencing and precise Web Audio playback.
 </p>
 
@@ -21,7 +21,7 @@
 
 <p align="center">
   <img alt="PWA" src="https://img.shields.io/badge/PWA-offline--first-30f22a?style=flat-square">
-  <img alt="Patterns" src="https://img.shields.io/badge/patterns-200-e0c36a?style=flat-square">
+  <img alt="Patterns" src="https://img.shields.io/badge/patterns-402-e0c36a?style=flat-square">
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-strict-55578b?style=flat-square">
   <img alt="Cloudflare Workers" src="https://img.shields.io/badge/Cloudflare-Workers-f48120?style=flat-square">
 </p>
@@ -34,13 +34,13 @@
 
 drumgrid combines a drum machine, metronome and adaptive practice coach in one installable web app. It is designed for focused practice without accounts, telemetry or a permanent network connection. Patterns, favorites, scenes and practice history stay on the device.
 
-The library covers groove vocabulary from jazz, funk and hip-hop to metal, jungle, reggae, Latin styles and electronic music. Source-based song exercises are marked as reductions or reconstructions rather than presented as exact transcriptions.
+The library covers groove vocabulary from jazz, funk and hip-hop to metal, jungle, reggae, Latin styles and electronic music. It also contains 202 MIDI-derived Radiohead groove variants from 86 songs across all nine studio-album eras. Source-based song exercises are marked as reductions or reconstructions rather than presented as exact transcriptions.
 
 ## Features
 
 | Area | Included |
 | --- | --- |
-| Pattern library | 200 curated drum patterns, multi-bar forms, search, style families, learning filters and favorites |
+| Pattern library | 402 curated drum patterns, multi-bar forms, search, style families, learning filters and favorites |
 | Sequencer | Kick, snare, hats, cymbals, rim and tom lanes with accents, ghost notes and per-voice volume |
 | Timing | Stable Web Audio scheduler, 20–300 BPM, tap tempo, meter, subdivisions, swing and original-feel microtiming |
 | Practice | Free sessions, timing and groove sessions, tempo pyramids, gap click, random gaps, voice dropout and call-and-response |
@@ -123,6 +123,6 @@ tests/                     Audio, catalog, PWA and rendered-UI checks
 
 ## Deutsch
 
-drumgrid ist eine installierbare, offlinefähige Drum-Übungsstation mit 200 kuratierten Patterns. Die App verbindet Mehrspur-Sequencer, stabiles Metronom, adaptive Übemodi, optionale Timing-Analyse und lokale Fortschrittsdaten. Bedienoberfläche, Themes und Desktop-Transport lassen sich im Interface-Menü anpassen; die UI steht auf Deutsch und Englisch zur Verfügung.
+drumgrid ist eine installierbare, offlinefähige Drum-Übungsstation mit 402 kuratierten Patterns, darunter 202 MIDI-basierte Radiohead-Groovevarianten aus 86 Songs und allen neun Studioalbum-Phasen. Die App verbindet Mehrspur-Sequencer, stabiles Metronom, adaptive Übemodi, optionale Timing-Analyse und lokale Fortschrittsdaten. Bedienoberfläche, Themes und Desktop-Transport lassen sich im Interface-Menü anpassen; die UI steht auf Deutsch und Englisch zur Verfügung.
 
 Die App benötigt kein Konto und sendet weder Übedaten noch Mikrofonaufnahmen an einen Server.

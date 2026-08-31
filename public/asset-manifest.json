@@ -1,8 +1,8 @@
 {
   "version": 1,
-  "buildRevision": "0c8ca3eaa7e10fc3",
-  "catalogPath": "/data/patterns-v2.7bf1e8517cab.json",
-  "catalogRevision": "7bf1e8517cab5ef9f0bf19ea94a4f45b9d7ed4ff3be57876dc372945e7522aaf",
+  "buildRevision": "d6a6368738345d00",
+  "catalogPath": "/data/patterns-v2.466506c5e736.json",
+  "catalogRevision": "466506c5e73601867908fe55b81b2bde539257d760140182800b5a51bbbfed59",
   "assets": [
     {
       "path": "/audio/drums/707/closed-hat.mp3",
@@ -705,8 +705,8 @@
     },
     {
       "path": "/data/patterns-v1.json",
-      "revision": "7bf1e8517cab5ef9f0bf19ea94a4f45b9d7ed4ff3be57876dc372945e7522aaf",
-      "size": 744170,
+      "revision": "466506c5e73601867908fe55b81b2bde539257d760140182800b5a51bbbfed59",
+      "size": 1298830,
       "scope": "catalog"
     },
     {
@@ -746,14 +746,14 @@
       "scope": "app"
     },
     {
-      "path": "/data/patterns-v2.7bf1e8517cab.json",
-      "revision": "7bf1e8517cab5ef9f0bf19ea94a4f45b9d7ed4ff3be57876dc372945e7522aaf",
-      "size": 744170,
+      "path": "/data/patterns-v2.466506c5e736.json",
+      "revision": "466506c5e73601867908fe55b81b2bde539257d760140182800b5a51bbbfed59",
+      "size": 1298830,
       "scope": "catalog"
     },
     {
       "path": "/",
-      "revision": "7bf1e8517cab5ef9",
+      "revision": "466506c5e7360186",
       "size": 0,
       "scope": "app"
     }

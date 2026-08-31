@@ -2,16 +2,22 @@
 
 ## Ergebnis
 
-- `../../public/data/patterns-v1.json`: 200 App-Patterns; alle 23 geprüften Song-Rekonstruktionen und -Reduktionen, 22 Trip-Hop- und Hip-Hop-Presets, elf kostenlose MIDI-basierte Funk-/DnB-Ergänzungen und 109 eigenständige Stilübungen.
+- `../../public/data/patterns-v1.json`: 402 App-Patterns; darunter 202 Radiohead-Groovevarianten aus 86 Songs, alle 23 zuvor geprüften Song-Rekonstruktionen und -Reduktionen, 22 Trip-Hop- und Hip-Hop-Presets, elf kostenlose MIDI-basierte Funk-/DnB-Ergänzungen und 109 eigenständige Stilübungen.
 - `generated/style-expansion-v1.json`: 74 neue, eigenständige Übungen: Jazz/Roots (24), Progressive/Heavy (22), globale Rhythmen (18) und Clubmusik (10).
 - `generated/reviewed-drum-patterns-v1.json`: 54 eindeutige, geprüfte Patterns.
+- `generated/radiohead-grooves-v1.json`: 202 wiederkehrende, quantisierte MIDI-Groovevarianten; alle neun Studioalbum-Phasen sind abgedeckt.
 - `reviewed-drum-patterns-v1.schema.json`: JSON-Schema inklusive optionalem `originalFeel`.
 - `original/`: unveränderte DeepSeek-Exporte zur Nachvollziehbarkeit.
 - `../../scripts/build-reviewed-drum-patterns.mjs`: reproduzierbarer Generator und alle Korrekturen.
 - `../../scripts/generate-patterns.mjs`: App-Katalog; belegte Breaks besitzen dort ebenfalls korrigierte Noten und Feel-Daten.
+- `../../scripts/analyze-midi-drums.mjs` und `../../scripts/build-radiohead-patterns.mjs`: reproduzierbare Drumspur-Analyse, Variantenauswahl und Katalogerzeugung aus den öffentlich angebotenen MIDI-Sequenzen.
 - `../../scripts/reviewed-song-catalog.mjs`: gemeinsame Zuordnung; jede geprüfte Song-Reduktion muss dadurch im App-Katalog vorhanden sein.
 
 ## Wesentliche Prüfergebnisse
+
+- Die RPPMF-Diskografie wurde als vollständiger Korpus analysiert. Aus 86 Songs mit belastbaren, wiederkehrenden Drumtakten wurden 202 Varianten übernommen; bloße Crash-Ergänzungen, exakte Duplikate und einmalige, stark unquantisierte Fills werden nicht als eigene Grooves ausgegeben.
+- Komplexe Songs besitzen mehrere getrennte Varianten, darunter `Creep` (3), `Paranoid Android` (4), `2 + 2 = 5` (4), `Pyramid Song` (3), `There There` (3), `15 Step` (3), `Reckoner` (3) und `Bloom` (3).
+- Taktarten bleiben erhalten oder werden nur äquivalent normalisiert: `15 Step` und `Morning Bell` stehen in 5/4, `Paranoid Android` und `2 + 2 = 5` enthalten 7/8-Varianten. Jede Karte nennt die wiederkehrenden MIDI-Takte, aus denen sie stammt.
 
 - Generische Backbeat-Schablonen wurden ersetzt: insbesondere `think-break`, `apache-break`, `impeach-the-president`, `synthetic-substitution`, `ashleys-roachclip`, `its-a-new-day`, `express-yourself` und `cissy-strut`.
 - `Think` besitzt im gewählten Break-Takt nur die Kick auf Beat 1. `Impeach the President` enthält die Kicks auf 2a, 3, 3& und 4&. `It’s a New Day` bildet beide dokumentierten Takte ab.
@@ -41,6 +47,12 @@ Das Modell besitzt neun Drumspuren, aber keine getrennte Fuß-Hi-Hat, Cowbell, T
 
 ## Zentrale Referenzen
 
+- [RPPMF: Radiohead MIDI-Diskografie](https://rppmf.com/radiohead.htm): 133 nach Veröffentlichungen geordnete Sequenzen; Grundlage der extrahierten Drumspuren und Taktvarianten.
+- [Songsterr: Radiohead Drum Tabs](https://www.songsterr.com/a/wsa/radiohead-tabs-a48?inst=drum): breiter Gegencheck der verfügbaren Song- und Drumspurabdeckung.
+- [Faber Music: Radiohead Authentic Drums Playalong](https://www.fabermusic.com/shop/radiohead-authentic-drums-playalong-p140729): veröffentlichte Originalaufnahme-Transkriptionen für acht Kernstücke als zusätzlicher Plausibilitätscheck.
+- [Pro Drum Teacher: Creep Drum Chart](https://www.prodrumteacher.co.uk/resources/Radiohead_Creep.pdf): Tempo, Form und Phil-Selway-Zuschreibung für `Creep`.
+- [DrumSetSheetMusic: There, There](https://drumsetsheetmusic.com/products/there-there-radiohead-full-drum-transcription-drum-sheet-music-drumsetsheetmusic-com): Tempo, 4/4-Takt und vollständige Drumchart-Existenz als Gegencheck.
+
 - [ZGMTH: Microtiming in Early Funk](https://www.gmth.de/zeitschrift/artikel/1224.aspx): Noten und gemessene Millisekundenwerte für `Think`, `Impeach`, `Apache`, `Cissy Strut` und `It’s a New Day`.
 - [University of Hull: Rebecoming Analogue](https://hull-repository.worktribe.com/output/4218015): Break-Formen, Ghostnotes und Drummer-Zuschreibungen, unter anderem John „Jabo“ Starks.
 - [Native Instruments: Drum-Break-Rekonstruktionen und MIDI](https://blog.native-instruments.com/best-drum-breaks/): `Funky Drummer`, `Ashley’s Roachclip` und `Express Yourself`.
@@ -65,6 +77,8 @@ Das Modell besitzt neun Drumspuren, aber keine getrennte Fuß-Hi-Hat, Cowbell, T
 
 ```sh
 npm run patterns:generate
+node scripts/analyze-midi-drums.mjs /tmp/radiohead-midi
+node scripts/build-radiohead-patterns.mjs /tmp/radiohead-midi
 node scripts/build-reviewed-drum-patterns.mjs
 node scripts/build-reviewed-drum-patterns.mjs --check
 ```

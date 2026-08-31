@@ -48,7 +48,7 @@ type AudioSessionType = "playback" | "play-and-record";
 type AudioSessionNavigator = Navigator & { audioSession?: { type: AudioSessionType | "auto" } };
 type LibraryFilterKey = keyof LibraryFilters | "category" | "patternType";
 type QuickFilterId = "easy" | "timing" | "pocket" | "break" | "technique" | "continue";
-type MobileNavIconName = "practice" | "library" | "mine" | "play" | "stop";
+type MobileNavIconName = "practice" | "library" | "mine" | "settings" | "play" | "stop";
 
 type WakeLockHandle = { release: () => Promise<void> };
 type OpenHatHandle = { source: AudioBufferSourceNode; gain: GainNode; level: number; endAt: number };
@@ -95,6 +95,7 @@ function MobileNavIcon({ name }: { name: MobileNavIconName }) {
     practice: <><path d="M8.5 20h7M9.5 20l1.2-13h2.6l1.2 13M10.4 10h3.2" /><path d="m12 13 3.2-2.2" /></>,
     library: <><path d="M5 6h14M5 12h14M5 18h14" /><path d="M7.5 4.5v3M12 10.5v3M16.5 16.5v3" /></>,
     mine: <><path d="M4.5 7.5h6l1.6 2H19.5v9h-15z" /><path d="M8 14h8M8 17h5" /></>,
+    settings: <><circle cx="12" cy="12" r="3" /><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1" /></>,
     play: <path d="m9 7 8 5-8 5z" fill="currentColor" stroke="none" />,
     stop: <rect x="8" y="8" width="8" height="8" rx=".5" fill="currentColor" stroke="none" />,
   };
@@ -570,6 +571,7 @@ export default function MetronomeApp() {
   const stylePickerTriggerRef = useRef<HTMLButtonElement | null>(null);
   const filterPanelTriggerRef = useRef<HTMLButtonElement | null>(null);
   const interfaceSettingsTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const mobileInterfaceSettingsTriggerRef = useRef<HTMLButtonElement | null>(null);
   const stylePickerCloseRef = useRef<HTMLButtonElement | null>(null);
   const filterPanelCloseRef = useRef<HTMLButtonElement | null>(null);
   const interfaceSettingsCloseRef = useRef<HTMLButtonElement | null>(null);
@@ -2341,7 +2343,9 @@ export default function MetronomeApp() {
   useEffect(() => {
     if (!interfaceSettingsOpen) return;
     const previousOverflow = document.body.style.overflow;
-    const returnFocusTo = interfaceSettingsTriggerRef.current;
+    const returnFocusTo = window.matchMedia("(max-width: 700px)").matches
+      ? mobileInterfaceSettingsTriggerRef.current
+      : interfaceSettingsTriggerRef.current;
     const closePanel = (event: KeyboardEvent) => {
       if (event.key === "Escape") setInterfaceSettingsOpen(false);
     };
@@ -2778,6 +2782,7 @@ export default function MetronomeApp() {
         <button className={`mobile-destination mobile-library ${section === "library" ? "active" : ""}`} aria-current={section === "library" ? "page" : undefined} onClick={() => navigateTo("library")}><MobileNavIcon name="library" /><span className="mobile-nav-label">Patterns</span></button>
         <button className={`mobile-play ${isPlaying ? "playing" : ""}`} onClick={togglePlayback} aria-label={isPlaying ? "Wiedergabe stoppen" : "Wiedergabe starten"} aria-pressed={isPlaying}><MobileNavIcon name={isPlaying ? "stop" : "play"} /><span className="mobile-nav-label">{isPlaying ? "Stopp" : "Start"}</span></button>
         <button className={`mobile-destination mobile-mine ${section === "mine" ? "active" : ""}`} aria-current={section === "mine" ? "page" : undefined} onClick={() => navigateTo("mine")}><MobileNavIcon name="mine" /><span className="mobile-nav-label">Meine</span></button>
+        <button ref={mobileInterfaceSettingsTriggerRef} className={`mobile-destination mobile-settings ${interfaceSettingsOpen ? "active" : ""}`} onClick={() => { setStylePickerOpen(false); setFilterPanelOpen(false); setInterfaceSettingsOpen(true); }} aria-haspopup="dialog" aria-expanded={interfaceSettingsOpen} aria-controls="interface-settings-title" aria-label={uiPreferences.language === "de" ? "Interface-Einstellungen öffnen" : "Open interface settings"}><MobileNavIcon name="settings" /><span className="mobile-nav-label">Setup</span></button>
       </nav>
       </div>
       {interfaceSettingsOpen && <SettingsOverlay preferences={uiPreferences} closeRef={interfaceSettingsCloseRef} onChange={updateUiPreferences} onReset={resetUiPreferences} onClose={() => setInterfaceSettingsOpen(false)} />}

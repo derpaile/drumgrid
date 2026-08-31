@@ -90,7 +90,7 @@ test("uses drumgrid consistently across product, package and install metadata", 
   assert.match(layout, /applicationName: "drumgrid"/);
   assert.match(app, /<strong>drumgrid<\/strong><small>DRUM PRACTICE WORKSTATION<\/small>/);
   assert.match(app, /`drumgrid-backup-/);
-  assert.match(readme, /^# drumgrid$/m);
+  assert.match(readme, /^(?:# drumgrid|<h1 align="center">drumgrid<\/h1>)$/m);
   assert.doesNotMatch([app, layout, page, readme].join("\n"), /Klangmaß|KLANGMASS/);
 });
 
@@ -113,11 +113,11 @@ test("ships a persistent bilingual interface studio and optional desktop transpo
   assert.match(css, /\.floating-transport/);
 });
 
-test("ships a drum-only v2 library with 200 complete patterns", async () => {
+test("ships a drum-only v2 library with 402 complete patterns", async () => {
   const library = await readLibrary();
   assert.equal(library.version, 2);
-  assert.equal(library.count, 200);
-  assert.equal(library.patterns.length, 200);
+  assert.equal(library.count, 402);
+  assert.equal(library.patterns.length, 402);
   const ids = new Set();
   const names = new Set();
   const musicalSignatures = new Set();
@@ -233,6 +233,34 @@ test("ships every reviewed song reduction and reconstruction", async () => {
   assert.equal(library.get("drum-take-five")?.meter, "5/4");
   assert.equal(library.get("drum-seven-days")?.bars, 2);
   assert.equal(library.get("drum-good-times-bad-times")?.subdivision, "Sextolen");
+});
+
+test("includes the album-spanning Radiohead MIDI collection", async () => {
+  const library = await readLibrary();
+  const patterns = indexedPatterns(library);
+  const radiohead = JSON.parse(await readFile(new URL("../research/drum-patterns/generated/radiohead-grooves-v1.json", import.meta.url), "utf8"));
+  const collection = library.patterns.filter((pattern) => pattern.id.startsWith("drum-radiohead-"));
+  assert.equal(radiohead.count, 202);
+  assert.equal(collection.length, radiohead.count);
+  assert.deepEqual(Object.keys(radiohead.albumCoverage), [
+    "Pablo Honey", "The Bends", "OK Computer", "Kid A", "Amnesiac", "Hail to the Thief", "In Rainbows", "The King of Limbs", "A Moon Shaped Pool",
+  ]);
+  assert.ok(Object.values(radiohead.albumCoverage).every((album) => album.songCount >= 5), "an album era lacks representative grooves");
+  for (const id of [
+    "drum-radiohead-creep-a", "drum-radiohead-just-a", "drum-radiohead-airbag-a", "drum-radiohead-paranoid-android-b",
+    "drum-radiohead-morning-bell-a", "drum-radiohead-pyramid-song-a", "drum-radiohead-there-there-a",
+    "drum-radiohead-15-step-a", "drum-radiohead-reckoner-a", "drum-radiohead-bloom-a", "drum-radiohead-ful-stop-a",
+  ]) {
+    const pattern = patterns.get(id);
+    assert.ok(pattern, `missing Radiohead groove ${id}`);
+    assert.ok(pattern.source?.url, `${id} lacks its MIDI source`);
+    assert.match(pattern.attribution, /MIDI-basierte Übungsrekonstruktion/i);
+  }
+  assert.equal(patterns.get("drum-radiohead-paranoid-android-b").meter, "7/8");
+  assert.equal(patterns.get("drum-radiohead-15-step-a").meter, "5/4");
+  assert.equal(patterns.get("drum-radiohead-morning-bell-a").meter, "5/4");
+  assert.equal(collection.filter((pattern) => pattern.name.startsWith("Radiohead — Creep ·")).length, 3);
+  assert.equal(collection.filter((pattern) => pattern.name.startsWith("Radiohead — Paranoid Android ·")).length, 4);
 });
 
 test("includes the researched trip-hop and Queensbridge collection", async () => {
@@ -521,6 +549,8 @@ test("keeps the mobile transport large, icon-based and clear of the iOS home ind
   assert.match(source, /function MobileNavIcon/);
   assert.match(source, /className={`mobile-play \$\{isPlaying \? "playing" : ""\}`}/);
   assert.match(source, /<MobileNavIcon name=\{isPlaying \? "stop" : "play"\}/);
+  assert.match(source, /className={`mobile-destination mobile-settings \$\{interfaceSettingsOpen \? "active" : ""\}`}/);
+  assert.match(source, /<MobileNavIcon name="settings" \/><span className="mobile-nav-label">Setup<\/span>/);
   assert.doesNotMatch(source.slice(source.indexOf('<nav className="mobile-nav"'), source.indexOf('</nav>', source.indexOf('<nav className="mobile-nav"'))), /[●⌕♥▶Ⅱ]/);
   assert.match(styles, /\.mobile-nav\s*\{[^}]*bottom:\s*calc\(12px \+ env\(safe-area-inset-bottom\)\)/s);
   assert.match(styles, /\.mobile-nav \.mobile-play\s*\{[^}]*width:\s*78px;[^}]*height:\s*78px/s);
@@ -563,7 +593,7 @@ test("includes complete PWA assets", async () => {
   assert.equal(assets.assets.filter((asset) => asset.scope === "audio").length, 99);
   assert.ok(assets.assets.every((asset) => /^[a-f0-9]{16,64}$/.test(asset.revision) && asset.size >= 0));
   const revisedCatalog = JSON.parse(await readFile(new URL(`../public${assets.catalogPath}`, import.meta.url), "utf8"));
-  assert.equal(revisedCatalog.count, 200, "a cached library must update to the current catalog");
+  assert.equal(revisedCatalog.count, 402, "a cached library must update to the current catalog");
   assert.match(serviceWorker, /caches\.open/);
   assert.match(serviceWorker, /request\.mode === "navigate"/);
   assert.match(serviceWorker, /CACHE_RUNTIME/);
