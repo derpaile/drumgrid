@@ -24,6 +24,10 @@ import {
   SKILLS, skillLabelsFor,
   type LastSessionSnapshot, type LibraryFilters, type PracticeModeConfig, type PracticeResult, type Scene, type TimingResult,
 } from "./practice-model";
+import {
+  DEFAULT_UI_PREFERENCES, FloatingTransport, InterfaceIcon, localeFor, normalizeUiPreferences, SettingsOverlay,
+  useUiLocalization, type UiPreferences,
+} from "./ui-preferences";
 
 type PlaybackPhase = "stopped" | "starting" | "running" | "lifecycle-paused" | "recovering";
 type SessionCheckpoint = { nextStep: number; bars: number; bpm: number; trainerDirection: 1 | -1 };
@@ -533,6 +537,8 @@ export default function MetronomeApp() {
   const [stylePickerOpen, setStylePickerOpen] = useState(false);
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
   const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false);
+  const [interfaceSettingsOpen, setInterfaceSettingsOpen] = useState(false);
+  const [uiPreferences, setUiPreferences] = useState<UiPreferences>(DEFAULT_UI_PREFERENCES);
   const [expandedPatternId, setExpandedPatternId] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(18);
   const [editorOpen, setEditorOpen] = useState(false);
@@ -563,8 +569,10 @@ export default function MetronomeApp() {
   const audioRef = useRef<AudioContext | null>(null);
   const stylePickerTriggerRef = useRef<HTMLButtonElement | null>(null);
   const filterPanelTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const interfaceSettingsTriggerRef = useRef<HTMLButtonElement | null>(null);
   const stylePickerCloseRef = useRef<HTMLButtonElement | null>(null);
   const filterPanelCloseRef = useRef<HTMLButtonElement | null>(null);
+  const interfaceSettingsCloseRef = useRef<HTMLButtonElement | null>(null);
   const schedulerRef = useRef<number | null>(null);
   const visualTimersRef = useRef<Set<number>>(new Set());
   const scheduledSourcesRef = useRef<Set<AudioScheduledSourceNode>>(new Set());
@@ -640,6 +648,14 @@ export default function MetronomeApp() {
   const audioFeedbackRenderFrameRef = useRef<number | null>(null);
   const expectedAudioHitCounterRef = useRef(0);
   const updateRegistrationRef = useRef<ServiceWorkerRegistration | null>(null);
+
+  useUiLocalization(uiPreferences.language);
+
+  useEffect(() => {
+    const previousFontSize = document.documentElement.style.fontSize;
+    document.documentElement.style.fontSize = `${uiPreferences.scale}%`;
+    return () => { document.documentElement.style.fontSize = previousFontSize; };
+  }, [uiPreferences.scale]);
 
   useEffect(() => { meterRef.current = meter; }, [meter]);
   useEffect(() => { subdivisionRef.current = subdivision; }, [subdivision]);
@@ -749,7 +765,8 @@ export default function MetronomeApp() {
       readStore<LastSessionSnapshot | null>("lastSessionSnapshot", null),
       readStore<number>("dataSchemaVersion", 1),
       readStore<AudioFeedbackConfig>("audioFeedbackConfig", { latencyMs: 0, latencySource: "estimated" }),
-    ]).then(([savedFavorites, savedPresets, savedRecent, savedPractice, savedScenes, savedResults, savedSnapshot, savedSchema, savedAudioFeedback]) => {
+      readStore<UiPreferences>("uiPreferences", DEFAULT_UI_PREFERENCES),
+    ]).then(([savedFavorites, savedPresets, savedRecent, savedPractice, savedScenes, savedResults, savedSnapshot, savedSchema, savedAudioFeedback, savedUiPreferences]) => {
       setFavorites(Array.isArray(savedFavorites) ? savedFavorites : []);
       setPresets(Array.isArray(savedPresets) ? savedPresets.filter((item) => item?.id?.startsWith("custom-") && item.drumTracks) : []);
       setRecent(Array.isArray(savedRecent) ? savedRecent : []);
@@ -768,6 +785,7 @@ export default function MetronomeApp() {
       audioInputDeviceIdRef.current = nextFeedbackConfig.deviceId || "";
       setAudioFeedbackConfig(nextFeedbackConfig);
       setAudioInputDeviceId(nextFeedbackConfig.deviceId || "");
+      setUiPreferences(normalizeUiPreferences(savedUiPreferences));
       if (savedSchema < DATA_SCHEMA_VERSION) {
         void Promise.all([
           persistStore("scenes", nextScenes),
@@ -823,6 +841,20 @@ export default function MetronomeApp() {
     setToast(message);
     window.setTimeout(() => setToast(""), 2200);
   }, []);
+
+  const updateUiPreferences = useCallback((patch: Partial<UiPreferences>) => {
+    setUiPreferences((current) => {
+      const next = normalizeUiPreferences({ ...current, ...patch });
+      void persistStore("uiPreferences", next);
+      return next;
+    });
+  }, [persistStore]);
+
+  const resetUiPreferences = useCallback(() => {
+    setUiPreferences(DEFAULT_UI_PREFERENCES);
+    void persistStore("uiPreferences", DEFAULT_UI_PREFERENCES);
+    showToast(uiPreferences.language === "de" ? "Interface zurückgesetzt" : "Interface reset");
+  }, [persistStore, showToast, uiPreferences.language]);
 
   const setPlaybackPhase = useCallback((next: PlaybackPhase) => {
     phaseRef.current = next;
@@ -2306,6 +2338,23 @@ export default function MetronomeApp() {
     return () => { document.body.style.overflow = previousOverflow; window.removeEventListener("keydown", closePanel); returnFocusTo?.focus(); };
   }, [stylePickerOpen, filterPanelOpen]);
 
+  useEffect(() => {
+    if (!interfaceSettingsOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    const returnFocusTo = interfaceSettingsTriggerRef.current;
+    const closePanel = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setInterfaceSettingsOpen(false);
+    };
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", closePanel);
+    interfaceSettingsCloseRef.current?.focus();
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closePanel);
+      returnFocusTo?.focus();
+    };
+  }, [interfaceSettingsOpen]);
+
   const resetControls = () => {
     volumeRef.current = 72; soundRef.current = "707"; swingRef.current = 50; timerMinutesRef.current = 0;
     voiceVolumesRef.current = { ...DEFAULT_VOICE_VOLUMES };
@@ -2413,7 +2462,7 @@ export default function MetronomeApp() {
   }, [phase, saveLastSnapshot]);
 
   return (
-    <main className="app-shell">
+    <main className={`app-shell ui-theme-${uiPreferences.theme} ui-density-${uiPreferences.density} ${uiPreferences.texture ? "ui-texture" : "ui-texture-off"} ${uiPreferences.highContrast ? "ui-high-contrast" : ""} ${uiPreferences.beatGlow ? "ui-beat-glow" : ""} ${uiPreferences.reduceMotion ? "ui-reduce-motion" : ""}`}>
       <div className="app-content">
       <div className="page">
         <header className="app-titlebar">
@@ -2435,19 +2484,22 @@ export default function MetronomeApp() {
               ["free", "Frei"], ["timing", "5m Timing"], ["groove", "10m Groove"], ["speed", "Pyramide"],
             ] as Array<[SessionKind, string]>).map(([kind, title]) => <button key={kind} className={sessionKind === kind ? "active" : ""} aria-pressed={sessionKind === kind} onClick={() => chooseSession(kind)}>{title}</button>)}
           </div>
-          <button className={`status-pill ${pwaStatus}`} onClick={pwaStatus === "update" ? applyUpdate : installPrompt ? installApp : undefined} title={pwaLabel} aria-label={pwaLabel}><span className="status-dot" /><span>{installPrompt && pwaStatus === "ready" ? "Installieren" : pwaLabel}</span></button>
+          <div className="practice-actions">
+            <button ref={interfaceSettingsTriggerRef} className={`interface-settings-trigger ${interfaceSettingsOpen ? "active" : ""}`} onClick={() => { setStylePickerOpen(false); setFilterPanelOpen(false); setInterfaceSettingsOpen(true); }} aria-haspopup="dialog" aria-expanded={interfaceSettingsOpen} aria-controls="interface-settings-title" aria-label={uiPreferences.language === "de" ? "Interface-Einstellungen öffnen" : "Open interface settings"}><InterfaceIcon name="settings" /><span>{uiPreferences.language === "de" ? "Interface" : "Interface"}</span></button>
+            <button className={`status-pill ${pwaStatus}`} onClick={pwaStatus === "update" ? applyUpdate : installPrompt ? installApp : undefined} title={pwaLabel} aria-label={pwaLabel}><span className="status-dot" /><span>{installPrompt && pwaStatus === "ready" ? "Installieren" : pwaLabel}</span></button>
+          </div>
         </section>
-        <section className="coach-deck" aria-label="Dein Übecoach">
+        {uiPreferences.showCoach && <section className="coach-deck" aria-label="Dein Übecoach">
           {lastSnapshot && <article className="continue-card">
-            <div><small>Weiterüben</small><strong>{lastSnapshot.scene.name} · {lastSnapshot.scene.bpm} BPM · {drumKitLabel(lastSnapshot.scene.kit)}</strong><span>{new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "short" }).format(new Date(lastSnapshot.savedAt))} · {Math.max(1, Math.round(lastSnapshot.activeSeconds / 60))} Min. · {lastSnapshot.currentStage || "Originalform"}</span></div>
+            <div><small>Weiterüben</small><strong>{lastSnapshot.scene.name} · {lastSnapshot.scene.bpm} BPM · {drumKitLabel(lastSnapshot.scene.kit)}</strong><span>{new Intl.DateTimeFormat(localeFor(uiPreferences.language), { dateStyle: "medium", timeStyle: "short" }).format(new Date(lastSnapshot.savedAt))} · {Math.max(1, Math.round(lastSnapshot.activeSeconds / 60))} Min. · {lastSnapshot.currentStage || "Originalform"}</span></div>
             <div className="coach-actions"><button className="primary" onClick={() => resumeSnapshot(false)}>▶ Exakt fortsetzen</button><button onClick={() => resumeSnapshot(true)}>Neu beginnen</button><button onClick={() => resumeSnapshot(false, 3)}>+3 BPM</button></div>
           </article>}
           <article className="daily-card">
             <div className="coach-card-head"><div><small>Heute für dich</small><strong>10 Minuten · lokal zusammengestellt</strong></div><span>Warm-up · Fokus · Neu · Internal Time</span></div>
             <div className="daily-list">{recommendations.map(({ pattern, reason }, index) => <button key={pattern.id} onClick={() => loadPattern(pattern)}><b>{index + 1}</b><span><strong>{pattern.name}</strong><small>{index === 0 ? "2 Min." : index === 1 ? "4 Min." : "2 Min."} · {reason}</small></span></button>)}</div>
           </article>
-          <article className="offline-card"><small>Offline-Stand</small><strong>{offlineStatus.appReady ? "App bereit" : "App wird geprüft"}</strong><span>{offlineStatus.availableKits} von {offlineStatus.totalKits} Kits verfügbar</span>{offlineStatus.availableKits < offlineStatus.totalKits && <button onClick={cacheAllKits} disabled={offlineDownloadPending}>{offlineDownloadPending ? "Wird gespeichert …" : `Alle Kits offline · ${(offlineStatus.totalAudioBytes / 1024 / 1024).toLocaleString("de-DE", { maximumFractionDigits: 2 })} MB`}</button>}</article>
-        </section>
+          <article className="offline-card"><small>Offline-Stand</small><strong>{offlineStatus.appReady ? "App bereit" : "App wird geprüft"}</strong><span>{offlineStatus.availableKits} von {offlineStatus.totalKits} Kits verfügbar</span>{offlineStatus.availableKits < offlineStatus.totalKits && <button onClick={cacheAllKits} disabled={offlineDownloadPending}>{offlineDownloadPending ? "Wird gespeichert …" : `Alle Kits offline · ${(offlineStatus.totalAudioBytes / 1024 / 1024).toLocaleString(localeFor(uiPreferences.language), { maximumFractionDigits: 2 })} MB`}</button>}</article>
+        </section>}
         <section className="workspace" aria-label="Drum-Groove-Trainer">
           <div className="panel metronome-panel">
             <div className="meter-head">
@@ -2460,14 +2512,14 @@ export default function MetronomeApp() {
               <div className="session-progress" aria-live="polite"><span>{sessionBars} Takte</span><span>{timerText === "∞" ? "freie Session" : `${timerText} verbleibend`}</span></div>
               <div className="ladder-control"><label htmlFor="ladder-stage">Lernleiter</label><select id="ladder-stage" value={currentStage} onChange={(event) => selectLadderStage(event.target.value)}>{ladderStages.map((stage) => <option key={stage.id} value={stage.id}>{stage.label} · {stage.description}</option>)}</select><button onClick={() => void saveCurrentScene()}>Scene speichern</button></div>
             </div>
-            <div className="tempo-toolbar" aria-label="Tempo">
+            <div className={`tempo-toolbar ${uiPreferences.showSpectrum ? "" : "without-spectrum"}`} aria-label="Tempo">
               <button className="play-button tempo-play" onClick={togglePlayback} aria-label={isPlaying ? "Wiedergabe stoppen" : "Abspielen"} aria-pressed={isPlaying}>{isPlaying ? "Ⅱ" : "▶"}</button>
               <button className="tap-compact" onClick={tapTempo}>TAP</button>
               <button className="nudge" onClick={() => updateBpm(bpmRef.current - 1)} aria-label="Tempo um eins verringern">−</button>
               <label className="bpm-compact"><input type="number" min="20" max="300" value={bpm} onChange={(event) => updateBpm(Number(event.target.value))} aria-label="Tempo in BPM" /><span>BPM</span></label>
               <button className="nudge" onClick={() => updateBpm(bpmRef.current + 1)} aria-label="Tempo um eins erhöhen">+</button>
               <input className="tempo-range" type="range" min="20" max="300" value={bpm} onChange={(event) => updateBpm(Number(event.target.value))} aria-label="Tempo-Regler" />
-              <FftSpectrum analyserRef={analyserRef} active={isPlaying} />
+              {uiPreferences.showSpectrum && <FftSpectrum analyserRef={analyserRef} active={isPlaying} />}
             </div>
 
             <div className="beat-strip">
@@ -2714,12 +2766,13 @@ export default function MetronomeApp() {
           <div className="mine-block"><div className="mine-block-head"><h3>Zuletzt verwendet</h3><span>{recent.length}</span></div><div className="compact-cards">{recent.length ? recent.map((pattern) => <button key={pattern.id} onClick={() => loadPattern(pattern)}><small>{pattern.category}</small><strong>{pattern.name}</strong><span>{pattern.meter} · {pattern.subdivision}</span></button>) : <p>Deine zuletzt geladenen Grooves erscheinen hier.</p>}</div></div>
           <div className="mine-block"><div className="mine-block-head"><h3>Scenes</h3><span>{scenes.length}</span></div><div className="preset-manager">{scenes.length ? scenes.map((scene) => <article key={scene.id}><div><small>{practiceModeLabel(scene.practiceMode || { type: "normal" })}</small><strong>{scene.name}</strong><span>{scene.bpm} BPM · {drumKitLabel(scene.kit)} · Swing {Math.round((scene.swing - 50) * 2)}%</span></div><div><button onClick={() => loadScene(scene)}>Komplett laden</button><button onClick={() => loadScene(scene, true)}>Nur Pattern</button><button onClick={() => void duplicateScene(scene)}>Duplizieren</button><button className="danger" onClick={() => void deleteSceneById(scene.id)}>Löschen</button></div></article>) : <button className="empty-preset" onClick={() => void saveCurrentScene()}>＋ Aktuelle Scene speichern</button>}</div></div>
           <div className="mine-block"><div className="mine-block-head"><h3>Eigene Patterns</h3><span>{presets.length}</span></div><div className="preset-manager">{presets.length ? presets.map((preset) => <article key={preset.id}><div><small>{preset.category}</small><strong>{preset.name}</strong><span>{preset.meter} · {preset.subdivision} · {preset.bpmMin} BPM</span></div><div><button onClick={() => loadPattern(preset)}>Laden</button><button onClick={(event) => openEditor(preset, event.currentTarget)}>Bearbeiten</button><button className="danger" onClick={() => void deletePresetById(preset.id)}>Löschen</button></div></article>) : <button className="empty-preset" onClick={(event) => openEditor(undefined, event.currentTarget)}>＋ Erstes Pattern bauen</button>}</div></div>
-          <div className="mine-block"><div className="mine-block-head"><h3>Übungsverlauf</h3><span>{practiceHistory.length}</span></div><div className="history-list">{practiceHistory.slice(0, 20).map((entry) => <div key={entry.id}><strong>{entry.sceneName}</strong><span>{Math.max(1, Math.round(entry.activeSeconds / 60))} Min. aktiv · {entry.barsCompleted} Takte · {entry.bpmStart}{entry.bpmEnd !== entry.bpmStart ? ` → ${entry.bpmEnd}` : ""} BPM{entry.selfRating ? ` · ${entry.selfRating}` : ""}</span><time dateTime={entry.completedAt}>{new Intl.DateTimeFormat("de-DE", { dateStyle: "medium" }).format(new Date(entry.completedAt))}</time></div>)}</div></div>
+          <div className="mine-block"><div className="mine-block-head"><h3>Übungsverlauf</h3><span>{practiceHistory.length}</span></div><div className="history-list">{practiceHistory.slice(0, 20).map((entry) => <div key={entry.id}><strong>{entry.sceneName}</strong><span>{Math.max(1, Math.round(entry.activeSeconds / 60))} Min. aktiv · {entry.barsCompleted} Takte · {entry.bpmStart}{entry.bpmEnd !== entry.bpmStart ? ` → ${entry.bpmEnd}` : ""} BPM{entry.selfRating ? ` · ${entry.selfRating}` : ""}</span><time dateTime={entry.completedAt}>{new Intl.DateTimeFormat(localeFor(uiPreferences.language), { dateStyle: "medium" }).format(new Date(entry.completedAt))}</time></div>)}</div></div>
           <div className="local-data-note"><div><strong>Privat und lokal</strong><span>Keine Aufnahme, kein Konto, keine Telemetrie.</span></div><button className="danger" onClick={() => { if (window.confirm("Alle Favoriten, Scenes und Übungsverläufe auf diesem Gerät löschen?")) void clearAllLocalData(); }}>Lokale Daten löschen</button></div>
         </section>
 
         <footer className="footer"><span>drumgrid · Sample- &amp; Synthese-Kits</span><span>Installierbar · Offline · Kompakt · Präzise</span></footer>
       </div>
+      {uiPreferences.floatingTransport && <FloatingTransport language={uiPreferences.language} dock={uiPreferences.transportDock} isPlaying={isPlaying} bpm={bpm} patternName={patternName} onToggle={togglePlayback} onNudge={(delta) => updateBpm(bpmRef.current + delta)} />}
       <nav className="mobile-nav" aria-label="Mobile Hauptnavigation">
         <button className={`mobile-destination mobile-trainer ${section === "trainer" ? "active" : ""}`} aria-current={section === "trainer" ? "page" : undefined} onClick={() => navigateTo("trainer")}><MobileNavIcon name="practice" /><span className="mobile-nav-label">Üben</span></button>
         <button className={`mobile-destination mobile-library ${section === "library" ? "active" : ""}`} aria-current={section === "library" ? "page" : undefined} onClick={() => navigateTo("library")}><MobileNavIcon name="library" /><span className="mobile-nav-label">Patterns</span></button>
@@ -2727,6 +2780,7 @@ export default function MetronomeApp() {
         <button className={`mobile-destination mobile-mine ${section === "mine" ? "active" : ""}`} aria-current={section === "mine" ? "page" : undefined} onClick={() => navigateTo("mine")}><MobileNavIcon name="mine" /><span className="mobile-nav-label">Meine</span></button>
       </nav>
       </div>
+      {interfaceSettingsOpen && <SettingsOverlay preferences={uiPreferences} closeRef={interfaceSettingsCloseRef} onChange={updateUiPreferences} onReset={resetUiPreferences} onClose={() => setInterfaceSettingsOpen(false)} />}
       {toast && <div className="toast" role="status">{toast}</div>}
       {storageError && <div className="storage-alert" role="alert"><span>{storageError}</span><button onClick={() => setStorageError("")}>×</button></div>}
     </main>

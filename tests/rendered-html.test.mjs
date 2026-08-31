@@ -94,6 +94,25 @@ test("uses drumgrid consistently across product, package and install metadata", 
   assert.doesNotMatch([app, layout, page, readme].join("\n"), /Klangmaß|KLANGMASS/);
 });
 
+test("ships a persistent bilingual interface studio and optional desktop transport", async () => {
+  const response = await render();
+  const html = await response.text();
+  const app = await readFile(new URL("../app/metronome-app.tsx", import.meta.url), "utf8");
+  const preferences = await readFile(new URL("../app/ui-preferences.tsx", import.meta.url), "utf8");
+  const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+  assert.match(html, /Interface-Einstellungen öffnen/);
+  assert.match(app, /readStore<UiPreferences>\("uiPreferences"/);
+  assert.match(app, /FloatingTransport/);
+  for (const theme of ["signal", "ultraviolet", "ember", "glacier", "mono"]) {
+    assert.match(preferences, new RegExp(`id: "${theme}"`));
+    assert.match(css, new RegExp(`ui-theme-${theme}|theme-${theme}`));
+  }
+  assert.match(preferences, /Deutsch/);
+  assert.match(preferences, /English/);
+  assert.match(preferences, /useUiLocalization/);
+  assert.match(css, /\.floating-transport/);
+});
+
 test("ships a drum-only v2 library with 200 complete patterns", async () => {
   const library = await readLibrary();
   assert.equal(library.version, 2);
@@ -476,7 +495,7 @@ test("uses a readable workstation hierarchy with sequencer priority", async () =
   assert.match(styles, /\.pattern-grid \{[^}]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/);
   assert.match(styles, /\.session-context \{[^}]*grid-template-columns: minmax\(0, 1fr\) auto/);
   assert.match(source, /gridTemplateColumns: `82px repeat\(\$\{steps\.length\}, minmax\(24px, 1fr\)\)`/);
-  assert.match(source, /className="tempo-toolbar"[\s\S]{0,240}className="play-button tempo-play"[\s\S]{0,240}className="tap-compact"/);
+  assert.match(source, /tempo-toolbar[\s\S]{0,300}className="play-button tempo-play"[\s\S]{0,240}className="tap-compact"/);
   assert.match(styles, /\.tempo-play\s*\{[^}]*width:\s*60px;[^}]*height:\s*64px/s);
   assert.match(styles, /@media \(max-width:\s*700px\)[\s\S]*?\.tempo-play\s*\{\s*display:\s*none;/);
   for (const className of ["settings-meter", "settings-subdivision", "settings-swing"]) {
