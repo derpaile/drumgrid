@@ -1,6 +1,7 @@
 {
-  "version": 1,
-  "buildRevision": "d6a6368738345d00",
+  "version": 2,
+  "buildRevision": "d72820bedc12d090",
+  "sourceRevision": "e5005172336f4be83f6d49e66562ff1145892f5e6bd1fa059540be06fd8d3a7b",
   "catalogPath": "/data/patterns-v2.466506c5e736.json",
   "catalogRevision": "466506c5e73601867908fe55b81b2bde539257d760140182800b5a51bbbfed59",
   "assets": [
@@ -741,8 +742,8 @@
     },
     {
       "path": "/sw.js",
-      "revision": "5cdc4d2ce2c8cf7c25b1f540cacd4ebe68285af69a610a79d0919184eaa28cd5",
-      "size": 7916,
+      "revision": "1f1b31c1bf158aedb31c65635d003484a9019e66883605de13f96170906fe1e9",
+      "size": 8171,
       "scope": "app"
     },
     {
@@ -753,7 +754,7 @@
     },
     {
       "path": "/",
-      "revision": "466506c5e7360186",
+      "revision": "e5005172336f4be83f6d49e66562ff1145892f5e6bd1fa059540be06fd8d3a7b",
       "size": 0,
       "scope": "app"
     }

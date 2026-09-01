@@ -553,7 +553,8 @@ test("keeps the mobile transport large, icon-based and clear of the iOS home ind
   assert.match(source, /<MobileNavIcon name="settings" \/><span className="mobile-nav-label">Setup<\/span>/);
   assert.doesNotMatch(source.slice(source.indexOf('<nav className="mobile-nav"'), source.indexOf('</nav>', source.indexOf('<nav className="mobile-nav"'))), /[●⌕♥▶Ⅱ]/);
   assert.match(styles, /\.mobile-nav\s*\{[^}]*bottom:\s*calc\(12px \+ env\(safe-area-inset-bottom\)\)/s);
-  assert.match(styles, /\.mobile-nav \.mobile-play\s*\{[^}]*width:\s*78px;[^}]*height:\s*78px/s);
+  assert.match(styles, /\.mobile-nav\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\) 72px repeat\(2, minmax\(0, 1fr\)\)/s);
+  assert.match(styles, /\.mobile-nav \.mobile-play\s*\{[^}]*width:\s*72px;[^}]*height:\s*78px/s);
 });
 
 test("keeps eleven recorded kits and adds a complete procedural precision kit", async () => {
@@ -601,6 +602,9 @@ test("includes complete PWA assets", async () => {
   assert.match(serviceWorker, /pending-manifest/);
   assert.match(serviceWorker, /active-manifest/);
   assert.match(serviceWorker, /verifiedResponse/);
+  assert.match(serviceWorker, /^const SOURCE_REVISION = "[a-f0-9]{64}";$/m);
+  assert.equal(assets.sourceRevision, serviceWorker.match(/^const SOURCE_REVISION = "([a-f0-9]{64})";$/m)?.[1]);
+  assert.equal(assets.assets.find((asset) => asset.path === "/")?.revision, assets.sourceRevision);
   assert.match(serviceWorker, /if \(hash !== asset\.revision\) throw/);
   assert.match(serviceWorker, /if \(!pending\) throw/);
   assert.match(serviceWorker, /drumgrid-/);

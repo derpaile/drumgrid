@@ -1,3 +1,4 @@
+const SOURCE_REVISION = "e5005172336f4be83f6d49e66562ff1145892f5e6bd1fa059540be06fd8d3a7b";
 const PREFIX = "drumgrid-";
 const LEGACY_PREFIXES = ["klangmass-"];
 const META_CACHE = `${PREFIX}meta`;
@@ -12,7 +13,9 @@ const cacheNames = (revision) => ({
 async function fetchManifest() {
   const response = await fetch("/asset-manifest.json", { cache: "no-store" });
   if (!response.ok) throw new Error("Asset-Manifest nicht erreichbar");
-  return response.json();
+  const manifest = await response.json();
+  if (manifest.sourceRevision !== SOURCE_REVISION) throw new Error("App und Service Worker haben unterschiedliche Revisionen");
+  return manifest;
 }
 
 async function storedManifest() {

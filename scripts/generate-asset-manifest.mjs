@@ -5,6 +5,7 @@ import { basename, join, relative, sep } from "node:path";
 const publicDir = new URL("../public/", import.meta.url);
 const dataDir = new URL("../public/data/", import.meta.url);
 const catalogSource = new URL("../public/data/patterns-v1.json", import.meta.url);
+const serviceWorkerSource = new URL("../public/sw.js", import.meta.url);
 const digest = (buffer) => createHash("sha256").update(buffer).digest("hex");
 
 async function filesBelow(directory) {
@@ -16,6 +17,28 @@ async function filesBelow(directory) {
   }
   return output;
 }
+
+const sourceFiles = [
+  ...await filesBelow(new URL("../app/", import.meta.url).pathname),
+  ...await filesBelow(new URL("../worker/", import.meta.url).pathname),
+  new URL("../next.config.ts", import.meta.url).pathname,
+  new URL("../package.json", import.meta.url).pathname,
+  new URL("../package-lock.json", import.meta.url).pathname,
+  new URL("../postcss.config.mjs", import.meta.url).pathname,
+  new URL("../tsconfig.json", import.meta.url).pathname,
+  new URL("../vite.config.ts", import.meta.url).pathname,
+].sort();
+const sourceRevision = digest(Buffer.from((await Promise.all(sourceFiles.map(async (path) =>
+  `${relative(new URL("../", import.meta.url).pathname, path)}:${digest(await readFile(path))}`,
+))).join("\n")));
+const serviceWorker = await readFile(serviceWorkerSource, "utf8");
+if (!/^const SOURCE_REVISION = "[a-f0-9]{64}";$/m.test(serviceWorker)) {
+  throw new Error("Service Worker enthält keine gültige SOURCE_REVISION");
+}
+await writeFile(serviceWorkerSource, serviceWorker.replace(
+  /^const SOURCE_REVISION = "[a-f0-9]{64}";$/m,
+  `const SOURCE_REVISION = "${sourceRevision}";`,
+));
 
 await mkdir(dataDir, { recursive: true });
 const catalog = await readFile(catalogSource);
@@ -41,11 +64,15 @@ for (const path of staticFiles) {
   });
 }
 assets.push({ path: `/data/${catalogName}`, revision: catalogRevision, size: catalog.byteLength, scope: "catalog" });
-assets.push({ path: "/", revision: catalogRevision.slice(0, 16), size: 0, scope: "app" });
-const buildRevision = digest(Buffer.from(assets.map((asset) => `${asset.path}:${asset.revision}`).join("\n"))).slice(0, 16);
+assets.push({ path: "/", revision: sourceRevision, size: 0, scope: "app" });
+const buildRevision = digest(Buffer.from([
+  `source:${sourceRevision}`,
+  ...assets.map((asset) => `${asset.path}:${asset.revision}`),
+].join("\n"))).slice(0, 16);
 const manifest = {
-  version: 1,
+  version: 2,
   buildRevision,
+  sourceRevision,
   catalogPath: `/data/${catalogName}`,
   catalogRevision,
   assets,

@@ -740,7 +740,8 @@ export default function MetronomeApp() {
     window.addEventListener("focus", focusHandler);
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.addEventListener("message", serviceWorkerMessage);
-      navigator.serviceWorker.register("/sw.js").then(async (registration) => {
+      navigator.serviceWorker.register("/sw.js", { updateViaCache: "none" }).then(async (registration) => {
+        await registration.update();
         if (registration.waiting) {
           updateRegistrationRef.current = registration;
           setPwaStatus("update");
