@@ -90,6 +90,14 @@ const matchesStyleSelection = (pattern: Pattern, selection: string) => selection
   || pattern.category === selection;
 const matchesSearchQuery = (pattern: Pattern, query: string) => !query || `${pattern.name} ${pattern.category} ${pattern.patternType || "Groove"} ${pattern.instruction} ${learningGoalsFor(pattern).join(" ")}`.toLocaleLowerCase("de").includes(query);
 
+const TEXT_INPUT_TYPES = new Set(["email", "password", "search", "tel", "text", "url"]);
+const isTextEntryTarget = (target: EventTarget | null) => target instanceof HTMLElement && (
+  target.isContentEditable
+  || target.closest('[role="textbox"]') !== null
+  || target instanceof HTMLTextAreaElement
+  || (target instanceof HTMLInputElement && TEXT_INPUT_TYPES.has(target.type))
+);
+
 function MobileNavIcon({ name }: { name: MobileNavIconName }) {
   const paths: Record<MobileNavIconName, React.ReactNode> = {
     practice: <><path d="M8.5 20h7M9.5 20l1.2-13h2.6l1.2 13M10.4 10h3.2" /><path d="m12 13 3.2-2.2" /></>,
@@ -1676,15 +1684,20 @@ export default function MetronomeApp() {
 
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
+      if (event.code === "Space") {
+        if (isTextEntryTarget(event.target)) return;
+        event.preventDefault();
+        if (!event.repeat) togglePlayback();
+        return;
+      }
       const target = event.target as HTMLElement | null;
       if (target?.matches("button, a, input, select, textarea, [contenteditable='true']")) return;
-      if (event.code === "Space") { event.preventDefault(); togglePlayback(); }
-      else if (event.key.toLocaleLowerCase("de") === "t") registerTap(performance.now());
+      if (event.key.toLocaleLowerCase("de") === "t") registerTap(performance.now());
       else if (event.key === "+" || event.key === "=") updateBpm(bpmRef.current + 1);
       else if (event.key === "-") updateBpm(bpmRef.current - 1);
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    window.addEventListener("keydown", handler, { capture: true });
+    return () => window.removeEventListener("keydown", handler, { capture: true });
   }, [registerTap, togglePlayback, updateBpm]);
 
   useEffect(() => {
