@@ -38,6 +38,9 @@ export type Scene = {
   bpm: number;
   kit: DrumKit;
   voiceVolumes: Record<DrumVoice, number>;
+  volume?: number;
+  timerMinutes?: number;
+  repeatBars?: number;
   swing: number;
   feelAmount: number;
   trainer?: TrainerConfig;
@@ -160,6 +163,9 @@ export function createScene(
     bpm: settings?.bpm ?? playback.bpm ?? Math.round((pattern.bpmMin + pattern.bpmMax) / 2),
     kit: settings?.kit ?? playback.kit ?? "Studio",
     voiceVolumes,
+    volume: settings?.volume ?? 72,
+    timerMinutes: settings?.timerMinutes ?? playback.timerMinutes ?? 0,
+    repeatBars: settings?.repeatBars ?? playback.repeatBars ?? 0,
     swing: settings?.swing ?? playback.swing ?? 50,
     feelAmount: settings?.feelAmount ?? 0,
     trainer: settings?.trainer ?? playback.trainer,

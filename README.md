@@ -52,6 +52,10 @@ The library covers groove vocabulary from jazz, funk and hip-hop to metal, jungl
 
 ## Interface
 
+The drumset-first practice deck puts the tempo, grouped beat pulse and wide start/stop pad first. Three destinations — Practice, Patterns and Collection — share the same uninterrupted playback state. Sound and practice settings open in accessible sheets with an always-available stop action. Tap the BPM display for numeric entry, or hold +/− for controlled repeat.
+
+The pattern overview is read-only. The separate editor shows four large steps at a time on phones, with explicit hit selection and undo; desktop retains the full multi-voice grid. The playlist includes favorites/recent filters, and a persistent player remains available while browsing. Focus and landscape layouts support practice at the kit. Existing scenes remain compatible; newly saved scenes also retain master volume, timer and repeat settings.
+
 The control-surface menu separates visual preferences from musical settings. Choose between Signal, Ultraviolet, Ember, Glacier and Mono; adjust UI scale and density; hide the coach or spectrum; and place the floating play/pause transport on the left, center or right of the desktop.
 
 Keyboard controls:

@@ -472,7 +472,6 @@ test("previews library patterns in place and defaults the workstation to the 707
 
 test("applies pattern editor changes to live playback immediately", async () => {
   const source = await readFile(new URL("../app/metronome-app.tsx", import.meta.url), "utf8");
-  const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
   const start = source.indexOf("const applyEditorPattern =");
   const end = source.indexOf("const loadPattern =", start);
   assert.ok(start >= 0 && end > start, "live editor update block was not found");
@@ -488,17 +487,14 @@ test("applies pattern editor changes to live playback immediately", async () => 
   assert.match(source, /className="inline-editor"/);
   assert.match(source, /aria-expanded=\{editorOpen\}/);
   assert.match(source, /Beim Speichern bleiben Pattern, Kit, Tempo und Training gemeinsam als Scene erhalten/);
-  const inlineEditorStart = source.indexOf('{editorOpen ? <section id="inline-pattern-editor"');
-  const inlineEditorEnd = source.indexOf('</section> : activeDrumEntries.length', inlineEditorStart);
-  assert.ok(inlineEditorStart >= 0 && inlineEditorEnd > inlineEditorStart, "inline editor markup was not found");
-  assert.doesNotMatch(source.slice(inlineEditorStart, inlineEditorEnd), /aria-modal|role="dialog"/);
-  assert.doesNotMatch(source, /modal-backdrop/);
-  assert.doesNotMatch(styles, /\.modal-backdrop|\.modal\s*\{/);
+  assert.match(source, /editorOpen && <div className="editor-view"/);
+  assert.match(source, /className="mobile-pattern-editor"/);
+  assert.match(source, /selectedHit \?\? cycleDrumHit/);
   const saveStart = source.indexOf("const savePreset =");
   const saveEnd = source.indexOf("const deletePresetById =", saveStart);
   assert.doesNotMatch(source.slice(saveStart, saveEnd), /closeEditor\(\)/, "saving should not end live editing");
   const subdivisionStart = source.indexOf("const changeSubdivision =");
-  const subdivisionEnd = source.indexOf("const updateStep =", subdivisionStart);
+  const subdivisionEnd = source.indexOf("const applyEditorPattern =", subdivisionStart);
   assert.match(source.slice(subdivisionStart, subdivisionEnd), /if \(editorOpen\)[\s\S]*setEditorSteps\(\[\.\.\.nextSteps\]\)/, "grid changes must resize the open editor");
 });
 
@@ -512,23 +508,17 @@ test("supports a simple volume control for every drum voice", async () => {
   assert.match(styles, /\.voice-volume-input\s*\{/);
 });
 
-test("uses a readable workstation hierarchy with sequencer priority", async () => {
+test("renders the practice deck before secondary information and keeps preview read-only", async () => {
+  const html = await (await render()).text();
   const source = await readFile(new URL("../app/metronome-app.tsx", import.meta.url), "utf8");
-  const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
-  assert.match(styles, /\.workspace \{[^}]*grid-template-columns: minmax\(0, 1fr\)/);
-  assert.match(styles, /\.controls-panel \{[^}]*grid-template-columns: repeat\(10, minmax\(0, 1fr\)\)/);
-  assert.match(styles, /\.page \{[^}]*width: min\(1540px, calc\(100% - 24px\)\)/);
-  assert.match(styles, /--font-micro: \.72rem/);
-  assert.match(styles, /--font-body: \.96rem/);
-  assert.match(styles, /\.pattern-grid \{[^}]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/);
-  assert.match(styles, /\.session-context \{[^}]*grid-template-columns: minmax\(0, 1fr\) auto/);
-  assert.match(source, /gridTemplateColumns: `82px repeat\(\$\{steps\.length\}, minmax\(24px, 1fr\)\)`/);
-  assert.match(source, /tempo-toolbar[\s\S]{0,300}className="play-button tempo-play"[\s\S]{0,240}className="tap-compact"/);
-  assert.match(styles, /\.tempo-play\s*\{[^}]*width:\s*60px;[^}]*height:\s*64px/s);
-  assert.match(styles, /@media \(max-width:\s*700px\)[\s\S]*?\.tempo-play\s*\{\s*display:\s*none;/);
-  for (const className of ["settings-meter", "settings-subdivision", "settings-swing"]) {
-    assert.match(source, new RegExp(`control-group settings-cell ${className}`));
-  }
+  assert.ok(html.indexOf('class="tempo-display"') < html.indexOf('class="pattern-overview"'));
+  assert.match(html, /class="start-pad /);
+  assert.match(html, /id="bibliothek" hidden/);
+  assert.match(html, /id="meine-grooves" hidden/);
+  assert.doesNotMatch(html, /class="coach-deck"/);
+  const preview = source.slice(source.indexOf('<details className="pattern-overview"'), source.indexOf('</details>', source.indexOf('<details className="pattern-overview"')));
+  assert.doesNotMatch(preview, /onClick|type="range"/);
+  assert.match(source, /hidden=\{section !== "library" \|\| editorOpen\}/);
 });
 
 test("separates the main workstation areas with one coherent colorway", async () => {
@@ -543,18 +533,19 @@ test("separates the main workstation areas with one coherent colorway", async ()
   assert.match(styles, /\.mine-section\s*\{[^}]*var\(--mine-accent\)/s);
 });
 
-test("keeps the mobile transport large, icon-based and clear of the iOS home indicator", async () => {
-  const source = await readFile(new URL("../app/metronome-app.tsx", import.meta.url), "utf8");
-  const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
-  assert.match(source, /function MobileNavIcon/);
-  assert.match(source, /className={`mobile-play \$\{isPlaying \? "playing" : ""\}`}/);
-  assert.match(source, /<MobileNavIcon name=\{isPlaying \? "stop" : "play"\}/);
-  assert.match(source, /className={`mobile-destination mobile-settings \$\{interfaceSettingsOpen \? "active" : ""\}`}/);
-  assert.match(source, /<MobileNavIcon name="settings" \/><span className="mobile-nav-label">Setup<\/span>/);
-  assert.doesNotMatch(source.slice(source.indexOf('<nav className="mobile-nav"'), source.indexOf('</nav>', source.indexOf('<nav className="mobile-nav"'))), /[●⌕♥▶Ⅱ]/);
-  assert.match(styles, /\.mobile-nav\s*\{[^}]*bottom:\s*calc\(12px \+ env\(safe-area-inset-bottom\)\)/s);
-  assert.match(styles, /\.mobile-nav\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\) 72px repeat\(2, minmax\(0, 1fr\)\)/s);
-  assert.match(styles, /\.mobile-nav \.mobile-play\s*\{[^}]*width:\s*72px;[^}]*height:\s*78px/s);
+test("separates persistent transport from three navigation destinations", async () => {
+  const html = await (await render()).text();
+  const nav = html.slice(html.indexOf('<nav class="mobile-nav"'), html.indexOf('</nav>', html.indexOf('<nav class="mobile-nav"')));
+  assert.equal((nav.match(/<button/g) || []).length, 3);
+  assert.match(nav, /Sammlung/);
+  assert.doesNotMatch(nav, /Wiedergabe|Setup/);
+  const component = await readFile(new URL("../app/practice-ui.tsx", import.meta.url), "utf8");
+  assert.match(component, /showModal/);
+  assert.match(component, /onPointerCancel/);
+  assert.match(component, /onLostPointerCapture/);
+  const styles = await readFile(new URL("../app/practice.css", import.meta.url), "utf8");
+  assert.match(styles, /safe-area-inset-bottom/);
+  assert.match(styles, /\.start-pad \{[^}]*min-height: 96px/);
 });
 
 test("keeps eleven recorded kits and adds a complete procedural precision kit", async () => {
@@ -622,7 +613,7 @@ test("uses one scene and practice-result model across the local learning loop", 
   assert.match(model, /migrateLegacyPresets/);
   assert.match(model, /migrateLegacyPractice/);
   assert.match(app, /Heute für dich/);
-  assert.match(app, /Exakt fortsetzen/);
+  assert.match(app, /Weiterüben/);
   assert.match(app, /Session abgeschlossen/);
   assert.match(app, /Gap Click 3\/1/);
   assert.match(app, /Stimme ausblenden/);
@@ -637,7 +628,7 @@ test("captures microphone transients for calibrated live timing feedback", async
   assert.match(app, /navigator\.mediaDevices\.getUserMedia/);
   assert.match(app, /audioWorklet\.addModule\("\/audio-onset-processor\.js"\)/);
   assert.match(app, /Bluetooth-Latenz messen/);
-  assert.match(app, /className="drum-lane feedback-lane"/);
+  assert.match(app, /className="deck-feedback"/);
   assert.match(app, /TAKT-TIMELINE/);
   assert.match(app, /Drum-Hits \+ Transienten/);
   assert.match(app, /\(\[8, 16\] as const\)/);

@@ -46,6 +46,39 @@ const THEMES: Array<{ id: UiTheme; name: string; de: string; en: string }> = [
 ];
 
 const TRANSLATIONS: Array<[string, string]> = [
+  ["Offline hier nicht verfügbar", "Offline unavailable here"],
+  ["Alle Kits offline speichern", "Save all kits offline"],
+  ["Takt & Spielweise", "Meter & feel"],
+  ["Hinweise & Lernstufe", "Guide & learning stage"],
+  ["Mikrofon & Timing", "Microphone & timing"],
+  ["Schnellwahl nach Übungsziel", "Shortcuts by practice goal"],
+  ["Datenverwaltung", "Data management"],
+  ["Herkunft", "Source"],
+  ["Lernziele", "Practice goals"],
+  ["Sammlung", "Collection"],
+  ["Wechseln", "Change"],
+  ["Freies Üben", "Free practice"],
+  ["Fokus beenden", "Exit focus"],
+  ["Fokus", "Focus"],
+  ["Übung", "Practice"],
+  ["Fertig", "Done"],
+  ["Klang", "Sound"],
+  ["Pattern ansehen", "View pattern"],
+  ["Zurück zum Üben", "Back to practice"],
+  ["Schlag setzen", "Set hit"],
+  ["Abschnitt", "Section"],
+  ["Instrument leeren", "Clear instrument"],
+  ["Tempo übernehmen", "Apply tempo"],
+  ["Eingabe öffnen", "Open input"],
+  ["Mixer · einzelne Instrumente", "Mixer · individual instruments"],
+  ["Stumm", "Mute"],
+  ["Zuletzt", "Recent"],
+  ["Laden & üben", "Load & practice"],
+  ["Wiedergabe zuerst stoppen", "Stop playback first"],
+  ["Noch keine Treffer", "No hits yet"],
+  ["Übungseinstellungen zurücksetzen", "Reset practice settings"],
+  ["Du spielst", "Your turn"],
+
   ["Lokale Änderungen konnten nicht gespeichert werden. Exportiere deine Presets zur Sicherheit.", "Local changes could not be saved. Export your presets to be safe."],
   ["Alle Favoriten, Scenes und Übungsverläufe auf diesem Gerät löschen?", "Delete all favorites, scenes and practice history on this device?"],
   ["Änderungen wirken sofort. Beim Speichern bleiben Pattern, Kit, Tempo und Training gemeinsam als Scene erhalten.", "Changes apply instantly. Saving keeps pattern, kit, tempo and training together as a scene."],
@@ -94,7 +127,7 @@ const TRANSLATIONS: Array<[string, string]> = [
   ["verbleibend", "remaining"],
   ["Takte", "bars"],
   ["Schritte", "steps"],
-  ["Wiedergabe stoppen", "Pause playback"],
+  ["Wiedergabe stoppen", "Stop playback"],
   ["Wiedergabe starten", "Start playback"],
   ["Tempo um eins verringern", "Decrease tempo by one"],
   ["Tempo um eins erhöhen", "Increase tempo by one"],
@@ -363,8 +396,9 @@ function ToggleSetting({ checked, title, description, onChange }: { checked: boo
 }
 
 export function SettingsOverlay({
-  preferences, closeRef, onChange, onReset, onClose,
+  preferences, closeRef, onChange, onReset, onClose, embedded = false,
 }: {
+  embedded?: boolean;
   preferences: UiPreferences;
   closeRef: React.RefObject<HTMLButtonElement | null>;
   onChange: (patch: Partial<UiPreferences>) => void;
@@ -372,9 +406,9 @@ export function SettingsOverlay({
   onClose: () => void;
 }) {
   const t = (de: string, en: string) => preferences.language === "de" ? de : en;
-  return <div className="interface-settings-layer">
+  return <div className={`interface-settings-layer ${embedded ? "embedded-settings" : ""}`}>
     <button className="interface-settings-backdrop" tabIndex={-1} onClick={onClose} aria-label={t("Interface-Einstellungen schließen", "Close interface settings")} />
-    <section className="interface-settings-dialog" role="dialog" aria-modal="true" aria-labelledby="interface-settings-title">
+    <section className="interface-settings-dialog" role={embedded ? undefined : "dialog"} aria-modal={embedded ? undefined : true} aria-labelledby="interface-settings-title">
       <header>
         <div className="settings-heading-mark" aria-hidden="true"><i /><i /><i /><i /><i /><i /></div>
         <div><small>CONTROL SURFACE</small><h2 id="interface-settings-title">{t("Interface Studio", "Interface studio")}</h2><p>{t("Mach drumgrid zu deinem Instrument.", "Make drumgrid feel like your instrument.")}</p></div>
@@ -415,8 +449,8 @@ export function SettingsOverlay({
           <section className="interface-setting-group">
             <div className="interface-group-title"><span>04</span><div><h3>{t("Fokus", "Focus")}</h3><p>{t("Bestimme, wie viel Kontext du beim Spielen siehst.", "Choose how much context surrounds your playing.")}</p></div></div>
             <div className="ui-toggle-grid">
-              <ToggleSetting checked={preferences.showCoach} title={t("Übecoach", "Practice coach")} description={t("Tagesplan und Offline-Status", "Daily plan and offline status")} onChange={(showCoach) => onChange({ showCoach })} />
-              <ToggleSetting checked={preferences.showSpectrum} title={t("Spektrum", "Spectrum")} description={t("Live-Audioanzeige im Tempo-Bereich", "Live audio view in the tempo area")} onChange={(showSpectrum) => onChange({ showSpectrum })} />
+              <ToggleSetting checked={preferences.showCoach} title={t("Übecoach", "Practice coach")} description={t("Empfehlungen im Übungsbereich", "Recommendations in practice settings")} onChange={(showCoach) => onChange({ showCoach })} />
+              <ToggleSetting checked={preferences.showSpectrum} title={t("Spektrum", "Spectrum")} description={t("Audioanzeige in der Patternvorschau", "Audio display in the pattern overview")} onChange={(showSpectrum) => onChange({ showSpectrum })} />
             </div>
           </section>
 
