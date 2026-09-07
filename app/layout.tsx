@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import globalStyles from "./globals.css?inline";
-import practiceStyles from "./practice.css?inline";
 
 export async function generateMetadata(): Promise<Metadata> {
   const configuredOrigin = process.env.NEXT_PUBLIC_SITE_URL;
@@ -37,7 +36,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="de">
-      <head><style dangerouslySetInnerHTML={{ __html: globalStyles + practiceStyles }} /></head>
+      <head><style dangerouslySetInnerHTML={{ __html: globalStyles }} /></head>
       <body>{children}</body>
     </html>
   );
