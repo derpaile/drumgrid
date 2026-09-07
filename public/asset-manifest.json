@@ -1,9 +1,9 @@
 {
   "version": 2,
-  "buildRevision": "57324b48f00a0850",
-  "sourceRevision": "ffea4837ea8dd29b8472895b14e3b18b225e85d5c6f2b6d564fd252c8874b1dc",
-  "catalogPath": "/data/patterns-v2.466506c5e736.json",
-  "catalogRevision": "466506c5e73601867908fe55b81b2bde539257d760140182800b5a51bbbfed59",
+  "buildRevision": "67491e5c97ea9eb6",
+  "sourceRevision": "e86f93c67451cb066eabd42ceb1553683d31e9293b4acf2d8c419ca030c91782",
+  "catalogPath": "/data/patterns-v2.2dc8c635e3cc.json",
+  "catalogRevision": "2dc8c635e3cc644510879f5619e10b45557e15178ad0720b7660fdca74b44252",
   "assets": [
     {
       "path": "/audio/drums/707/closed-hat.mp3",
@@ -706,8 +706,8 @@
     },
     {
       "path": "/data/patterns-v1.json",
-      "revision": "466506c5e73601867908fe55b81b2bde539257d760140182800b5a51bbbfed59",
-      "size": 1298830,
+      "revision": "2dc8c635e3cc644510879f5619e10b45557e15178ad0720b7660fdca74b44252",
+      "size": 1601460,
       "scope": "catalog"
     },
     {
@@ -724,7 +724,7 @@
     },
     {
       "path": "/manifest.webmanifest",
-      "revision": "eeed6cd28b4712ba7b2d1568bc86504ca14fd7da4644d335a179c27c32569097",
+      "revision": "04f766e3af8c8b9e2d3347085a93b75eabb6fc41fece50b6b5f55e0e7027957c",
       "size": 596,
       "scope": "app"
     },
@@ -742,19 +742,19 @@
     },
     {
       "path": "/sw.js",
-      "revision": "ad5b1eb0bd50ca277f3f425b1ba8972509619f6783c84e754814e7895d0811b3",
+      "revision": "fc792140246c43dee9016866b8094b6e743d2b586e9dd396feec6e9eaadbadea",
       "size": 8171,
       "scope": "app"
     },
     {
-      "path": "/data/patterns-v2.466506c5e736.json",
-      "revision": "466506c5e73601867908fe55b81b2bde539257d760140182800b5a51bbbfed59",
-      "size": 1298830,
+      "path": "/data/patterns-v2.2dc8c635e3cc.json",
+      "revision": "2dc8c635e3cc644510879f5619e10b45557e15178ad0720b7660fdca74b44252",
+      "size": 1601460,
       "scope": "catalog"
     },
     {
       "path": "/",
-      "revision": "ffea4837ea8dd29b8472895b14e3b18b225e85d5c6f2b6d564fd252c8874b1dc",
+      "revision": "e86f93c67451cb066eabd42ceb1553683d31e9293b4acf2d8c419ca030c91782",
       "size": 0,
       "scope": "app"
     }

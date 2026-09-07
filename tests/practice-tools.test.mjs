@@ -44,9 +44,9 @@ test("bar copy and lane shift preserve originals and exclusive hats", () => {
 test("Radiohead variants group into 86 songs without losing search matches", async () => {
   const { patterns } = JSON.parse(await readFile(new URL("../public/data/patterns-v1.json", import.meta.url), "utf8"));
   const grouped = groupPatterns(patterns);
-  assert.equal(grouped.length, 286);
+  assert.equal(grouped.length, 375);
   assert.equal(grouped.filter(g => g.name.startsWith("Radiohead — ")).length, 86);
-  assert.equal(grouped.reduce((n, g) => n + g.variants.length, 0), 402);
+  assert.equal(grouped.reduce((n, g) => n + g.variants.length, 0), 491);
   const song = grouped.find(g => g.name === "Radiohead — 15 Step");
   assert.equal(song.variants.length, 3);
   assert.ok(variantDifference(song.variants[0], song.variants[1]).includes("snare"));

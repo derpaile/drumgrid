@@ -4,6 +4,8 @@ import { readFile, readdir, stat } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { REVIEWED_SONG_APP_IDS, REVIEWED_SONG_STATUSES } from "../scripts/reviewed-song-catalog.mjs";
+import { ARTIST_GROOVE_EXPANSION_2 } from "../scripts/artist-groove-expansion-2.mjs";
+import { ARTIST_GROOVE_EXPANSION_3 } from "../scripts/artist-groove-expansion-3.mjs";
 
 const FACTOR = { Viertel: 1, Achtel: 2, "16tel": 4, Triolen: 3, Sextolen: 6 };
 const HIT_STATES = new Set(["mute", "ghost", "normal", "accent"]);
@@ -113,11 +115,11 @@ test("ships a persistent bilingual interface studio and optional desktop transpo
   assert.match(css, /\.floating-transport/);
 });
 
-test("ships a drum-only v2 library with 402 complete patterns", async () => {
+test("ships a drum-only v2 library with 491 complete patterns", async () => {
   const library = await readLibrary();
   assert.equal(library.version, 2);
-  assert.equal(library.count, 402);
-  assert.equal(library.patterns.length, 402);
+  assert.equal(library.count, 491);
+  assert.equal(library.patterns.length, 491);
   const ids = new Set();
   const names = new Set();
   const musicalSignatures = new Set();
@@ -352,6 +354,59 @@ test("includes the broad jazz, roots, progressive, global and club expansion", a
   assert.deepEqual(patterns.get("drum-djent-eleven-eight-stop-start").grouping, [3, 3, 3, 2]);
   assert.equal(patterns.get("drum-jazz-waltz").meter, "3/4");
   assert.equal(patterns.get("drum-son-clave-32").bars, 2);
+});
+
+test("includes the multi-artist groove expansion", async () => {
+  const library = await readLibrary();
+  const patterns = indexedPatterns(library);
+  const artistStudies = library.patterns.filter((pattern) => [
+    "drum-beatles-rain", "drum-talking-heads-and-she-was", "drum-tears-for-fears-rule-world", "drum-fleetwood-go-your-own-way",
+    "drum-u2-sunday-bloody-sunday", "drum-foo-fighters-breakout", "drum-smashing-pumpkins-tonight", "drum-cure-friday-in-love",
+    "drum-prince-purple-rain", "drum-police-walking-moon", "drum-rush-tom-sawyer", "drum-porcupine-sound-muzak",
+    "drum-tool-the-pot", "drum-motorhead-overkill", "drum-muse-stockholm", "drum-deftones-my-own-summer",
+    "drum-living-colour-love-rears", "drum-rhcp-give-it-away", "drum-james-brown-payback", "drum-meters-look-ka-py-py",
+    "drum-herbie-chameleon", "drum-ray-charles-whatd-i-say", "drum-steely-dan-aja", "drum-brubeck-unsquare-dance",
+    "drum-bob-marley-get-up", "drum-fela-water-no-enemy", "drum-paul-simon-obvious-child", "drum-tito-puente-oye-como-va",
+    "drum-new-order-blue-monday", "drum-marvin-sexual-healing", "drum-phil-collins-in-air", "drum-depeche-personal-jesus",
+    "drum-daft-punk-around-world", "drum-kraftwerk-robots", "drum-johnny-cash-folsom", "drum-stones-honky-tonk", "drum-billy-cobham-stratus",
+  ].includes(pattern.id));
+  assert.equal(artistStudies.length, 37);
+  assert.ok(artistStudies.every((pattern) => pattern.source?.url), "an artist study lacks its source");
+  assert.ok(artistStudies.every((pattern) => /Reduktion/i.test(pattern.attribution)), "an artist study overstates transcription accuracy");
+  for (const id of ["drum-porcupine-sound-muzak", "drum-fela-water-no-enemy", "drum-new-order-blue-monday", "drum-johnny-cash-folsom"]) assert.ok(patterns.has(id));
+  assert.equal(patterns.get("drum-rush-tom-sawyer").meter, "7/8");
+  assert.equal(patterns.get("drum-porcupine-sound-muzak").meter, "7/4");
+});
+
+test("includes the second multi-artist groove expansion", async () => {
+  const patterns = indexedPatterns(await readLibrary());
+  assert.equal(ARTIST_GROOVE_EXPANSION_2.length, 32);
+  for (const source of ARTIST_GROOVE_EXPANSION_2) {
+    const pattern = patterns.get(source.id);
+    assert.ok(pattern, `missing second artist study ${source.id}`);
+    assert.ok(pattern.source?.url, `${source.id} lacks its source`);
+    assert.match(pattern.attribution, /Reduktion/i, `${source.id} overstates transcription accuracy`);
+  }
+  assert.equal(patterns.get("drum-mahavishnu-dance-maya").meter, "5/4");
+  assert.equal(patterns.get("drum-soundgarden-spoonman").meter, "7/4");
+  assert.equal(patterns.get("drum-king-crimson-frame").meter, "13/8");
+});
+
+test("includes the Limp Bizkit, Porcupine Tree and Steven Wilson collection", async () => {
+  const patterns = indexedPatterns(await readLibrary());
+  assert.equal(ARTIST_GROOVE_EXPANSION_3.length, 20);
+  for (const source of ARTIST_GROOVE_EXPANSION_3) {
+    const pattern = patterns.get(source.id);
+    assert.ok(pattern, `missing focused artist study ${source.id}`);
+    assert.ok(pattern.source?.url, `${source.id} lacks its source`);
+    assert.match(pattern.attribution, /Reduktion/i, `${source.id} overstates transcription accuracy`);
+  }
+  assert.equal(ARTIST_GROOVE_EXPANSION_3.filter((pattern) => pattern.name.startsWith("Limp Bizkit — ")).length, 7);
+  assert.equal(ARTIST_GROOVE_EXPANSION_3.filter((pattern) => pattern.name.startsWith("Porcupine Tree — ")).length, 7);
+  assert.equal(ARTIST_GROOVE_EXPANSION_3.filter((pattern) => pattern.name.startsWith("Steven Wilson — ")).length, 6);
+  assert.equal(patterns.get("drum-porcupine-harridan").meter, "7/4");
+  assert.equal(patterns.get("drum-wilson-home-invasion").meter, "7/8");
+  assert.equal(patterns.get("drum-porcupine-start-beautiful").meter, "9/8");
 });
 
 test("keeps the signature drum exercises musically consistent", async () => {
@@ -601,7 +656,7 @@ test("includes complete PWA assets", async () => {
   assert.equal(assets.assets.filter((asset) => asset.scope === "audio").length, 99);
   assert.ok(assets.assets.every((asset) => /^[a-f0-9]{16,64}$/.test(asset.revision) && asset.size >= 0));
   const revisedCatalog = JSON.parse(await readFile(new URL(`../public${assets.catalogPath}`, import.meta.url), "utf8"));
-  assert.equal(revisedCatalog.count, 402, "a cached library must update to the current catalog");
+  assert.equal(revisedCatalog.count, 491, "a cached library must update to the current catalog");
   assert.match(serviceWorker, /caches\.open/);
   assert.match(serviceWorker, /request\.mode === "navigate"/);
   assert.match(serviceWorker, /CACHE_RUNTIME/);

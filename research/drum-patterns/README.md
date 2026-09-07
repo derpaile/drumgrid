@@ -2,7 +2,10 @@
 
 ## Ergebnis
 
-- `../../public/data/patterns-v1.json`: 402 App-Patterns; darunter 202 Radiohead-Groovevarianten aus 86 Songs, alle 23 zuvor geprüften Song-Rekonstruktionen und -Reduktionen, 22 Trip-Hop- und Hip-Hop-Presets, elf kostenlose MIDI-basierte Funk-/DnB-Ergänzungen und 109 eigenständige Stilübungen.
+- `../../public/data/patterns-v1.json`: 491 App-Patterns; darunter 202 Radiohead-Groovevarianten aus 86 Songs, 89 zusätzliche quellenmarkierte Künstlerstudien, alle 23 zuvor geprüften Song-Rekonstruktionen und -Reduktionen, 22 Trip-Hop- und Hip-Hop-Presets, elf kostenlose MIDI-basierte Funk-/DnB-Ergänzungen und 109 eigenständige Stilübungen.
+- `../../scripts/artist-groove-expansion.mjs`: 37 didaktische Reduktionen aus Rock, New Wave, Funk, Jazz/Fusion, Reggae, Afrobeat, Latin, Country und elektronischer Musik; jede Karte nennt ihre Unterrichtsquelle.
+- `../../scripts/artist-groove-expansion-2.mjs`: 32 weitere Reduktionen mit Schwerpunkt Neo-Soul/Hip-Hop, elektronische Breakbeats, Jazz/Fusion, Reggae, Afro-Latin und Progressive/Heavy.
+- `../../scripts/artist-groove-expansion-3.mjs`: sieben Übungsreduktionen für Limp Bizkit, sieben für Porcupine Tree und sechs für Steven Wilson.
 - `generated/style-expansion-v1.json`: 74 neue, eigenständige Übungen: Jazz/Roots (24), Progressive/Heavy (22), globale Rhythmen (18) und Clubmusik (10).
 - `generated/reviewed-drum-patterns-v1.json`: 54 eindeutige, geprüfte Patterns.
 - `generated/radiohead-grooves-v1.json`: 202 wiederkehrende, quantisierte MIDI-Groovevarianten; alle neun Studioalbum-Phasen sind abgedeckt.

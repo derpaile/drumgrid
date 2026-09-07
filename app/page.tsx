@@ -3,7 +3,7 @@ import MetronomeApp from "./metronome-app";
 
 export const metadata: Metadata = {
   description:
-    "200 Drum-Grooves, adaptive Sessions, Lernleitern, Gap Click und vollständige Scenes — privat, präzise und offline.",
+    "491 Drum-Grooves, adaptive Sessions, Lernleitern, Gap Click und vollständige Scenes — privat, präzise und offline.",
 };
 
 export default function Home() {

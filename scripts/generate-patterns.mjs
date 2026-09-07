@@ -4,6 +4,9 @@ import {
   REVIEWED_SONG_APP_OVERRIDES,
   REVIEWED_SONG_STATUSES,
 } from "./reviewed-song-catalog.mjs";
+import { ARTIST_GROOVE_EXPANSION } from "./artist-groove-expansion.mjs";
+import { ARTIST_GROOVE_EXPANSION_2 } from "./artist-groove-expansion-2.mjs";
+import { ARTIST_GROOVE_EXPANSION_3 } from "./artist-groove-expansion-3.mjs";
 
 const styleExpansion = JSON.parse(await readFile(new URL("../research/drum-patterns/generated/style-expansion-v1.json", import.meta.url), "utf8"));
 const reviewedCatalog = JSON.parse(await readFile(new URL("../research/drum-patterns/generated/reviewed-drum-patterns-v1.json", import.meta.url), "utf8"));
@@ -596,6 +599,9 @@ for (const pattern of reviewedSongPatterns) {
 
 exercises.push(...styleExpansion.patterns.map(expansionExercise));
 exercises.push(...radioheadCatalog.patterns.map(expansionExercise));
+exercises.push(...ARTIST_GROOVE_EXPANSION);
+exercises.push(...ARTIST_GROOVE_EXPANSION_2);
+exercises.push(...ARTIST_GROOVE_EXPANSION_3);
 
 function parseMeter(meter) {
   const [beats, denominator] = meter.split("/").map(Number);
@@ -670,7 +676,7 @@ const patterns = exercises.map((entry) => {
 });
 
 const target = new URL("../public/data/patterns-v1.json", import.meta.url);
-const output = `${JSON.stringify({ version: 2, updated: "2026-08-31", count: patterns.length, patterns }, null, 2)}\n`;
+const output = `${JSON.stringify({ version: 2, updated: "2026-09-07", count: patterns.length, patterns }, null, 2)}\n`;
 
 if (process.argv.includes("--check")) {
   const current = await readFile(target, "utf8");
