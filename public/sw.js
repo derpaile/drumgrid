@@ -1,4 +1,4 @@
-const SOURCE_REVISION = "e5005172336f4be83f6d49e66562ff1145892f5e6bd1fa059540be06fd8d3a7b";
+const SOURCE_REVISION = "7f3ed0be50562e4abfe3ce198c403b1088072403885b5661b5e42377b6c0117e";
 const PREFIX = "drumgrid-";
 const LEGACY_PREFIXES = ["klangmass-"];
 const META_CACHE = `${PREFIX}meta`;

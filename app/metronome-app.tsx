@@ -738,7 +738,7 @@ export default function MetronomeApp() {
     window.addEventListener("pagehide", pageHideHandler);
     window.addEventListener("pageshow", pageShowHandler);
     window.addEventListener("focus", focusHandler);
-    if ("serviceWorker" in navigator) {
+    if (process.env.NODE_ENV !== "development" && "serviceWorker" in navigator) {
       navigator.serviceWorker.addEventListener("message", serviceWorkerMessage);
       navigator.serviceWorker.register("/sw.js", { updateViaCache: "none" }).then(async (registration) => {
         await registration.update();
@@ -765,7 +765,26 @@ export default function MetronomeApp() {
         ready.active?.postMessage({ type: "CACHE_RUNTIME", paths: [...new Set(runtimePaths)] });
         ready.active?.postMessage({ type: "CACHE_KIT", paths: drumKitOfflinePaths(soundRef.current) });
       }).catch(() => setPwaStatus("error"));
-    } else queueMicrotask(() => setPwaStatus("error"));
+    } else {
+      queueMicrotask(() => setPwaStatus("error"));
+      if (process.env.NODE_ENV === "development") {
+        const clearDevelopmentCaches = async () => {
+          if ("serviceWorker" in navigator) {
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(registrations.map((registration) => registration.unregister()));
+          }
+          if ("caches" in window) {
+            const keys = await caches.keys();
+            await Promise.all(keys.filter((key) => key.startsWith("drumgrid-") || key.startsWith("klangmass-")).map((key) => caches.delete(key)));
+          }
+          if (navigator.serviceWorker?.controller && !sessionStorage.getItem("drumgrid-dev-cache-cleared")) {
+            sessionStorage.setItem("drumgrid-dev-cache-cleared", "1");
+            window.location.reload();
+          }
+        };
+        void clearDevelopmentCaches();
+      }
+    }
     Promise.all([
       readStore<string[]>("favorites", []),
       readStore<Pattern[]>("presets", []),
