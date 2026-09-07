@@ -390,14 +390,14 @@ export function getAudioFeedbackSessionMetrics(session: AudioFeedbackSession): A
 }
 
 /** Returns detached arrays suitable for React state, persistence, or a session recap. */
-export function snapshotAudioFeedbackSession(session: AudioFeedbackSession): AudioFeedbackAnalysis {
+export function snapshotAudioFeedbackSession(session: AudioFeedbackSession, recentLimit?: number): AudioFeedbackAnalysis {
   requireSession(session);
-  const matched = [...session.matched].sort((left, right) => left.expected.timeMs - right.expected.timeMs);
-  const missed = [...session.missed].sort((left, right) => left.expected.timeMs - right.expected.timeMs);
+  const matched = (recentLimit ? session.matched.slice(-recentLimit) : [...session.matched]).sort((left, right) => left.expected.timeMs - right.expected.timeMs);
+  const missed = (recentLimit ? session.missed.slice(-recentLimit) : [...session.missed]).sort((left, right) => left.expected.timeMs - right.expected.timeMs);
   return {
     matched,
     missed,
-    extra: [...session.extra],
+    extra: recentLimit ? session.extra.slice(-recentLimit) : [...session.extra],
     pending: [...session.pending],
     overall: calculateAudioFeedbackMetrics(matched, missed),
     byVoice: calculateMetricsByVoice(matched, missed),

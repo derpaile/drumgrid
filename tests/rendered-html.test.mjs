@@ -465,8 +465,12 @@ test("previews library patterns in place and defaults the workstation to the 707
   assert.match(source, /setSound\("707"\)/);
   assert.match(loadPattern, /focusTrainer = true/);
   assert.match(loadPattern, /if \(focusTrainer\) \{[\s\S]*setSection\("trainer"\);[\s\S]*window\.scrollTo/);
-  assert.match(source, /loadPattern\(pattern, true, false\)\}>Anhören/);
-  assert.match(source, /className={`pattern-card \$\{patternId === pattern\.id \? "loaded" : ""\}`}/);
+  const preview = await readFile(new URL("../app/pattern-preview.ts", import.meta.url), "utf8");
+  const cards = await readFile(new URL("../app/pattern-cards.tsx", import.meta.url), "utf8");
+  assert.match(source, /audition\.play\(pattern, volumeRef\.current\)/);
+  assert.match(preview, /new AudioContext/);
+  assert.doesNotMatch(preview, /persistStore|setBpm|setPatternId/);
+  assert.match(cards, /loadedId === pattern\.id/);
   assert.match(styles, /\.pattern-card\.loaded\s*\{/);
 });
 
@@ -489,7 +493,7 @@ test("applies pattern editor changes to live playback immediately", async () => 
   assert.match(source, /aria-expanded=\{editorOpen\}/);
   assert.match(source, /Beim Speichern bleiben Pattern, Kit, Tempo und Training gemeinsam als Scene erhalten/);
   const inlineEditorStart = source.indexOf('{editorOpen ? <section id="inline-pattern-editor"');
-  const inlineEditorEnd = source.indexOf('</section> : activeDrumEntries.length', inlineEditorStart);
+  const inlineEditorEnd = source.indexOf('</section> : <PracticeGrid', inlineEditorStart);
   assert.ok(inlineEditorStart >= 0 && inlineEditorEnd > inlineEditorStart, "inline editor markup was not found");
   assert.doesNotMatch(source.slice(inlineEditorStart, inlineEditorEnd), /aria-modal|role="dialog"/);
   assert.doesNotMatch(source, /modal-backdrop/);
@@ -498,7 +502,7 @@ test("applies pattern editor changes to live playback immediately", async () => 
   const saveEnd = source.indexOf("const deletePresetById =", saveStart);
   assert.doesNotMatch(source.slice(saveStart, saveEnd), /closeEditor\(\)/, "saving should not end live editing");
   const subdivisionStart = source.indexOf("const changeSubdivision =");
-  const subdivisionEnd = source.indexOf("const updateStep =", subdivisionStart);
+  const subdivisionEnd = source.indexOf("const updateDrumHit =", subdivisionStart);
   assert.match(source.slice(subdivisionStart, subdivisionEnd), /if \(editorOpen\)[\s\S]*setEditorSteps\(\[\.\.\.nextSteps\]\)/, "grid changes must resize the open editor");
 });
 
@@ -507,7 +511,8 @@ test("supports a simple volume control for every drum voice", async () => {
   const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
   assert.match(source, /const DEFAULT_VOICE_VOLUMES: Record<DrumVoice, number>/);
   assert.match(source, /voiceVolumesRef\.current\[voice\] \/ 100/);
-  assert.match(source, /className="voice-volume-input" type="range" min="0" max="100" step="5"/);
+  const grid = await readFile(new URL("../app/practice-grid.tsx", import.meta.url), "utf8");
+  assert.match(grid, /className="voice-volume-input" type="range" min="0" max="100" step="5"/);
   assert.match(source, /setVoiceVolumes\(\{ \.\.\.DEFAULT_VOICE_VOLUMES \}\)/);
   assert.match(styles, /\.voice-volume-input\s*\{/);
 });
@@ -522,7 +527,9 @@ test("uses a readable workstation hierarchy with sequencer priority", async () =
   assert.match(styles, /--font-body: \.96rem/);
   assert.match(styles, /\.pattern-grid \{[^}]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/);
   assert.match(styles, /\.session-context \{[^}]*grid-template-columns: minmax\(0, 1fr\) auto/);
-  assert.match(source, /gridTemplateColumns: `82px repeat\(\$\{steps\.length\}, minmax\(24px, 1fr\)\)`/);
+  const grid = await readFile(new URL("../app/practice-grid.tsx", import.meta.url), "utf8");
+  assert.match(grid, /countStep/);
+  assert.match(grid, /count-ruler/);
   assert.match(source, /tempo-toolbar[\s\S]{0,300}className="play-button tempo-play"[\s\S]{0,240}className="tap-compact"/);
   assert.match(styles, /\.tempo-play\s*\{[^}]*width:\s*60px;[^}]*height:\s*64px/s);
   assert.match(styles, /@media \(max-width:\s*700px\)[\s\S]*?\.tempo-play\s*\{\s*display:\s*none;/);
@@ -636,8 +643,8 @@ test("captures microphone transients for calibrated live timing feedback", async
   const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
   assert.match(app, /navigator\.mediaDevices\.getUserMedia/);
   assert.match(app, /audioWorklet\.addModule\("\/audio-onset-processor\.js"\)/);
-  assert.match(app, /Bluetooth-Latenz messen/);
-  assert.match(app, /className="drum-lane feedback-lane"/);
+  assert.match(app, /Latenz messen · etwa 8 Sekunden/);
+  assert.match(app, /LiveFeedback store=\{feedbackStore\}/);
   assert.match(app, /TAKT-TIMELINE/);
   assert.match(app, /Drum-Hits \+ Transienten/);
   assert.match(app, /\(\[8, 16\] as const\)/);

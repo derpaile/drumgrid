@@ -43,6 +43,7 @@ export type Scene = {
   trainer?: TrainerConfig;
   practiceMode?: PracticeModeConfig;
   sourceSceneId?: string;
+  barLoop?: { start: number; end: number };
   createdAt?: string;
 };
 
@@ -165,6 +166,7 @@ export function createScene(
     trainer: settings?.trainer ?? playback.trainer,
     practiceMode: settings?.practiceMode ?? { type: "normal" },
     sourceSceneId: settings?.sourceSceneId,
+    ...(settings?.barLoop ? { barLoop: { ...settings.barLoop } } : {}),
     createdAt: settings?.createdAt || new Date().toISOString(),
   };
 }

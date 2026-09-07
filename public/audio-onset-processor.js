@@ -150,6 +150,9 @@ class AudioOnsetProcessor extends AudioWorkletProcessor {
     this.refractoryUntilFrame = -Infinity;
     this.armed = true;
     this.processedFrames = 0;
+    this.levelFrames = 0;
+    this.levelPeak = 0;
+    this.clipped = false;
   }
 
   resizeChannelState(channelCount) {
@@ -219,7 +222,8 @@ class AudioOnsetProcessor extends AudioWorkletProcessor {
     const confidence = candidate.peakStrength / Math.max(1e-7, candidate.peakThreshold);
     this.port.postMessage({
       type: "onset",
-      contextTime: candidate.peakFrame / sampleRate,
+      contextTime: candidate.startFrame / sampleRate,
+      peakTime: candidate.peakFrame / sampleRate,
       strength: candidate.peakStrength,
       confidence,
       noiseFloor: candidate.noiseFloor,
@@ -277,6 +281,8 @@ class AudioOnsetProcessor extends AudioWorkletProcessor {
 
       for (let channelIndex = 0; channelIndex < channelCount; channelIndex += 1) {
         const currentInput = input[channelIndex][index] || 0;
+        this.levelPeak = Math.max(this.levelPeak, Math.abs(currentInput));
+        if (Math.abs(currentInput) >= .98) this.clipped = true;
         const highpass =
           currentInput -
           this.previousInputs[channelIndex] +
@@ -302,6 +308,11 @@ class AudioOnsetProcessor extends AudioWorkletProcessor {
       this.processedFrames += 1;
     }
 
+    this.levelFrames += frameCount;
+    if (this.levelFrames >= sampleRate * .05) {
+      this.port.postMessage({ type: "level", peak: this.levelPeak, noiseFloor: this.noiseFloor, clipped: this.clipped });
+      this.levelFrames = 0; this.levelPeak = 0; this.clipped = false;
+    }
     return true;
   }
 }

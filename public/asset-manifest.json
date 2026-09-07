@@ -1,7 +1,7 @@
 {
   "version": 2,
-  "buildRevision": "2a73404357be7e4e",
-  "sourceRevision": "7f3ed0be50562e4abfe3ce198c403b1088072403885b5661b5e42377b6c0117e",
+  "buildRevision": "57324b48f00a0850",
+  "sourceRevision": "ffea4837ea8dd29b8472895b14e3b18b225e85d5c6f2b6d564fd252c8874b1dc",
   "catalogPath": "/data/patterns-v2.466506c5e736.json",
   "catalogRevision": "466506c5e73601867908fe55b81b2bde539257d760140182800b5a51bbbfed59",
   "assets": [
@@ -700,8 +700,8 @@
     },
     {
       "path": "/audio-onset-processor.js",
-      "revision": "e3b1cc30cb1d15d33e01f8be6bde444038edd6e8cec5407531f42d9f806c97ee",
-      "size": 9032,
+      "revision": "cb4cf47e07487faf94a34ab6b06ce5ee371b9002e8c8d67348bb071b96dc3a68",
+      "size": 9580,
       "scope": "app"
     },
     {
@@ -742,7 +742,7 @@
     },
     {
       "path": "/sw.js",
-      "revision": "bd710b13142962e082424c190ead6772c137ed340e56ee1e0f62482459692e29",
+      "revision": "ad5b1eb0bd50ca277f3f425b1ba8972509619f6783c84e754814e7895d0811b3",
       "size": 8171,
       "scope": "app"
     },
@@ -754,7 +754,7 @@
     },
     {
       "path": "/",
-      "revision": "7f3ed0be50562e4abfe3ce198c403b1088072403885b5661b5e42377b6c0117e",
+      "revision": "ffea4837ea8dd29b8472895b14e3b18b225e85d5c6f2b6d564fd252c8874b1dc",
       "size": 0,
       "scope": "app"
     }

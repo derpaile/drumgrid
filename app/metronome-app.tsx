@@ -1,9 +1,9 @@
 "use client";
 
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
-  cloneDrumTracks, cycleDrumHit, cycleStep, defaultDrumTracks, defaultGrouping, defaultTempoUnit,
-  DRUM_LABELS, DRUM_VOICES, FALLBACK_PATTERNS, firstValidSubdivision, hasExactGrid, HIT_LABELS,
+  cloneDrumTracks, cycleDrumHit, defaultDrumTracks, defaultGrouping, defaultTempoUnit,
+  DRUM_LABELS, DRUM_VOICES, FALLBACK_PATTERNS, firstValidSubdivision, hasExactGrid,
   learningGoalsFor, mergeDrumTracks, normalizedDrumTracks, normalizedSteps, parseMeter, stepsPerBar,
   PATTERN_CATEGORIES, PATTERN_TYPE_INFO, PATTERN_TYPES, SUBDIVISIONS,
   type DrumHitState, type DrumKit, type DrumTracks, type DrumVoice, type Meter, type Pattern,
@@ -21,13 +21,21 @@ import {
 import {
   APP_VERSION, createScene, dailyRecommendations, DATA_SCHEMA_VERSION, isVoiceAudible, ladderFor,
   matchesLearningFilters, migrateLegacyPractice, migrateLegacyPresets, nextStepFor, practiceModeLabel,
-  SKILLS, skillLabelsFor,
+  SKILLS,
   type LastSessionSnapshot, type LibraryFilters, type PracticeModeConfig, type PracticeResult, type Scene, type TimingResult,
 } from "./practice-model";
 import {
   DEFAULT_UI_PREFERENCES, FloatingTransport, InterfaceIcon, localeFor, normalizeUiPreferences, SettingsOverlay,
   useUiLocalization, type UiPreferences,
 } from "./ui-preferences";
+
+import { createLiveStore, type LiveStore, type PlaybackDisplay } from "./live-store";
+import { LiveProgress, PracticeGrid, type GridView } from "./practice-grid";
+import { PatternCard } from "./pattern-cards";
+import { usePatternPreview } from "./pattern-preview";
+import { copyBar, groupPatterns, loopBounds, nextLoopStep, setTrackHit, shiftLane, type BarLoop } from "./practice-tools";
+import { InputMeter, LiveFeedback, type InputLevel } from "./live-feedback";
+import { measureLatency, type LatencyMeasurement } from "./audio-calibration";
 
 type PlaybackPhase = "stopped" | "starting" | "running" | "lifecycle-paused" | "recovering";
 type SessionCheckpoint = { nextStep: number; bars: number; bpm: number; trainerDirection: 1 | -1 };
@@ -41,9 +49,9 @@ type MidiInputLike = { onmidimessage: ((event: { data: Uint8Array }) => void) | 
 type MidiAccessLike = { inputs: Map<string, MidiInputLike>; onstatechange: (() => void) | null };
 type AudioFeedbackStatus = "idle" | "requesting" | "ready" | "listening" | "denied" | "unsupported" | "error";
 type LatencySource = "estimated" | "calibrated" | "manual";
-type AudioFeedbackConfig = { latencyMs: number; latencySource: LatencySource; deviceId?: string };
+type AudioFeedbackConfig = { latencyMs: number; latencySource: LatencySource; deviceId?: string; measurement?: LatencyMeasurement; measuredAt?: string };
 type AudioInputOption = { deviceId: string; label: string };
-type OnsetWorkletMessage = { type?: string; contextTime?: number; strength?: number; confidence?: number };
+type OnsetWorkletMessage = { type?: string; contextTime?: number; strength?: number; confidence?: number; peak?: number; noiseFloor?: number; clipped?: boolean };
 type AudioSessionType = "playback" | "play-and-record";
 type AudioSessionNavigator = Navigator & { audioSession?: { type: AudioSessionType | "auto" } };
 type LibraryFilterKey = keyof LibraryFilters | "category" | "patternType";
@@ -116,20 +124,6 @@ function setAudioSessionType(type: AudioSessionType) {
   try { session.type = type; } catch { /* Unsupported or restricted WebKit implementation. */ }
 }
 
-function VoiceLaneLabel({
-  voice, volume, onVolumeChange, onClear,
-}: {
-  voice: DrumVoice;
-  volume: number;
-  onVolumeChange: (voice: DrumVoice, value: number) => void;
-  onClear?: () => void;
-}) {
-  return <span className="drum-lane-label voice-lane-label">
-    <span>{DRUM_LABELS[voice]}</span>
-    {onClear && <button onClick={onClear} aria-label={`${DRUM_LABELS[voice]} leeren`}>×</button>}
-    <input className="voice-volume-input" type="range" min="0" max="100" step="5" value={volume} title={`${volume}%`} onChange={(event) => onVolumeChange(voice, Number(event.target.value))} aria-label={`${DRUM_LABELS[voice]} Lautstärke`} />
-  </span>;
-}
 
 function FftSpectrum({ analyserRef, active }: { analyserRef: { current: AnalyserNode | null }; active: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -239,14 +233,16 @@ const medianTiming = (values: readonly number[]) => {
 };
 
 function TimingDiagnostics({
-  analysis, barSteps, stepDurationMs, drumTracks, steps,
+  store, barSteps, stepDurationMs, drumTracks, steps, loop,
 }: {
-  analysis: AudioFeedbackAnalysis | null;
+  store: LiveStore<AudioFeedbackAnalysis | null>;
+  loop?: BarLoop | null;
   barSteps: number;
   stepDurationMs: number;
   drumTracks: DrumTracks | null;
   steps: readonly StepState[];
 }) {
+  const analysis = useSyncExternalStore(store.subscribe, store.get, store.server);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [visibleBars, setVisibleBars] = useState<8 | 16>(8);
   const safeBarSteps = Math.max(1, barSteps);
@@ -335,6 +331,8 @@ function TimingDiagnostics({
       graphics.fillRect(0, 0, plotWidth, plotHeight);
       const stepWidth = TIMING_BAR_WIDTH / safeBarSteps;
       const patternLength = Math.max(1, steps.length);
+      const bounds = loopBounds(loop || null, safeBarSteps, patternLength);
+      const loopLength = Math.max(1, bounds.end - bounds.start);
       const xForGlobalStep = (globalStep: number) => (globalStep - timeline.startBar * safeBarSteps + .5) * stepWidth;
       const classificationColor = (classification: "early" | "on-time" | "late") => classification === "early" ? "#72a8ff" : classification === "late" ? "#ff9c55" : "#30f22a";
 
@@ -417,7 +415,7 @@ function TimingDiagnostics({
       for (let barOffset = 0; barOffset < visibleBars; barOffset += 1) {
         const barIndex = timeline.startBar + barOffset;
         for (let step = 0; step < safeBarSteps; step += 1) {
-          const patternIndex = ((barIndex * safeBarSteps + step) % patternLength + patternLength) % patternLength;
+          const patternIndex = bounds.start + ((barIndex * safeBarSteps + step) % loopLength + loopLength) % loopLength;
           const x = barOffset * TIMING_BAR_WIDTH + (step + .5) * stepWidth;
           voiceGroups.forEach((group, row) => {
             const states = group.voices.map((voice) => drumTracks?.[voice]?.[patternIndex] || (!drumTracks && voice === "rim" ? steps[patternIndex] : "mute"));
@@ -447,7 +445,7 @@ function TimingDiagnostics({
       }
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [drumTracks, plotHeight, plotWidth, safeBarSteps, safeStepDuration, steps, timeline, visibleBars, voiceGroups]);
+  }, [drumTracks, plotHeight, plotWidth, safeBarSteps, safeStepDuration, steps, timeline, visibleBars, voiceGroups, loop]);
 
   const metrics = analysis?.overall;
   const measurementCount = (analysis?.matched.length || 0) + (analysis?.missed.length || 0) + (analysis?.extra.length || 0);
@@ -511,8 +509,17 @@ export default function MetronomeApp() {
   const [patternGoals, setPatternGoals] = useState<string[]>(learningGoalsFor(FALLBACK_PATTERNS[0]));
   const [originalFeel, setOriginalFeel] = useState<OriginalFeel | null>(FALLBACK_PATTERNS[0].originalFeel || null);
   const [feelMode, setFeelMode] = useState<FeelMode>("quantized");
-  const [currentStep, setCurrentStep] = useState(-1);
-  const [sessionBars, setSessionBars] = useState(0);
+  const [clock] = useState(() => createLiveStore<PlaybackDisplay>({ step: -1, bars: 0, timer: "∞" }));
+  const setCurrentStep = useCallback((step: number) => { clock.set({ ...clock.get(), step }); }, [clock]);
+  const setSessionBars = useCallback((bars: number) => { clock.set({ ...clock.get(), bars }); }, [clock]);
+  const setTimerText = useCallback((timer: string) => { if (clock.get().timer !== timer) clock.set({ ...clock.get(), timer }); }, [clock]);
+  const [focusMode, setFocusMode] = useState(false);
+  const [timingDetailsOpen, setTimingDetailsOpen] = useState(false);
+  const [gridView, setGridView] = useState<GridView>("continuous");
+  const [barLoop, setBarLoop] = useState<BarLoop | null>(null);
+  const barLoopRef = useRef<BarLoop | null>(null);
+  const audition = usePatternPreview();
+  const stopPreview = audition.stop;
   const [sessionKind, setSessionKind] = useState<SessionKind>("free");
   const [section, setSection] = useState<AppSection>("trainer");
   const [volume, setVolume] = useState(72);
@@ -522,7 +529,6 @@ export default function MetronomeApp() {
   const [timerMinutes, setTimerMinutes] = useState(0);
   const [repeatBars, setRepeatBars] = useState(0);
   const [sessionExtrasOpen, setSessionExtrasOpen] = useState(false);
-  const [timerText, setTimerText] = useState("∞");
   const [trainer, setTrainer] = useState(false);
   const [trainerStep, setTrainerStep] = useState(5);
   const [trainerEvery, setTrainerEvery] = useState(8);
@@ -548,7 +554,6 @@ export default function MetronomeApp() {
   const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false);
   const [interfaceSettingsOpen, setInterfaceSettingsOpen] = useState(false);
   const [uiPreferences, setUiPreferences] = useState<UiPreferences>(DEFAULT_UI_PREFERENCES);
-  const [expandedPatternId, setExpandedPatternId] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(18);
   const [editorOpen, setEditorOpen] = useState(false);
   const [presetName, setPresetName] = useState("Mein Pattern");
@@ -571,7 +576,23 @@ export default function MetronomeApp() {
   const [audioFeedbackConfig, setAudioFeedbackConfig] = useState<AudioFeedbackConfig>({ latencyMs: 0, latencySource: "estimated" });
   const [audioInputOptions, setAudioInputOptions] = useState<AudioInputOption[]>([]);
   const [audioInputDeviceId, setAudioInputDeviceId] = useState("");
-  const [audioFeedbackAnalysis, setAudioFeedbackAnalysis] = useState<AudioFeedbackAnalysis | null>(null);
+  const [feedbackStore] = useState(() => createLiveStore<AudioFeedbackAnalysis | null>(null));
+  const setAudioFeedbackAnalysis = useCallback((analysis: AudioFeedbackAnalysis | null) => feedbackStore.set(analysis), [feedbackStore]);
+  const [inputStore] = useState(() => createLiveStore<InputLevel>({ peak: 0, noiseFloor: 0, clipped: false, detected: 0 }));
+  const [feedbackTarget, setFeedbackTarget] = useState<DrumVoice | "all">("all");
+  const feedbackTargetRef = useRef<DrumVoice | "all">("all");
+  const [sensitivity, setSensitivity] = useState(50);
+  const sensitivityRef = useRef(50);
+  const [calibrationResult, setCalibrationResult] = useState("");
+  const calibrationAbortRef = useRef<AbortController | null>(null);
+  const monitorRef = useRef<AudioContext | null>(null);
+  const monitorGenerationRef = useRef(0);
+  const monitorNodeRef = useRef<AudioWorkletNode | null>(null);
+  const [editorFuture, setEditorFuture] = useState<DrumTracks[]>([]);
+  const [editorTool, setEditorTool] = useState<DrumHitState | "cycle">("normal");
+  const [copyFrom, setCopyFrom] = useState(1);
+  const [copyTo, setCopyTo] = useState(2);
+  const editorLiveRef = useRef<DrumTracks>({});
   const [calibratingLatency, setCalibratingLatency] = useState(false);
   const [calibrationProgress, setCalibrationProgress] = useState(0);
 
@@ -642,7 +663,6 @@ export default function MetronomeApp() {
   const activeSceneIdRef = useRef("session-initial");
   const activeElapsedMsRef = useRef(0);
   const activeSliceStartedAtRef = useRef(0);
-  const drumGridScrollRef = useRef<HTMLDivElement | null>(null);
   const inlineEditorRef = useRef<HTMLElement | null>(null);
   const editorTriggerRef = useRef<HTMLElement | null>(null);
   const importInputRef = useRef<HTMLInputElement | null>(null);
@@ -659,6 +679,43 @@ export default function MetronomeApp() {
   const expectedAudioHitCounterRef = useRef(0);
   const updateRegistrationRef = useRef<ServiceWorkerRegistration | null>(null);
 
+  const publishInput = useCallback((message: OnsetWorkletMessage) => {
+    const previous = inputStore.get();
+    if (message.type === "level") inputStore.set({ ...previous, peak: message.peak || 0, noiseFloor: message.noiseFloor || 0, clipped: !!message.clipped });
+    else if (message.type === "onset") inputStore.set({ ...previous, detected: previous.detected + 1 });
+  }, [inputStore]);
+  const stopInputMonitor = useCallback(() => {
+    monitorGenerationRef.current++;
+    if (monitorNodeRef.current) monitorNodeRef.current.port.onmessage = null;
+    monitorNodeRef.current = null;
+    const context = monitorRef.current;
+    monitorRef.current = null;
+    if (context && context.state !== "closed") void context.close().catch(() => undefined);
+  }, []);
+  const startInputMonitor = useCallback(async () => {
+    stopInputMonitor();
+    const stream = audioInputStreamRef.current;
+    if (!audioFeedbackEnabledRef.current || !stream?.active || wantsPlaybackRef.current || document.hidden || calibrationAbortRef.current) return;
+    const token = monitorGenerationRef.current;
+    try {
+      const context = new AudioContext({ latencyHint: "interactive" });
+      monitorRef.current = context;
+      await context.resume();
+      await context.audioWorklet.addModule("/audio-onset-processor.js");
+      if (token !== monitorGenerationRef.current || context.state === "closed") return;
+      const node = new AudioWorkletNode(context, "audio-onset-processor", { processorOptions: { config: { minThreshold: .016 * Math.pow(.1, sensitivityRef.current / 100), peakSearchMs: 5 } } });
+      const source = context.createMediaStreamSource(stream), silent = context.createGain();
+      silent.gain.value = 0; source.connect(node).connect(silent).connect(context.destination);
+      node.port.onmessage = e => publishInput(e.data);
+      monitorNodeRef.current = node;
+    } catch { if (token === monitorGenerationRef.current) { stopInputMonitor(); setAudioFeedbackStatus("error"); } }
+  }, [publishInput, stopInputMonitor]);
+  useEffect(() => () => { calibrationAbortRef.current?.abort(); stopInputMonitor(); }, [stopInputMonitor]);
+  useEffect(() => {
+    const visibility = () => { if (document.hidden) { calibrationAbortRef.current?.abort(); stopInputMonitor(); } else void startInputMonitor(); };
+    document.addEventListener("visibilitychange", visibility);
+    return () => document.removeEventListener("visibilitychange", visibility);
+  }, [startInputMonitor, stopInputMonitor]);
   useUiLocalization(uiPreferences.language);
 
   useEffect(() => {
@@ -810,6 +867,7 @@ export default function MetronomeApp() {
         latencyMs: Math.max(0, Math.min(600, Number(savedAudioFeedback?.latencyMs) || 0)),
         latencySource: ["estimated", "calibrated", "manual"].includes(savedAudioFeedback?.latencySource) ? savedAudioFeedback.latencySource : "estimated",
         ...(savedAudioFeedback?.deviceId ? { deviceId: savedAudioFeedback.deviceId } : {}),
+        ...(savedAudioFeedback?.measurement ? { measurement: savedAudioFeedback.measurement, measuredAt: savedAudioFeedback.measuredAt } : {}),
       };
       audioFeedbackConfigRef.current = nextFeedbackConfig;
       audioInputDeviceIdRef.current = nextFeedbackConfig.deviceId || "";
@@ -911,6 +969,7 @@ export default function MetronomeApp() {
       latencyMs: Math.max(0, Math.min(600, Math.round(next.latencyMs))),
       latencySource: next.latencySource,
       ...(next.deviceId ? { deviceId: next.deviceId } : {}),
+      ...(next.measurement ? { measurement: next.measurement, measuredAt: next.measuredAt } : {}),
     };
     audioFeedbackConfigRef.current = normalized;
     setAudioFeedbackConfig(normalized);
@@ -921,9 +980,9 @@ export default function MetronomeApp() {
     if (audioFeedbackRenderFrameRef.current !== null) return;
     audioFeedbackRenderFrameRef.current = window.requestAnimationFrame(() => {
       audioFeedbackRenderFrameRef.current = null;
-      setAudioFeedbackAnalysis(snapshotAudioFeedback(audioFeedbackSessionRef.current));
+      setAudioFeedbackAnalysis(snapshotAudioFeedback(audioFeedbackSessionRef.current, 256));
     });
-  }, []);
+  }, [setAudioFeedbackAnalysis]);
 
   const disconnectAudioFeedbackGraph = useCallback(() => {
     if (audioOnsetNodeRef.current) audioOnsetNodeRef.current.port.onmessage = null;
@@ -979,13 +1038,14 @@ export default function MetronomeApp() {
         numberOfOutputs: 1,
         channelCount: 1,
         channelCountMode: "explicit",
-        processorOptions: { config: { refractoryMs: 42, warmupMs: 140 } },
+        processorOptions: { config: { refractoryMs: 25, warmupMs: 140, peakSearchMs: 5, minThreshold: .016 * Math.pow(.1, sensitivityRef.current / 100) } },
       });
       const silentSink = context.createGain();
       silentSink.gain.value = 0;
       source.connect(onset).connect(silentSink).connect(context.destination);
       onset.port.onmessage = (event: MessageEvent<OnsetWorkletMessage>) => {
         const message = event.data;
+        if (generationRef.current === token) publishInput(message);
         if (message?.type !== "onset" || !Number.isFinite(message.contextTime) || generationRef.current !== token || !audioFeedbackEnabledRef.current) return;
         try {
           addDetectedTransient(audioFeedbackSessionRef.current, {
@@ -1006,7 +1066,7 @@ export default function MetronomeApp() {
       setAudioFeedbackStatus("error");
       return false;
     }
-  }, [disconnectAudioFeedbackGraph, refreshAudioFeedback]);
+  }, [disconnectAudioFeedbackGraph, publishInput, refreshAudioFeedback]);
 
   const activeMilliseconds = useCallback(() => activeElapsedMsRef.current + (activeSliceStartedAtRef.current ? Date.now() - activeSliceStartedAtRef.current : 0), []);
 
@@ -1026,6 +1086,7 @@ export default function MetronomeApp() {
       max: trainerMaxRef.current,
     } : undefined,
     practiceMode: practiceModeRef.current,
+    ...(barLoopRef.current ? { barLoop: barLoopRef.current } : {}),
   }), []);
 
   const saveLastSnapshot = useCallback((activeMs = activeMilliseconds()) => {
@@ -1052,7 +1113,8 @@ export default function MetronomeApp() {
       if (audioFeedbackEnabledRef.current) {
         const feedbackSession = audioFeedbackSessionRef.current;
         const contextTimeMs = (audioRef.current?.currentTime || 0) * 1000;
-        try { expirePendingHits(feedbackSession, contextTimeMs + feedbackSession.config.matchWindowMs); } catch { /* Session may already be finalized. */ }
+        feedbackSession.pending.splice(0, feedbackSession.pending.length, ...feedbackSession.pending.filter(hit => hit.timeMs <= contextTimeMs));
+        try { expirePendingHits(feedbackSession, contextTimeMs + feedbackSession.config.latencyCompensationMs + feedbackSession.config.matchWindowMs + 1); } catch { /* Session may already be finalized. */ }
         const feedback = snapshotAudioFeedback(feedbackSession);
         if (feedback.overall.expectedHits > 0) {
           const observationFor = (voice: DrumVoice | "all", values = feedback.overall) => ({
@@ -1113,7 +1175,7 @@ export default function MetronomeApp() {
     generationRef.current += 1;
     recoveryPromiseRef.current = null;
     clearRuntime(true);
-    if (audioFeedbackEnabledRef.current) setAudioFeedbackStatus("ready");
+    if (audioFeedbackEnabledRef.current) { setAudioFeedbackStatus("ready"); void startInputMonitor(); }
     setPlaybackPhase("stopped");
     setCurrentStep(-1);
     nextStepRef.current = 0;
@@ -1121,7 +1183,7 @@ export default function MetronomeApp() {
     endAtRef.current = 0;
     timerRemainingRef.current = timerMinutesRef.current * 60_000;
     setTimerText(timerMinutesRef.current ? `${timerMinutesRef.current}:00` : "∞");
-  }, [clearRuntime, currentScene, persistStore, saveLastSnapshot, setPlaybackPhase]);
+  }, [clearRuntime, currentScene, persistStore, saveLastSnapshot, setPlaybackPhase, setAudioFeedbackAnalysis, setCurrentStep, setTimerText, startInputMonitor]);
   useEffect(() => { stopRef.current = stopPlayback; }, [stopPlayback]);
 
   const scheduleDrumVoice = useCallback((context: AudioContext, when: number, voice: DrumVoice, state: DrumHitState, velocityMultiplier = 1) => {
@@ -1211,10 +1273,12 @@ export default function MetronomeApp() {
           await withAudioTimeout(context.suspend(), 2000).catch(() => undefined);
         });
     }
-  }, [clearRuntime, saveLastSnapshot, setPlaybackPhase]);
+  }, [clearRuntime, saveLastSnapshot, setPlaybackPhase, setCurrentStep]);
   useEffect(() => { pauseLifecycleRef.current = pauseForLifecycle; }, [pauseForLifecycle]);
 
   const startPlayback = useCallback(async (recover = false) => {
+    stopPreview();
+    stopInputMonitor();
     const recoveringExistingContext = Boolean(recover && audioRef.current && audioRef.current.state !== "closed");
     const token = generationRef.current + 1;
     generationRef.current = token;
@@ -1233,7 +1297,7 @@ export default function MetronomeApp() {
       activeSliceStartedAtRef.current = 0;
       activeSceneIdRef.current = `session-${Date.now()}`;
       sessionStartBpmRef.current = bpmRef.current;
-      nextStepRef.current = 0;
+      nextStepRef.current = loopBounds(barLoopRef.current, stepsPerBar(meterRef.current, subdivisionRef.current), stepsRef.current.length).start;
       trainerDirectionRef.current = 1;
       timerRemainingRef.current = timerMinutesRef.current * 60_000;
       setTimerText(timerMinutesRef.current ? `${timerMinutesRef.current}:00` : "∞");
@@ -1266,7 +1330,7 @@ export default function MetronomeApp() {
         return;
       }
       const existing = recover && audioRef.current?.state !== "closed" ? audioRef.current : null;
-      context = existing || new AudioContextClass();
+      context = existing || new AudioContextClass({ latencyHint: "interactive" });
       if (!existing) audioRef.current = context;
       if (context.state !== "running") await withAudioTimeout(context.resume(), 2500);
     } catch {
@@ -1359,7 +1423,8 @@ export default function MetronomeApp() {
           / (tempoUnitRef.current === "dotted-quarter" ? 1.5 : tempoUnitRef.current === "eighth" ? .5 : 1)
           * (60 / bpmRef.current)
         ) / barSteps;
-        const stepIndex = nextStepRef.current;
+        const bounds = loopBounds(barLoopRef.current, barSteps, cycleSteps);
+        const stepIndex = nextStepRef.current < bounds.start || nextStepRef.current >= bounds.end ? bounds.start : nextStepRef.current;
         const stepInBar = stepIndex % barSteps;
         if (audioFeedbackEnabledRef.current && audioOnsetNodeRef.current) {
           const feedbackVoices: DrumVoice[] = [];
@@ -1367,7 +1432,7 @@ export default function MetronomeApp() {
           if (drumTracksRef.current) {
             for (const voice of DRUM_VOICES) {
               const state = drumTracksRef.current[voice]?.[stepIndex] || "mute";
-              if (state === "mute") continue;
+              if (state === "mute" || (feedbackTargetRef.current !== "all" && feedbackTargetRef.current !== voice)) continue;
               feedbackVoices.push(voice);
               feedbackStates[voice] = state;
             }
@@ -1382,7 +1447,8 @@ export default function MetronomeApp() {
             const sequenceStepIndex = barsRef.current * barSteps + stepInBar;
             const target: ExpectedAudioHit = {
               id: `audio-target-${token}-${expectedAudioHitCounterRef.current++}`,
-              timeMs: nextTimeRef.current * 1000,
+              timeMs: nextTimeRef.current * 1000 + (feelModeRef.current === "original" && originalFeelRef.current
+                ? Math.min(...feedbackVoices.map(voice => originalFeelRef.current?.timingMs?.[voice]?.[stepIndex] || 0)) * originalFeelRef.current.sourceBpm / bpmRef.current : 0),
               stepIndex,
               sequenceStepIndex,
               cycleIndex: Math.floor(sequenceStepIndex / cycleSteps),
@@ -1408,7 +1474,7 @@ export default function MetronomeApp() {
         }
 
         const visualDelay = Math.max(0, (nextTimeRef.current - context.currentTime) * 1000);
-        nextStepRef.current = (stepIndex + 1) % cycleSteps;
+        nextStepRef.current = nextLoopStep(stepIndex, bounds);
         if (stepInBar + 1 === barSteps) {
             barsRef.current += 1;
             if (trainerRef.current && barsRef.current % trainerEveryRef.current === 0) {
@@ -1448,8 +1514,7 @@ export default function MetronomeApp() {
           if (generationRef.current !== token || phaseRef.current !== "running") return;
           checkpointRef.current = { ...checkpoint, bpm: bpmRef.current };
           if (checkpointTempoRevision === tempoRevisionRef.current) setBpm(checkpoint.bpm);
-          setCurrentStep(stepIndex);
-          setSessionBars(checkpoint.bars);
+          clock.set({ ...clock.get(), step: stepIndex, bars: checkpoint.bars });
         }, visualDelay);
         visualTimersRef.current.add(timerId);
 
@@ -1500,7 +1565,7 @@ export default function MetronomeApp() {
         })
         .catch(() => undefined);
     }
-  }, [attachAudioFeedback, clearRuntime, refreshAudioFeedback, saveAudioFeedbackConfig, scheduleDrumVoice, setPlaybackPhase, showToast]);
+  }, [attachAudioFeedback, clearRuntime, refreshAudioFeedback, saveAudioFeedbackConfig, scheduleDrumVoice, setPlaybackPhase, showToast, clock, stopPreview, setAudioFeedbackAnalysis, setCurrentStep, setSessionBars, setTimerText, stopInputMonitor]);
   useEffect(() => { startRef.current = startPlayback; }, [startPlayback]);
 
   const resumeFromLifecycle = useCallback(() => {
@@ -1532,6 +1597,8 @@ export default function MetronomeApp() {
   }, [calibratingLatency, clearRuntime, showToast, startPlayback, stopPlayback]);
 
   const enableAudioFeedback = async (requestedDeviceId = audioInputDeviceIdRef.current) => {
+    stopPreview();
+    stopInputMonitor();
     if (!navigator.mediaDevices?.getUserMedia) {
       setAudioFeedbackStatus("unsupported");
       return;
@@ -1568,7 +1635,7 @@ export default function MetronomeApp() {
         ...audioFeedbackConfigRef.current,
         ...(actualDeviceId ? { deviceId: actualDeviceId } : {}),
       };
-      if (requestedDeviceId !== audioFeedbackConfigRef.current.deviceId) nextConfig = { ...nextConfig, latencyMs: 0, latencySource: "estimated" };
+      if (actualDeviceId !== audioFeedbackConfigRef.current.deviceId) nextConfig = { deviceId: actualDeviceId, latencyMs: 0, latencySource: "estimated" };
       const context = audioRef.current;
       if (context?.state === "running") {
         if (nextConfig.latencySource === "estimated") nextConfig = { ...nextConfig, latencyMs: estimateAudioRoundTripLatencyMs(context, stream) };
@@ -1579,6 +1646,7 @@ export default function MetronomeApp() {
       } else {
         saveAudioFeedbackConfig(nextConfig);
         setAudioFeedbackStatus("ready");
+        void startInputMonitor();
       }
     } catch (error) {
       setAudioSessionType(audioInputStreamRef.current?.active ? "play-and-record" : "playback");
@@ -1588,6 +1656,8 @@ export default function MetronomeApp() {
   };
 
   const disableAudioFeedback = () => {
+    calibrationAbortRef.current?.abort();
+    stopInputMonitor();
     audioFeedbackEnabledRef.current = false;
     setAudioFeedbackEnabled(false);
     disconnectAudioFeedbackGraph();
@@ -1600,85 +1670,80 @@ export default function MetronomeApp() {
   };
 
   const setManualAudioLatency = (latencyMs: number) => {
-    saveAudioFeedbackConfig({ ...audioFeedbackConfigRef.current, latencyMs, latencySource: "manual" });
+    saveAudioFeedbackConfig({ ...audioFeedbackConfigRef.current, latencyMs, latencySource: "manual", measurement: undefined, measuredAt: undefined });
+    setCalibrationResult("");
   };
 
   const calibrateAudioLatency = async () => {
     const stream = audioInputStreamRef.current;
-    if (!stream?.active || wantsPlaybackRef.current || calibratingLatency) return;
-    const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!AudioContextClass) return;
-    setCalibratingLatency(true);
-    setCalibrationProgress(0);
-    setAudioFeedbackStatus("requesting");
-    setAudioSessionType("play-and-record");
+    if (!stream?.active || wantsPlaybackRef.current || calibrationAbortRef.current) return;
+    stopPreview(); stopInputMonitor();
+    const controller = new AbortController();
+    calibrationAbortRef.current = controller;
+    setCalibratingLatency(true); setCalibrationProgress(0); setCalibrationResult("");
+    setAudioFeedbackStatus("requesting"); setAudioSessionType("play-and-record");
     let context: AudioContext | null = null;
+    let detector: AudioWorkletNode | null = null;
+    const timers: number[] = [];
+    const cancel = () => { if (context && context.state !== "closed") void context.close().catch(() => undefined); };
+    controller.signal.addEventListener("abort", cancel, { once: true });
     try {
-      context = new AudioContextClass({ latencyHint: "interactive" });
+      context = new AudioContext({ latencyHint: "interactive" });
       await context.resume();
       await context.audioWorklet.addModule("/audio-onset-processor.js");
+      if (controller.signal.aborted) return;
       const microphone = context.createMediaStreamSource(stream);
-      const detector = new AudioWorkletNode(context, "audio-onset-processor", { processorOptions: { config: { warmupMs: 180, refractoryMs: 55 } } });
-      const silentSink = context.createGain();
-      silentSink.gain.value = 0;
+      detector = new AudioWorkletNode(context, "audio-onset-processor", { processorOptions: { config: { warmupMs: 300, refractoryMs: 35, peakSearchMs: 5, minThreshold: .002 } } });
+      const silentSink = context.createGain(); silentSink.gain.value = 0;
       microphone.connect(detector).connect(silentSink).connect(context.destination);
-      const detections: Array<{ time: number; strength: number }> = [];
+      const detections: Array<{ timeMs: number; confidence: number }> = [];
+      let clipped = false;
       detector.port.onmessage = (event: MessageEvent<OnsetWorkletMessage>) => {
-        if (event.data?.type !== "onset" || !Number.isFinite(event.data.contextTime)) return;
-        detections.push({ time: Number(event.data.contextTime), strength: Number(event.data.strength) || 0 });
+        publishInput(event.data);
+        if (event.data.type === "level" && event.data.clipped) clipped = true;
+        if (event.data.type === "onset" && Number.isFinite(event.data.contextTime)) detections.push({ timeMs: Number(event.data.contextTime) * 1000, confidence: Number(event.data.confidence) || 0 });
       };
-
-      const clickCount = 6;
-      const intervalSeconds = .8;
-      const firstClick = context.currentTime + .65;
-      const scheduledTimes: number[] = [];
+      const intervals = [.73, .91, .79, 1.03, .83, .97, .77];
+      const times = [context.currentTime + .85];
+      intervals.forEach(gap => times.push(times[times.length - 1]! + gap));
+      const master = context.createGain(), compressor = context.createDynamicsCompressor();
+      master.gain.value = .9; compressor.threshold.value = -15; compressor.knee.value = 16;
+      compressor.ratio.value = 5; compressor.attack.value = .003; compressor.release.value = .18;
+      master.connect(compressor).connect(context.destination);
       const clickBuffer = context.createBuffer(1, Math.round(context.sampleRate * .018), context.sampleRate);
       const clickData = clickBuffer.getChannelData(0);
-      for (let index = 0; index < clickData.length; index += 1) {
-        const envelope = Math.exp(-index / (context.sampleRate * .0028));
-        clickData[index] = (Math.random() * 2 - 1) * envelope * .75;
-      }
-      for (let index = 0; index < clickCount; index += 1) {
-        const when = firstClick + index * intervalSeconds;
-        const click = context.createBufferSource();
-        const gain = context.createGain();
-        click.buffer = clickBuffer;
-        gain.gain.value = .65;
-        click.connect(gain).connect(context.destination);
-        click.start(when);
-        scheduledTimes.push(when);
-        window.setTimeout(() => setCalibrationProgress(index + 1), Math.max(0, (when - context!.currentTime) * 1000));
-      }
-      await new Promise((resolve) => window.setTimeout(resolve, (firstClick + (clickCount - 1) * intervalSeconds + .7 - context!.currentTime) * 1000));
-
-      const offsets = scheduledTimes.flatMap((scheduled, index) => {
-        const end = index + 1 < scheduledTimes.length ? scheduled + intervalSeconds * .75 : scheduled + .65;
-        const candidates = detections.filter((item) => item.time >= scheduled + .008 && item.time <= end);
-        if (!candidates.length) return [];
-        const strongest = candidates.reduce((best, item) => item.strength > best.strength ? item : best);
-        return [(strongest.time - scheduled) * 1000];
-      }).filter((value) => value >= 5 && value <= 600).sort((left, right) => left - right);
-      if (offsets.length < 3) throw new Error("Zu wenige Kalibrierimpulse erkannt");
-      const middle = Math.floor(offsets.length / 2);
-      const median = offsets.length % 2 ? offsets[middle] : (offsets[middle - 1] + offsets[middle]) / 2;
-      const stable = offsets.filter((value) => Math.abs(value - median) <= 45);
-      if (stable.length < 3) throw new Error("Latenz schwankt zu stark");
-      const stableMiddle = Math.floor(stable.length / 2);
-      const measured = stable.length % 2 ? stable[stableMiddle] : (stable[stableMiddle - 1] + stable[stableMiddle]) / 2;
-      saveAudioFeedbackConfig({ ...audioFeedbackConfigRef.current, latencyMs: measured, latencySource: "calibrated" });
-      setAudioFeedbackStatus("ready");
-      showToast(`Latenz gemessen: ${Math.round(measured)} ms`);
-      detector.port.onmessage = null;
-      microphone.disconnect();
-      detector.disconnect();
-      silentSink.disconnect();
-    } catch {
-      setAudioFeedbackStatus("ready");
-      showToast("Kalibrierung fehlgeschlagen. Kopfhörer direkt ans Mikrofon halten oder Latenz manuell einstellen.");
+      for (let i = 0; i < clickData.length; i++) clickData[i] = Math.sin(2 * Math.PI * 2200 * i / context.sampleRate) * Math.exp(-i / (context.sampleRate * .0028)) * .6;
+      times.forEach((when, i) => {
+        const click = context!.createBufferSource(); click.buffer = clickBuffer;
+        click.connect(master); click.start(when);
+        click.onended = () => click.disconnect();
+        timers.push(window.setTimeout(() => { if (!controller.signal.aborted) setCalibrationProgress(i + 1); }, Math.max(0, when - context!.currentTime) * 1000));
+      });
+      await new Promise<void>((resolve, reject) => {
+        const abort = () => reject(new DOMException("Messung abgebrochen", "AbortError"));
+        controller.signal.addEventListener("abort", abort, { once: true });
+        timers.push(window.setTimeout(() => { controller.signal.removeEventListener("abort", abort); resolve(); }, (times[times.length - 1]! + .7 - context!.currentTime) * 1000));
+      });
+      if (controller.signal.aborted) return;
+      const measurement = measureLatency(times.map(t => t * 1000), detections);
+      if (clipped) throw new Error("Signal übersteuert. Hörer etwas vom Mikrofon entfernen und erneut messen.");
+      if (!measurement) throw new Error("Keine stabile Messung. Hörer direkt ans Mikrofon halten, Raum ruhig halten und erneut messen. Bisherige Korrektur bleibt erhalten.");
+      saveAudioFeedbackConfig({ ...audioFeedbackConfigRef.current, latencyMs: measurement.latencyMs, latencySource: "calibrated", measurement, measuredAt: new Date().toISOString() });
+      setCalibrationResult(`${measurement.latencyMs} ms · ${measurement.accepted}/${measurement.total} Impulse · Streuung ${measurement.spreadMs} ms. Korrektur übernommen.`);
+    } catch (error) {
+      if (!controller.signal.aborted) setCalibrationResult(error instanceof Error ? error.message : "Messung fehlgeschlagen. Bitte erneut versuchen.");
     } finally {
+      timers.forEach(timer => window.clearTimeout(timer));
+      if (detector) detector.port.onmessage = null;
+      controller.signal.removeEventListener("abort", cancel);
       if (context && context.state !== "closed") await context.close().catch(() => undefined);
-      setCalibratingLatency(false);
-      setCalibrationProgress(0);
+      if (calibrationAbortRef.current === controller) {
+        calibrationAbortRef.current = null;
+        setCalibratingLatency(false);
+        setAudioFeedbackStatus(audioFeedbackEnabledRef.current ? "ready" : "idle");
+        if (controller.signal.aborted) setCalibrationResult("Messung abgebrochen. Bisherige Korrektur bleibt erhalten.");
+        void startInputMonitor();
+      }
     }
   };
 
@@ -1720,18 +1785,6 @@ export default function MetronomeApp() {
     return () => window.removeEventListener("keydown", handler, { capture: true });
   }, [registerTap, togglePlayback, updateBpm]);
 
-  useEffect(() => {
-    if (currentStep < 0 || !drumGridScrollRef.current) return;
-    const container = drumGridScrollRef.current;
-    const cell = container.querySelector<HTMLElement>(`[data-step="${currentStep}"]`);
-    if (!cell) return;
-    const left = cell.offsetLeft;
-    const right = left + cell.offsetWidth;
-    if (left < container.scrollLeft + 74 || right > container.scrollLeft + container.clientWidth) {
-      container.scrollTo({ left: Math.max(0, left - container.clientWidth * .42), behavior: "smooth" });
-    }
-  }, [currentStep]);
-
   const enableMidi = async () => {
     const requestMIDIAccess = (navigator as Navigator & { requestMIDIAccess?: () => Promise<MidiAccessLike> }).requestMIDIAccess;
     if (!requestMIDIAccess) return setMidiStatus("unsupported");
@@ -1755,6 +1808,7 @@ export default function MetronomeApp() {
 
   const changeMeter = (beats: number, denominator = meter.denominator) => {
     if (wantsPlaybackRef.current) stopPlayback();
+    barLoopRef.current = null; setBarLoop(null);
     const nextMeter: Meter = { beats, denominator };
     const nextSubdivision = firstValidSubdivision(nextMeter, subdivisionRef.current);
     const nextGrouping = defaultGrouping(nextMeter);
@@ -1773,9 +1827,9 @@ export default function MetronomeApp() {
     setStepsState(nextSteps);
     setDrumTracks(nextTracks);
     if (editorOpen) {
-      setEditorTracks(cloneDrumTracks(nextTracks));
+      editorLiveRef.current = cloneDrumTracks(nextTracks); setEditorTracks(editorLiveRef.current);
       setEditorSteps([...nextSteps]);
-      setEditorHistory([]);
+      setEditorHistory([]); setEditorFuture([]);
     }
     originalFeelRef.current = null;
     feelModeRef.current = "quantized";
@@ -1785,6 +1839,7 @@ export default function MetronomeApp() {
   };
 
   const changeSubdivision = (nextSubdivision: Subdivision) => {
+    barLoopRef.current = null; setBarLoop(null);
     if (!hasExactGrid(meterRef.current, nextSubdivision)) return;
     if (wantsPlaybackRef.current) stopPlayback();
     subdivisionRef.current = nextSubdivision;
@@ -1796,26 +1851,15 @@ export default function MetronomeApp() {
     setStepsState(nextSteps);
     setDrumTracks(nextTracks);
     if (editorOpen) {
-      setEditorTracks(cloneDrumTracks(nextTracks));
+      editorLiveRef.current = cloneDrumTracks(nextTracks); setEditorTracks(editorLiveRef.current);
       setEditorSteps([...nextSteps]);
-      setEditorHistory([]);
+      setEditorHistory([]); setEditorFuture([]);
     }
     originalFeelRef.current = null;
     feelModeRef.current = "quantized";
     setOriginalFeel(null);
     setFeelMode("quantized");
     setPatternName("Eigenes Drum-Pattern");
-  };
-
-  const updateStep = (index: number) => {
-    const next = stepsRef.current.map((step, stepIndex) => stepIndex === index ? cycleStep(step) : step);
-    stepsRef.current = next;
-    setStepsState(next);
-    originalFeelRef.current = null;
-    feelModeRef.current = "quantized";
-    setOriginalFeel(null);
-    setFeelMode("quantized");
-    setPatternName("Eigenes Pattern");
   };
 
   const updateDrumHit = (voice: DrumVoice, index: number) => {
@@ -1854,6 +1898,7 @@ export default function MetronomeApp() {
     nextStepRef.current %= cycleSteps;
     checkpointRef.current = { ...checkpointRef.current, nextStep: nextStepRef.current };
     drumTracksRef.current = liveTracks;
+    editorLiveRef.current = liveTracks;
     stepsRef.current = summary;
     setEditorTracks(liveTracks);
     setEditorSteps(summary);
@@ -1878,10 +1923,12 @@ export default function MetronomeApp() {
     const sourceSummary = mergeDrumTracks(sourceTracks, sourceLength);
     if (sourceSteps.length < sourceLength) applyEditorPattern(sourceTracks, sourceLength);
     else {
-      setEditorTracks(cloneDrumTracks(sourceTracks));
+      editorLiveRef.current = cloneDrumTracks(sourceTracks);
+      setEditorTracks(editorLiveRef.current);
       setEditorSteps(sourceSummary);
     }
     setEditorHistory([]);
+    setEditorFuture([]);
     setPresetName(preset?.name || patternNameRef.current || "Mein Pattern");
     setPresetCategory(preset?.category || "Eigene Presets");
     setEditingPresetId(preset?.id.startsWith("custom-") ? preset.id : null);
@@ -1906,54 +1953,70 @@ export default function MetronomeApp() {
     return () => document.removeEventListener("keydown", keyHandler);
   }, [closeEditor, editorOpen]);
 
-  const updateEditorHit = (voice: DrumVoice, index: number) => {
-    const length = editorSteps.length;
-    setEditorHistory((current) => [...current.slice(-19), cloneDrumTracks(editorTracks)]);
-    const next = cloneDrumTracks(editorTracks);
-    const lane = [...(next[voice] || Array<DrumHitState>(length).fill("mute"))];
-    const nextState = cycleDrumHit(lane[index] || "mute");
-    lane[index] = nextState;
-    next[voice] = lane;
-    if (nextState !== "mute" && (voice === "closedHat" || voice === "openHat")) {
-      const counterpart: DrumVoice = voice === "closedHat" ? "openHat" : "closedHat";
-      const counterpartLane = [...(next[counterpart] || Array<DrumHitState>(length).fill("mute"))];
-      counterpartLane[index] = "mute";
-      next[counterpart] = counterpartLane;
-    }
-    applyEditorPattern(next, length);
+  const beginEditorAction = () => {
+    const previous = cloneDrumTracks(editorLiveRef.current);
+    setEditorHistory(current => [...current.slice(-49), previous]);
+    setEditorFuture([]);
   };
-
+  const updateEditorHit = (voice: DrumVoice, index: number, state?: DrumHitState) => {
+    const tracks = editorLiveRef.current;
+    const next = setTrackHit(tracks, stepsRef.current.length, voice, index, state ?? cycleDrumHit(tracks[voice]?.[index] || "mute"));
+    applyEditorPattern(next, stepsRef.current.length);
+  };
   const undoEditor = () => {
     const previous = editorHistory.at(-1);
     if (!previous) return;
-    const previousLength = Math.max(...Object.values(previous).map((track) => track?.length || 0), 1);
-    applyEditorPattern(previous, previousLength);
-    setEditorHistory((current) => current.slice(0, -1));
+    const currentTracks = cloneDrumTracks(editorLiveRef.current);
+    setEditorFuture(current => [...current, currentTracks]);
+    applyEditorPattern(previous, Math.max(...Object.values(previous).map(track => track?.length || 0), 1));
+    setEditorHistory(current => current.slice(0, -1));
   };
-
+  const redoEditor = () => {
+    const next = editorFuture.at(-1);
+    if (!next) return;
+    const currentTracks = cloneDrumTracks(editorLiveRef.current);
+    setEditorHistory(current => [...current, currentTracks]);
+    applyEditorPattern(next, Math.max(...Object.values(next).map(track => track?.length || 0), 1));
+    setEditorFuture(current => current.slice(0, -1));
+  };
   const clearEditorLane = (voice: DrumVoice) => {
-    setEditorHistory((current) => [...current.slice(-19), cloneDrumTracks(editorTracks)]);
-    const next = cloneDrumTracks(editorTracks);
-    next[voice] = Array<DrumHitState>(editorSteps.length).fill("mute");
-    applyEditorPattern(next, editorSteps.length);
+    beginEditorAction();
+    applyEditorPattern({ ...editorLiveRef.current, [voice]: Array<DrumHitState>(editorSteps.length).fill("mute") }, editorSteps.length);
   };
-
   const resizeEditorBars = (bars: number) => {
+    beginEditorAction();
     const length = stepsPerBar(meter, subdivision) * bars;
-    setEditorHistory((current) => [...current.slice(-19), cloneDrumTracks(editorTracks)]);
-    const next = normalizedDrumTracks(editorTracks, length) || {};
-    applyEditorPattern(next, length);
+    applyEditorPattern(normalizedDrumTracks(editorLiveRef.current, length) || {}, length);
+    barLoopRef.current = null; setBarLoop(null);
   };
-
   const resetEditorPattern = () => {
-    setEditorHistory((current) => [...current.slice(-19), cloneDrumTracks(editorTracks)]);
+    beginEditorAction();
     const length = stepsPerBar(meter, subdivision);
     applyEditorPattern(defaultDrumTracks(meter, subdivision), length);
+    barLoopRef.current = null; setBarLoop(null);
+  };
+  const shiftEditorLane = (voice: DrumVoice, delta: number) => {
+    beginEditorAction();
+    applyEditorPattern(shiftLane(editorLiveRef.current, voice, delta), editorSteps.length);
+  };
+  const copyEditorBar = () => {
+    beginEditorAction();
+    const bars = Math.round(editorSteps.length / stepsPerBar(meter, subdivision));
+    applyEditorPattern(copyBar(editorLiveRef.current, stepsPerBar(meter, subdivision), Math.min(copyFrom, bars), Math.min(copyTo, bars)), editorSteps.length);
+  };
+  const changeLoop = (loop: BarLoop | null) => {
+    if (wantsPlaybackRef.current) stopPlayback();
+    barLoopRef.current = loop; setBarLoop(loop);
+    const start = loopBounds(loop, stepsPerBar(meter, subdivision), steps.length).start;
+    nextStepRef.current = start;
+    checkpointRef.current = { ...checkpointRef.current, nextStep: start };
   };
 
   const loadPattern = (pattern: Pattern, autoStart = false, focusTrainer = true) => {
+    stopPreview();
     const wasPlaying = wantsPlaybackRef.current;
     if (wasPlaying) stopPlayback();
+    barLoopRef.current = null; setBarLoop(null);
     setEditorOpen(false);
     const nextMeter = parseMeter(pattern.meter);
     const nextGrouping = pattern.grouping?.reduce((sum, size) => sum + size, 0) === nextMeter.beats
@@ -2016,6 +2079,7 @@ export default function MetronomeApp() {
     originalFeelRef.current = pattern.originalFeel || null;
     feelModeRef.current = "quantized";
     setOriginalFeel(pattern.originalFeel || null);
+    feedbackTargetRef.current = "all"; setFeedbackTarget("all");
     setFeelMode("quantized");
     if (playback.bpm !== undefined) updateBpm(playback.bpm);
     else if (bpmRef.current < pattern.bpmMin || bpmRef.current > pattern.bpmMax) updateBpm(Math.round((pattern.bpmMin + pattern.bpmMax) / 2));
@@ -2073,6 +2137,10 @@ export default function MetronomeApp() {
       setTrainerMin(scene.trainer.min);
       setTrainerMax(scene.trainer.max);
     }
+    const sceneBounds = loopBounds(scene.barLoop || null, stepsPerBar(meterRef.current, subdivisionRef.current), stepsRef.current.length);
+    const restoredLoop = scene.barLoop ? { start: sceneBounds.start / stepsPerBar(meterRef.current, subdivisionRef.current) + 1, end: sceneBounds.end / stepsPerBar(meterRef.current, subdivisionRef.current) } : null;
+    barLoopRef.current = restoredLoop; setBarLoop(restoredLoop);
+    nextStepRef.current = sceneBounds.start;
     const nextMode = scene.practiceMode || { type: "normal" };
     practiceModeRef.current = nextMode;
     setPracticeMode(nextMode);
@@ -2423,6 +2491,7 @@ export default function MetronomeApp() {
   };
 
   const navigateTo = (next: AppSection) => {
+    if (next !== "trainer") setFocusMode(false);
     setSection(next);
     const id = next === "trainer" ? "trainer" : next === "library" ? "bibliothek" : "meine-grooves";
     document.querySelector(`#${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -2450,40 +2519,26 @@ export default function MetronomeApp() {
     }
   };
 
+  const patternGroups = useMemo(() => groupPatterns(filteredPatterns), [filteredPatterns]);
+  const previewPattern = (pattern: Pattern) => {
+    if (audition.previewId === pattern.id) { audition.stop(); return; }
+    if (calibrationAbortRef.current) { showToast("Bitte erst die Latenzmessung beenden."); return; }
+    if (wantsPlaybackRef.current) stopPlayback();
+    void audition.play(pattern, volumeRef.current);
+  };
   const meterLabel = `${meter.beats}/${meter.denominator}`;
   const isPlaying = phase === "running";
+  const activeDrumEntries = useMemo(() => DRUM_VOICES.flatMap(voice => drumTracks?.[voice]?.some(hit => hit !== "mute") ? [[voice, drumTracks[voice]] as const] : []), [drumTracks]);
   const cycleBars = Math.max(1, Math.round(steps.length / stepsPerBar(meter, subdivision)));
   const favoritePatterns = library.filter((item) => favorites.includes(item.id));
   const practicedMinutes = Math.round(practiceHistory.reduce((sum, item) => sum + item.activeSeconds, 0) / 60);
-  const activeDrumEntries = useMemo<Array<[DrumVoice, DrumHitState[]]>>(() => DRUM_VOICES.flatMap((voice) => {
-    const track = drumTracks?.[voice];
-    return track?.some((state) => state !== "mute") ? [[voice, track] as [DrumVoice, DrumHitState[]]] : [];
-  }), [drumTracks]);
-  const audioFeedbackMarkers = useMemo(() => {
-    const markers = new Map<number, { timeMs: number; kind: "matched" | "missed"; offsetMs?: number; classification?: "early" | "on-time" | "late" }>();
-    for (const item of audioFeedbackAnalysis?.missed || []) {
-      const current = markers.get(item.expected.stepIndex);
-      if (!current || current.timeMs <= item.expected.timeMs) markers.set(item.expected.stepIndex, { timeMs: item.expected.timeMs, kind: "missed" });
-    }
-    for (const item of audioFeedbackAnalysis?.matched || []) {
-      const current = markers.get(item.expected.stepIndex);
-      if (!current || current.timeMs <= item.expected.timeMs) markers.set(item.expected.stepIndex, {
-        timeMs: item.expected.timeMs,
-        kind: "matched",
-        offsetMs: item.offsetMs,
-        classification: item.classification,
-      });
-    }
-    return markers;
-  }, [audioFeedbackAnalysis]);
   const ladderStages = useMemo(() => ladderFor(library.find((pattern) => pattern.id === patternId) || presets.find((pattern) => pattern.id === patternId) || FALLBACK_PATTERNS[0]), [library, patternId, presets]);
   const phaseLabel = phase === "running" ? "Läuft" : phase === "starting" ? "Startet …" : phase === "recovering" ? "Audio kommt zurück …" : phase === "lifecycle-paused" ? "Im Hintergrund pausiert" : "Bereit";
   const pwaLabel = pwaStatus === "update" ? "Update bereit" : !online ? offlineStatus.appReady ? "App offline bereit" : "Offline eingeschränkt" : offlineStatus.appReady
     ? offlineStatus.availableKits >= offlineStatus.totalKits ? "Offline bereit" : `App offline · ${offlineStatus.availableKits}/${offlineStatus.totalKits} Kits`
     : pwaStatus === "error" ? "Nur online" : "Wird vorbereitet";
-  const feedbackStatusLabel = audioFeedbackStatus === "listening" ? "Hört zu" : audioFeedbackStatus === "ready" ? "Bereit" : audioFeedbackStatus === "requesting" ? calibratingLatency ? `Kalibrierung ${calibrationProgress}/6` : "Mikrofon wird geöffnet" : audioFeedbackStatus === "denied" ? "Mikrofon abgelehnt" : audioFeedbackStatus === "unsupported" ? "Nicht unterstützt" : audioFeedbackStatus === "error" ? "Audiofehler" : "Aus";
+  const feedbackStatusLabel = audioFeedbackStatus === "listening" ? "Hört zu" : audioFeedbackStatus === "ready" ? "Bereit" : audioFeedbackStatus === "requesting" ? calibratingLatency ? `Kalibrierung ${calibrationProgress}/8` : "Mikrofon wird geöffnet" : audioFeedbackStatus === "denied" ? "Mikrofon abgelehnt" : audioFeedbackStatus === "unsupported" ? "Nicht unterstützt" : audioFeedbackStatus === "error" ? "Audiofehler" : "Aus";
   const latencySourceLabel = audioFeedbackConfig.latencySource === "calibrated" ? "gemessen" : audioFeedbackConfig.latencySource === "manual" ? "manuell" : "geschätzt";
-  const liveFeedback = audioFeedbackAnalysis?.overall;
   const feedbackStepDurationMs = useMemo(() => {
     const barSteps = Math.max(1, stepsPerBar(meter, subdivision));
     const tempoUnitScale = tempoUnit === "dotted-quarter" ? 1.5 : tempoUnit === "eighth" ? .5 : 1;
@@ -2499,7 +2554,7 @@ export default function MetronomeApp() {
   }, [phase, saveLastSnapshot]);
 
   return (
-    <main className={`app-shell ui-theme-${uiPreferences.theme} ui-density-${uiPreferences.density} ${uiPreferences.texture ? "ui-texture" : "ui-texture-off"} ${uiPreferences.highContrast ? "ui-high-contrast" : ""} ${uiPreferences.beatGlow ? "ui-beat-glow" : ""} ${uiPreferences.reduceMotion ? "ui-reduce-motion" : ""}`}>
+    <main className={`app-shell ${focusMode ? "focus-mode" : ""} ui-theme-${uiPreferences.theme} ui-density-${uiPreferences.density} ${uiPreferences.texture ? "ui-texture" : "ui-texture-off"} ${uiPreferences.highContrast ? "ui-high-contrast" : ""} ${uiPreferences.beatGlow ? "ui-beat-glow" : ""} ${uiPreferences.reduceMotion ? "ui-reduce-motion" : ""}`}>
       <div className="app-content">
       <div className="page">
         <header className="app-titlebar">
@@ -2541,12 +2596,12 @@ export default function MetronomeApp() {
           <div className="panel metronome-panel">
             <div className="meter-head">
               <div className="live-label"><span className={`live-pulse ${isPlaying ? "playing" : ""}`} />{phaseLabel}</div>
-              <div className="sound-label">{drumKitLabel(sound)} · {volume}%</div>
+              <div className="sound-label">{drumKitLabel(sound)} · {volume}%</div><button className="focus-toggle" onClick={() => setFocusMode(value => !value)} aria-pressed={focusMode}>{focusMode ? "Alle Einstellungen" : "Fokusmodus"}</button>
             </div>
             <div className="session-context">
               <div><span className="authenticity-badge">{patternAttribution}</span><strong>{patternInstruction}</strong></div>
               <div className="goal-tags">{patternGoals.map((goal) => <span key={goal}>{goal}</span>)}</div>
-              <div className="session-progress" aria-live="polite"><span>{sessionBars} Takte</span><span>{timerText === "∞" ? "freie Session" : `${timerText} verbleibend`}</span></div>
+              <LiveProgress clock={clock} />
               <div className="ladder-control"><label htmlFor="ladder-stage">Lernleiter</label><select id="ladder-stage" value={currentStage} onChange={(event) => selectLadderStage(event.target.value)}>{ladderStages.map((stage) => <option key={stage.id} value={stage.id}>{stage.label} · {stage.description}</option>)}</select><button onClick={() => void saveCurrentScene()}>Scene speichern</button></div>
             </div>
             <div className={`tempo-toolbar ${uiPreferences.showSpectrum ? "" : "without-spectrum"}`} aria-label="Tempo">
@@ -2562,59 +2617,33 @@ export default function MetronomeApp() {
             <div className="beat-strip">
               <div className="beat-strip-top">
                 <div><div className="pattern-name">{patternName}</div><div className="pattern-meta">{meterLabel} · {subdivision} · {steps.length} Schritte{cycleBars > 1 ? ` · ${cycleBars} Takte` : ""}</div></div>
-                <div className="beat-strip-actions">{audioFeedbackEnabled && <span className={`feedback-live-pill ${audioFeedbackStatus}`}><i />{feedbackStatusLabel}{liveFeedback?.matchedHits ? ` · ${Math.round(liveFeedback.meanAbsoluteMs)} ms · ${Math.round(liveFeedback.hitRate)}%` : ""}</span>}<button className={`edit-link ${editorOpen ? "active" : ""}`} aria-expanded={editorOpen} aria-controls="inline-pattern-editor" onClick={(event) => editorOpen ? closeEditor() : openEditor(undefined, event.currentTarget)}>{editorOpen ? "Bearbeitung beenden" : "Pattern bearbeiten"}</button></div>
+                <div className="beat-strip-actions">{audioFeedbackEnabled && <span className={`feedback-live-pill ${audioFeedbackStatus}`}><i />{feedbackStatusLabel}</span>}<button className={`edit-link ${editorOpen ? "active" : ""}`} aria-expanded={editorOpen} aria-controls="inline-pattern-editor" onClick={(event) => editorOpen ? closeEditor() : openEditor(undefined, event.currentTarget)}>{editorOpen ? "Bearbeitung beenden" : "Pattern bearbeiten"}</button></div>
+              </div>
+              <div className="grid-options">
+                <label>Ansicht<select aria-label="Rasteransicht" value={gridView} onChange={e => setGridView(e.target.value as GridView)}><option value="continuous">Alle Takte nebeneinander</option><option value="stacked">Takte untereinander</option><option value="bars">Ein Takt</option></select></label>
+                {cycleBars > 1 && <div className="loop-controls"><button aria-pressed={!!barLoop} onClick={() => changeLoop(barLoop ? null : { start: 1, end: cycleBars })}>{barLoop ? "Loop an" : "Takt-Loop"}</button>{barLoop && <><label>Von<select aria-label="Loop von Takt" value={barLoop.start} onChange={e => changeLoop({ start: Number(e.target.value), end: Math.max(Number(e.target.value), barLoop.end) })}>{Array.from({ length: cycleBars }, (_, i) => <option key={i} value={i + 1}>{i + 1}</option>)}</select></label><label>Bis<select aria-label="Loop bis Takt" value={barLoop.end} onChange={e => changeLoop({ start: Math.min(Number(e.target.value), barLoop.start), end: Number(e.target.value) })}>{Array.from({ length: cycleBars }, (_, i) => <option key={i} value={i + 1}>{i + 1}</option>)}</select></label></>}</div>}
               </div>
               {editorOpen ? <section id="inline-pattern-editor" className="inline-editor" ref={inlineEditorRef} tabIndex={-1} aria-labelledby="inline-editor-title">
                 <div className="inline-editor-head"><div><strong id="inline-editor-title">Pattern live bearbeiten</strong><span>Änderungen wirken sofort. Beim Speichern bleiben Pattern, Kit, Tempo und Training gemeinsam als Scene erhalten.</span></div><span className="live-edit-badge">LIVE</span></div>
                 <div className="editor-toolbar">
-                  <label>Takte<select value={Math.max(1, Math.round(editorSteps.length / stepsPerBar(meter, subdivision)))} onChange={(event) => resizeEditorBars(Number(event.target.value))}>{[1, 2, 3, 4].map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
+                  <label>Takte<select value={Math.max(1, Math.round(editorSteps.length / stepsPerBar(meter, subdivision)))} onChange={(event) => resizeEditorBars(Number(event.target.value))}>{Array.from({ length: 8 }, (_, i) => i + 1).map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
                   <button onClick={togglePlayback}>{isPlaying ? "Ⅱ Stop" : "▶ Vorschau"}</button>
                   <button onClick={undoEditor} disabled={!editorHistory.length}>↶ Rückgängig</button>
+                  <button onClick={redoEditor} disabled={!editorFuture.length}>↪ Wiederholen</button>
                   <button onClick={resetEditorPattern}>Grundmuster</button>
+                  <label>Werkzeug<select aria-label="Schlag direkt wählen" value={editorTool} onChange={e => setEditorTool(e.target.value as DrumHitState | "cycle")}><option value="normal">Schlag</option><option value="accent">Akzent</option><option value="ghost">Ghostnote</option><option value="mute">Radierer</option><option value="cycle">Durchschalten</option></select></label>
                   <span>{meterLabel} · {subdivision} · {editorSteps.length} Schritte</span>
                 </div>
-                <div className="drum-editor-scroll" role="region" aria-label="Drum-Pattern bearbeiten">
-                  <div className="drum-editor-grid">
-                    {DRUM_VOICES.map((voice) => {
-                      const track = editorTracks[voice] || Array<DrumHitState>(editorSteps.length).fill("mute");
-                      return <div className="drum-lane editor-lane" key={voice} style={{ gridTemplateColumns: `94px repeat(${editorSteps.length}, minmax(40px, 1fr))` }}>
-                        <VoiceLaneLabel voice={voice} volume={voiceVolumes[voice]} onVolumeChange={updateVoiceVolume} onClear={() => clearEditorLane(voice)} />
-                        {track.map((state, index) => <button key={index} tabIndex={index === 0 ? 0 : -1} className={`editor-step ${state} ${currentStep === index ? "current" : ""} ${index % stepsPerBar(meter, subdivision) === 0 ? "bar-start" : ""}`} onClick={() => updateEditorHit(voice, index)} onKeyDown={(event) => { if (!["ArrowLeft", "ArrowRight"].includes(event.key)) return; event.preventDefault(); const cells = Array.from(event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>(".editor-step") || []); cells[Math.max(0, Math.min(cells.length - 1, index + (event.key === "ArrowRight" ? 1 : -1)))]?.focus(); }} aria-label={`${DRUM_LABELS[voice]}, Schritt ${index + 1}: ${HIT_LABELS[state]}`} aria-pressed={state !== "mute"}>{index + 1}</button>)}
-                      </div>;
-                    })}
-                  </div>
-                </div>
+                <div className="copy-bar-controls"><label>Takt kopieren<select aria-label="Quelltakt" value={Math.min(copyFrom, cycleBars)} onChange={e => setCopyFrom(Number(e.target.value))}>{Array.from({ length: cycleBars }, (_, i) => <option key={i} value={i + 1}>{i + 1}</option>)}</select></label><label>nach<select aria-label="Zieltakt" value={Math.min(copyTo, cycleBars)} onChange={e => setCopyTo(Number(e.target.value))}>{Array.from({ length: cycleBars }, (_, i) => <option key={i} value={i + 1}>{i + 1}</option>)}</select></label><button onClick={copyEditorBar} disabled={cycleBars < 2 || Math.min(copyFrom, cycleBars) === Math.min(copyTo, cycleBars)}>Kopieren</button><span>Ziehen setzt mehrere Schläge · Pfeile verschieben eine Spur.</span></div>
+                <PracticeGrid tracks={editorTracks} length={editorSteps.length} meter={meter} subdivision={subdivision} clock={clock} volumes={voiceVolumes} onVolume={updateVoiceVolume} onHit={updateEditorHit} view={gridView} loop={barLoop} editing tool={editorTool} onPaintStart={beginEditorAction} onClear={clearEditorLane} onShift={shiftEditorLane} />
                 <div className="editor-legend"><span><i className="legend-dot accent" />Akzent</span><span><i className="legend-dot" />Schlag</span><span><i className="legend-dot ghost" />Ghostnote</span><span><i className="legend-dot mute" />Stille</span></div>
                 <div className="inline-editor-footer">
                   <div className="editor-fields"><input className="text-field" value={presetName} onChange={(event) => setPresetName(event.target.value)} placeholder="Name der Scene" aria-label="Scene-Name" /><select className="field-select" value={presetCategory} onChange={(event) => setPresetCategory(event.target.value)} aria-label="Pattern-Kategorie"><option>Eigene Presets</option><option>Groove</option><option>Rudiment</option><option>Timing</option><option>Song</option></select></div>
                   <div className="inline-editor-actions"><button className="secondary" onClick={closeEditor}>Fertig</button><button className="primary" onClick={() => void savePreset()}>{editingPresetId ? "Scene aktualisieren" : "Scene speichern"}</button></div>
                 </div>
-              </section> : activeDrumEntries.length ? <div className="drum-grid-scroll" ref={drumGridScrollRef} role="region" aria-label="Aktuelles Drum-Pattern">
-                <div className="drum-grid">
-                  <div className="drum-lane drum-ruler" style={{ gridTemplateColumns: `82px repeat(${steps.length}, minmax(24px, 1fr))` }}><span className="drum-lane-label">Takt</span>{steps.map((_, index) => <span key={index} className={index % stepsPerBar(meter, subdivision) === 0 ? "bar-start" : ""}>{index % stepsPerBar(meter, subdivision) === 0 ? Math.floor(index / stepsPerBar(meter, subdivision)) + 1 : ""}</span>)}</div>
-                  {audioFeedbackEnabled && <div className="drum-lane feedback-lane" style={{ gridTemplateColumns: `82px repeat(${steps.length}, minmax(24px, 1fr))` }}>
-                    <span className="drum-lane-label feedback-lane-label"><strong>DU</strong><small>{liveFeedback?.matchedHits ? `${Math.round(liveFeedback.medianMs)} ms` : "Timing"}</small></span>
-                    {steps.map((_, index) => {
-                      const marker = audioFeedbackMarkers.get(index);
-                      const offset = marker?.offsetMs || 0;
-                      const markerLeft = Math.max(8, Math.min(92, 50 + offset / 120 * 42));
-                      const description = marker?.kind === "missed" ? "verpasst" : marker ? `${offset < 0 ? Math.abs(Math.round(offset)) + " ms zu früh" : offset > 0 ? Math.round(offset) + " ms zu spät" : "genau"}` : "noch kein Messwert";
-                      return <span key={index} className={`feedback-cell ${currentStep === index ? "current" : ""} ${index % stepsPerBar(meter, subdivision) === 0 ? "bar-start" : ""}`} aria-label={`Dein Spiel, Schritt ${index + 1}: ${description}`}>
-                        {marker && <i className={`feedback-marker ${marker.kind === "missed" ? "missed" : marker.classification}`} style={{ left: `${markerLeft}%` }} title={description}>{marker.kind === "missed" ? "×" : ""}</i>}
-                      </span>;
-                    })}
-                  </div>}
-                  {activeDrumEntries.map(([voice, track]) => <div className="drum-lane" key={voice} style={{ gridTemplateColumns: `82px repeat(${steps.length}, minmax(24px, 1fr))` }}>
-                    <VoiceLaneLabel voice={voice} volume={voiceVolumes[voice]} onVolumeChange={updateVoiceVolume} />
-                    {track.map((state, index) => <button key={index} data-step={index} className={`drum-cell ${state} ${currentStep === index ? "current" : ""} ${index % stepsPerBar(meter, subdivision) === 0 ? "bar-start" : ""}`} onClick={() => updateDrumHit(voice, index)} aria-label={`${DRUM_LABELS[voice]}, Schritt ${index + 1}: ${HIT_LABELS[state]}`} aria-pressed={state !== "mute"} />)}
-                  </div>)}
-                </div>
-              </div> : <div className="beat-steps" aria-label="Aktuelles Akzentmuster">
-                {steps.map((step, index) => <button key={index} className={`beat-dot ${step} ${currentStep === index ? "current" : ""}`} onClick={() => updateStep(index)} aria-label={`Schritt ${index + 1}: ${step}`} />)}
-              </div>}
+              </section> : <PracticeGrid tracks={drumTracks || { rim: steps }} length={steps.length} meter={meter} subdivision={subdivision} clock={clock} volumes={voiceVolumes} onVolume={updateVoiceVolume} onHit={updateDrumHit} view={gridView} loop={barLoop} />}
             </div>
-
-            {audioFeedbackEnabled && <MemoizedTimingDiagnostics analysis={audioFeedbackAnalysis} barSteps={stepsPerBar(meter, subdivision)} stepDurationMs={feedbackStepDurationMs} drumTracks={drumTracks} steps={steps} />}
+            {audioFeedbackEnabled && <><LiveFeedback store={feedbackStore} input={inputStore} active={isPlaying} /><details className="feedback-detail-view" onToggle={e => setTimingDetailsOpen(e.currentTarget.open)}><summary>Timing-Verlauf im Detail</summary>{timingDetailsOpen && <MemoizedTimingDiagnostics store={feedbackStore} loop={barLoop} barSteps={stepsPerBar(meter, subdivision)} stepDurationMs={feedbackStepDurationMs} drumTracks={drumTracks} steps={steps} />}</details></>}
 
             <div className="shortcut-hint">Leertaste: Start/Stop · T: Tap Tempo · +/−: BPM</div>
           </div>
@@ -2682,13 +2711,20 @@ export default function MetronomeApp() {
               {trainer && <div className="trainer-settings"><select value={trainerMode} onChange={(event) => { const value = event.target.value as TrainerMode; trainerModeRef.current = value; setTrainerMode(value); }} aria-label="Trainer-Modus"><option value="up">Steigern</option><option value="pyramid">Pyramide</option></select><select value={trainerStep} onChange={(event) => { const value = Number(event.target.value); trainerStepRef.current = value; setTrainerStep(value); }} aria-label="Tempo-Schritt"><option value="2">{trainerMode === "pyramid" ? "±2" : "+2"} BPM</option><option value="5">{trainerMode === "pyramid" ? "±5" : "+5"} BPM</option><option value="10">{trainerMode === "pyramid" ? "±10" : "+10"} BPM</option></select><select value={trainerEvery} onChange={(event) => { const value = Number(event.target.value); trainerEveryRef.current = value; setTrainerEvery(value); }} aria-label="Intervall"><option value="4">alle 4 Takte</option><option value="8">alle 8 Takte</option><option value="16">alle 16 Takte</option></select><label>Start<input type="number" min="20" max="300" value={trainerMin} onChange={(event) => setTrainerMin(Number(event.target.value))} /></label><label>Ziel<input type="number" min="20" max="300" value={trainerMax} onChange={(event) => setTrainerMax(Number(event.target.value))} /></label><p>{bpm} BPM → {trainerMode === "pyramid" ? `${trainerMax} → ${trainerMin}` : trainerMax} · alle {trainerEvery} Takte</p></div>}
             </div>
             <div className={`feedback-card ${audioFeedbackEnabled ? "enabled" : ""}`}>
-              <div className="toggle-row"><div><strong>Audio-Feedback</strong><small>Transienten direkt gegen das Soll-Raster</small></div><button className={`switch ${audioFeedbackEnabled ? "on" : ""}`} onClick={() => audioFeedbackEnabled ? disableAudioFeedback() : void enableAudioFeedback()} aria-label="Audio-Feedback umschalten" aria-pressed={audioFeedbackEnabled} /></div>
+              <div className="toggle-row"><div><strong>Audio-Feedback</strong><small>Transienten direkt gegen das Soll-Raster</small></div><button className={`switch ${audioFeedbackEnabled ? "on" : ""}`} onClick={() => audioFeedbackEnabled ? disableAudioFeedback() : void enableAudioFeedback()} disabled={audioFeedbackStatus === "requesting" && !audioFeedbackEnabled} aria-label="Audio-Feedback umschalten" aria-pressed={audioFeedbackEnabled} /></div>
+              {!audioFeedbackEnabled && ["denied", "unsupported", "error"].includes(audioFeedbackStatus) && <p role="status">{audioFeedbackStatus === "denied" ? "Mikrofonzugriff wurde abgelehnt. Erlaube ihn in den Website-Einstellungen und versuche es erneut." : audioFeedbackStatus === "unsupported" ? "Dieser Browser unterstützt die Mikrofonanalyse nicht." : "Mikrofon konnte nicht geöffnet werden. Anschluss und Website-Berechtigung prüfen."}</p>}
               {audioFeedbackEnabled && <div className="feedback-controls">
                 <div className="feedback-status-row"><span className={`feedback-status-dot ${audioFeedbackStatus}`} /><strong>{feedbackStatusLabel}</strong><span>{audioFeedbackConfig.latencyMs} ms · {latencySourceLabel}</span></div>
-                {audioInputOptions.length > 0 && <label>Mikrofon<select className="field-select" value={audioInputDeviceId} disabled={isPlaying || calibratingLatency} onChange={(event) => void enableAudioFeedback(event.target.value)}>{audioInputOptions.map((input) => <option key={input.deviceId} value={input.deviceId}>{input.label}</option>)}</select></label>}
-                <label className="feedback-latency-control"><span>Latenzkorrektur <b>{audioFeedbackConfig.latencyMs} ms</b></span><input type="range" min="0" max="600" step="1" value={audioFeedbackConfig.latencyMs} disabled={isPlaying || calibratingLatency} onChange={(event) => setManualAudioLatency(Number(event.target.value))} /></label>
-                <button className="feedback-calibrate" disabled={isPlaying || calibratingLatency} onClick={() => void calibrateAudioLatency()}>{calibratingLatency ? `Messung ${calibrationProgress}/6` : "Bluetooth-Latenz messen"}</button>
-                <p>Kopfhörer verwenden, damit der App-Beat nicht als eigener Schlag zählt. Zur Messung einen Hörer direkt ans Mikrofon halten.</p>
+                {audioInputOptions.length > 0 && <label>Mikrofon<select className="field-select" value={audioInputDeviceId} disabled={phase !== "stopped" || calibratingLatency} onChange={(event) => void enableAudioFeedback(event.target.value)}>{audioInputOptions.map((input) => <option key={input.deviceId} value={input.deviceId}>{input.label}</option>)}</select></label>}
+                <InputMeter input={inputStore} />
+                <label>Zielstimme<select aria-label="Zielstimme für Audio-Feedback" value={feedbackTarget} disabled={phase !== "stopped" || calibratingLatency} onChange={e => { const voice = e.target.value as DrumVoice | "all"; feedbackTargetRef.current = voice; setFeedbackTarget(voice); }}><option value="all">Alle Einsätze gemeinsam</option>{DRUM_VOICES.filter(v => drumTracks?.[v]?.some(hit => hit !== "mute")).map(v => <option key={v} value={v}>{DRUM_LABELS[v]}</option>)}</select></label>
+                <label>Empfindlichkeit <b>{sensitivity}%</b><input aria-label="Mikrofon-Empfindlichkeit" type="range" min="0" max="100" value={sensitivity} disabled={calibratingLatency} onChange={e => { const value = Number(e.target.value); setSensitivity(value); sensitivityRef.current = value; const message = { type: "configure", config: { minThreshold: .016 * Math.pow(.1, value / 100) } }; audioOnsetNodeRef.current?.port.postMessage(message); monitorNodeRef.current?.port.postMessage(message); }} /></label>
+                <div className="calibration-guide"><strong>1 · Gleichen Audioausgang verwenden</strong><p>Den Hörer, mit dem du übst, direkt ans gewählte Mikrofon halten. Ruhig bleiben; die App spielt acht Messimpulse. Nicht mitklopfen.</p><strong>2 · Messen und prüfen</strong><p>Nur wiederholbar erkannte Impulse werden übernommen. Nach Wechsel von Hörer, Mikrofon oder Bluetooth-Verbindung erneut messen.</p></div>
+                <label className="feedback-latency-control"><span>Latenzkorrektur <b>{audioFeedbackConfig.latencyMs} ms</b></span><input aria-label="Latenzkorrektur" type="range" min="0" max="600" step="1" value={audioFeedbackConfig.latencyMs} disabled={phase !== "stopped" || calibratingLatency} onChange={event => setManualAudioLatency(Number(event.target.value))} /></label>
+                <div className="latency-fine"><button disabled={phase !== "stopped" || calibratingLatency} onClick={() => setManualAudioLatency(audioFeedbackConfig.latencyMs - 1)}>−1 ms</button><input aria-label="Latenz in Millisekunden" type="number" min="0" max="600" value={audioFeedbackConfig.latencyMs} disabled={phase !== "stopped" || calibratingLatency} onChange={e => setManualAudioLatency(Number(e.target.value))} /><button disabled={phase !== "stopped" || calibratingLatency} onClick={() => setManualAudioLatency(audioFeedbackConfig.latencyMs + 1)}>+1 ms</button></div>
+                {calibratingLatency ? <div className="calibration-running"><progress max="8" value={calibrationProgress} aria-label="Kalibrierfortschritt" /><span>{calibrationProgress}/8 Messimpulse</span><button onClick={() => calibrationAbortRef.current?.abort()}>Messung abbrechen</button></div> : <button className="feedback-calibrate" disabled={phase !== "stopped"} onClick={() => void calibrateAudioLatency()}>Latenz messen · etwa 8 Sekunden</button>}
+                <p className="calibration-result" role="status">{calibrationResult || (audioFeedbackConfig.measurement ? `Letzte Messung: ${audioFeedbackConfig.measurement.accepted}/${audioFeedbackConfig.measurement.total} Impulse · Streuung ${audioFeedbackConfig.measurement.spreadMs} ms` : "Noch keine geprüfte Messung. Die Schätzung dient nur als Ausgangspunkt.")}</p>
+                <p>3 · Hörer wieder aufsetzen und zum Beat spielen. Die Rückmeldung erscheint direkt unter dem Raster.</p>
               </div>}
             </div>
             <button className="midi-button settings-midi" onClick={enableMidi} disabled={midiStatus === "connected"}>{midiStatus === "connected" ? "MIDI verbunden" : midiStatus === "unsupported" ? "Kein MIDI" : midiStatus === "denied" ? "MIDI abgelehnt" : "MIDI verbinden"}</button>
@@ -2717,7 +2753,7 @@ export default function MetronomeApp() {
           </div>
           <div className="library-finder">
             <div className="finder-toolbar">
-              <div className="finder-result" aria-live="polite"><strong>{filteredPatterns.length}</strong><span>von {library.length} Patterns</span></div>
+              <div className="finder-result" aria-live="polite"><strong>{filteredPatterns.length}</strong><span>von {library.length} Patterns · {patternGroups.length} Karten</span></div>
               <div className="finder-actions">
                 <button ref={stylePickerTriggerRef} className={`finder-select ${category !== "Alle" ? "active" : ""}`} aria-expanded={stylePickerOpen} aria-controls="style-picker" onClick={() => { setFilterPanelOpen(false); setStylePickerOpen(true); }}><span>Stil</span><strong>{styleSelectionLabel(category)}</strong><b>⌄</b></button>
                 <button ref={filterPanelTriggerRef} className={`finder-select filter-button ${detailFilterCount ? "active" : ""}`} aria-expanded={filterPanelOpen} aria-controls="library-filter-panel" onClick={() => { setStylePickerOpen(false); setAdvancedFiltersOpen(advancedFiltersActive); setFilterPanelOpen(true); }}><span>Filter</span><strong>{detailFilterCount ? `${detailFilterCount} aktiv` : "Verfeinern"}</strong><b>{detailFilterCount || "⌄"}</b></button>
@@ -2780,19 +2816,13 @@ export default function MetronomeApp() {
               <footer><button disabled={!hasActiveLibraryCriteria} onClick={() => resetLibraryFilters(true)}>Alles zurücksetzen</button><button className="primary" onClick={() => setFilterPanelOpen(false)}>{filteredPatterns.length} Patterns anzeigen</button></footer>
             </section>
           </div>}
+          {audition.error && <p role="status">{audition.error}</p>}
+          {audition.previewId && <div className="preview-status" role="status">{audition.loading ? "Vorschau wird geladen" : "Hörvorschau läuft"}<button onClick={audition.stop}>■ Vorschau stoppen</button></div>}
           <div className="pattern-grid">
-            {filteredPatterns.slice(0, visibleCount).map((pattern) => (
-              <article className={`pattern-card ${patternId === pattern.id ? "loaded" : ""}`} key={pattern.id}>
-                <div className="card-top"><div><div className="card-category" title={pattern.attribution}>{pattern.category} · {PATTERN_TYPE_INFO[pattern.patternType || "Groove"].label} · {pattern.attribution || (pattern.source ? "Übungsrekonstruktion" : "Genreübung")}</div><h3>{pattern.name}</h3>{patternId === pattern.id && <span className="loaded-badge">Aktuell geladen</span>}</div><button className={`favorite ${favorites.includes(pattern.id) ? "on" : ""}`} onClick={() => toggleFavorite(pattern.id)} aria-label={favorites.includes(pattern.id) ? "Aus Favoriten entfernen" : "Zu Favoriten hinzufügen"} aria-pressed={favorites.includes(pattern.id)}>{favorites.includes(pattern.id) ? "♥" : "♡"}</button></div>
-                <div className="mini-pattern">{pattern.pattern.slice(0, 32).map((step, index) => <span key={index} className={`mini-step ${step}`} />)}</div>
-                <div className="card-skills">{skillLabelsFor(pattern).map((skill) => <span key={skill}>{skill}</span>)}<span>Start {pattern.playback?.bpm || Math.round((pattern.bpmMin + pattern.bpmMax) / 2)} BPM</span></div>
-                <div className="card-footer"><div className="card-meta"><span>{pattern.meter}</span><span>{pattern.subdivision}</span><span>{pattern.bpmMin}–{pattern.bpmMax}</span>{(pattern.bars || 1) > 1 && <span>{pattern.bars}T</span>}{(pattern.playback?.swing ?? 50) > 50 && <span>Swing {Math.round(((pattern.playback?.swing ?? 50) - 50) * 2)}%</span>}{pattern.originalFeel && <span>Original Feel</span>}<span>{pattern.difficulty}</span></div><div className="card-actions"><button onClick={() => setExpandedPatternId((current) => current === pattern.id ? null : pattern.id)} aria-expanded={expandedPatternId === pattern.id}>Details</button><button onClick={() => loadPattern(pattern, true, false)}>Anhören</button><button className="start-small" onClick={() => loadPattern(pattern)}>Zum Trainer</button></div></div>
-                {expandedPatternId === pattern.id && <div className="pattern-details"><p><strong>Worauf hören?</strong>{pattern.instruction}</p><p><strong>Warum interessant?</strong>{pattern.whyInteresting}</p><p><strong>Typischer Stolperstein</strong>{pattern.difficulty === "Leicht" ? "Tempo nicht vor Klangbalance stellen." : pattern.difficulty === "Mittel" ? "Kernpuls bei Ghostnotes und Synkopen nicht verlieren." : "Dichte Passagen taktweise isolieren, bevor du die Form verbindest."}</p><p><strong>Vereinfachen / steigern</strong>Erst Skeleton und langsamer; danach Original Feel, Gap Click oder Voice Dropout.</p>{pattern.source && <a className="source-link" href={pattern.source.url} target="_blank" rel="noreferrer">{pattern.source.label} · Quelle öffnen</a>}</div>}
-              </article>
-            ))}
+            {patternGroups.slice(0, visibleCount).map(group => <PatternCard key={group.id} group={group} loadedId={patternId} favorites={favorites} previewId={audition.previewId} previewLoading={audition.loading} onFavorite={toggleFavorite} onPreview={previewPattern} onLoad={loadPattern} />)}
             {!filteredPatterns.length && <div className="empty-state"><p>Kein Pattern passt zu dieser Auswahl.</p><button onClick={() => resetLibraryFilters(true)}>Alles zurücksetzen</button></div>}
           </div>
-          {visibleCount < filteredPatterns.length && <button className="load-more" onClick={() => setVisibleCount((count) => count + 18)}>Weitere Patterns</button>}
+          {visibleCount < patternGroups.length && <button className="load-more" onClick={() => setVisibleCount((count) => count + 18)}>Weitere Patterns</button>}
         </section>
 
         <section className="section mine-section" id="meine-grooves">
