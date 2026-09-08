@@ -598,7 +598,8 @@ test("uses a readable workstation hierarchy with sequencer priority", async () =
   const grid = await readFile(new URL("../app/practice-grid.tsx", import.meta.url), "utf8");
   assert.match(grid, /countStep/);
   assert.match(grid, /count-ruler/);
-  assert.match(source, /tempo-toolbar[\s\S]{0,300}className="play-button tempo-play"[\s\S]{0,240}className="tap-compact"/);
+  const tempoToolbar = source.slice(source.indexOf('className={`tempo-toolbar'), source.indexOf('<div className="beat-strip">'));
+  assert.match(tempoToolbar, /className="play-button tempo-play"[\s\S]*?<\/button>\s*<button className="tap-compact"/);
   assert.match(styles, /\.tempo-play\s*\{[^}]*width:\s*60px;[^}]*height:\s*64px/s);
   assert.match(styles, /@media \(max-width:\s*700px\)[\s\S]*?\.tempo-play\s*\{\s*display:\s*none;/);
   for (const className of ["settings-meter", "settings-subdivision", "settings-swing"]) {

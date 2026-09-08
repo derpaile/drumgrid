@@ -4,12 +4,16 @@ import { useEffect, useRef } from "react";
 
 export type UiLanguage = "de" | "en";
 export type UiTheme = "signal" | "ultraviolet" | "ember" | "glacier" | "mono";
+export type UiLayout = "winamp" | "studio";
+export type StudioTheme = "chalk" | "sage" | "tide" | "plum" | "ink";
 export type UiDensity = "comfortable" | "compact";
 export type TransportDock = "left" | "center" | "right";
 
 export type UiPreferences = {
   language: UiLanguage;
   theme: UiTheme;
+  layout: UiLayout;
+  studioTheme: StudioTheme;
   density: UiDensity;
   scale: number;
   reduceMotion: boolean;
@@ -25,6 +29,8 @@ export type UiPreferences = {
 export const DEFAULT_UI_PREFERENCES: UiPreferences = {
   language: "de",
   theme: "signal",
+  layout: "winamp",
+  studioTheme: "chalk",
   density: "comfortable",
   scale: 100,
   reduceMotion: false,
@@ -43,6 +49,14 @@ const THEMES: Array<{ id: UiTheme; name: string; de: string; en: string }> = [
   { id: "ember", name: "Ember", de: "Warmes Orange, Rot und dunkles Kupfer", en: "Warm orange, red and dark copper" },
   { id: "glacier", name: "Glacier", de: "Klares Eisblau mit kühlem Mint", en: "Clear ice blue with cool mint" },
   { id: "mono", name: "Mono", de: "Reduzierte Graustufen mit maximaler Klarheit", en: "Reduced grayscale with maximum clarity" },
+];
+
+const STUDIO_THEMES: Array<{ id: StudioTheme; name: string; de: string; en: string }> = [
+  { id: "chalk", name: "Chalk", de: "Warmes Creme mit Zinnoberrot", en: "Warm cream with vermilion" },
+  { id: "sage", name: "Sage", de: "Sanftes Salbei mit Waldgrün", en: "Soft sage with forest green" },
+  { id: "tide", name: "Tide", de: "Kühles Porzellan mit Ozeanblau", en: "Cool porcelain with ocean blue" },
+  { id: "plum", name: "Plum", de: "Helles Mauve mit Pflaume", en: "Light mauve with plum" },
+  { id: "ink", name: "Ink", de: "Dunkles Graphit mit warmem Sand", en: "Dark graphite with warm sand" },
 ];
 
 const TRANSLATIONS: Array<[string, string]> = [
@@ -285,6 +299,8 @@ export function normalizeUiPreferences(value: Partial<UiPreferences> | null | un
     ...DEFAULT_UI_PREFERENCES,
     ...(value || {}),
     language: value?.language === "en" ? "en" : "de",
+    layout: value?.layout === "studio" ? "studio" : "winamp",
+    studioTheme: STUDIO_THEMES.some((theme) => theme.id === value?.studioTheme) ? value!.studioTheme! : DEFAULT_UI_PREFERENCES.studioTheme,
     theme: themes.includes(value?.theme as UiTheme) ? value!.theme as UiTheme : DEFAULT_UI_PREFERENCES.theme,
     density: value?.density === "compact" ? "compact" : "comfortable",
     scale: Math.max(90, Math.min(115, Math.round(Number(value?.scale) || 100))),
@@ -376,6 +392,9 @@ export function SettingsOverlay({
   onClose: () => void;
 }) {
   const t = (de: string, en: string) => preferences.language === "de" ? de : en;
+  const studio = preferences.layout === "studio";
+  const colorways = studio ? STUDIO_THEMES : THEMES;
+  const colorway = studio ? preferences.studioTheme : preferences.theme;
   return <div className="interface-settings-layer">
     <button className="interface-settings-backdrop" tabIndex={-1} onClick={onClose} aria-label={t("Interface-Einstellungen schließen", "Close interface settings")} />
     <section className="interface-settings-dialog" role="dialog" aria-modal="true" aria-labelledby="interface-settings-title">
@@ -387,13 +406,17 @@ export function SettingsOverlay({
 
       <div className="interface-settings-scroll">
         <section className="settings-feature-intro">
-          <div><small>{t("Live-Vorschau", "Live preview")}</small><strong>{THEMES.find((theme) => theme.id === preferences.theme)?.name}</strong><span>{preferences.density === "compact" ? t("Kompakt", "Compact") : t("Großzügig", "Comfortable")} · {preferences.scale}%</span></div>
+          <div><small>{t("Live-Vorschau", "Live preview")}</small><strong>{studio ? "Studio" : "Winamp"} · {colorways.find((theme) => theme.id === colorway)?.name}</strong><span>{preferences.density === "compact" ? t("Kompakt", "Compact") : t("Großzügig", "Comfortable")} · {preferences.scale}%</span></div>
           <div className="settings-preview-grid" aria-hidden="true">{Array.from({ length: 12 }, (_, index) => <i key={index} className={index % 5 === 0 ? "accent" : index % 3 === 0 ? "ghost" : ""} />)}</div>
         </section>
 
         <section className="interface-setting-group">
-          <div className="interface-group-title"><span>01</span><div><h3>{t("Farbwelt", "Color world")}</h3><p>{t("Fünf eigenständige Bühnen für dieselbe Maschine.", "Five distinct stages for the same machine.")}</p></div></div>
-          <div className="theme-choice-grid">{THEMES.map((theme) => <button key={theme.id} className={`theme-choice theme-${theme.id} ${preferences.theme === theme.id ? "active" : ""}`} aria-pressed={preferences.theme === theme.id} onClick={() => onChange({ theme: theme.id })}><span className="theme-swatches" aria-hidden="true"><i /><i /><i /><i /></span><strong>{theme.name}</strong><small>{preferences.language === "de" ? theme.de : theme.en}</small></button>)}</div>
+          <div className="interface-group-title"><span>01</span><div><h3>{t("Layout & Farbwelt", "Layout & color")}</h3><p>{t("Zwei Layouts, jeweils fünf Farben. Deine Auswahl bleibt gespeichert.", "Two layouts, five colors each. Your selections are remembered.")}</p></div></div>
+          <div className="layout-choice-grid" role="group" aria-label={t("Layout auswählen", "Choose layout")}>
+            <button type="button" className={`layout-choice ${!studio ? "active" : ""}`} aria-pressed={!studio} onClick={() => onChange({ layout: "winamp" })}><span className="layout-miniature layout-miniature-winamp" aria-hidden="true"><i /><i /><i /></span><span><strong>Winamp</strong><small>{t("Kompakte Fenster, Metall und Leuchtdisplay", "Compact windows, metal and glowing displays")}</small></span></button>
+            <button type="button" className={`layout-choice ${studio ? "active" : ""}`} aria-pressed={studio} onClick={() => onChange({ layout: "studio" })}><span className="layout-miniature layout-miniature-studio" aria-hidden="true"><i /><i /><i /></span><span><strong>Studio</strong><small>{t("Seitliche Navigation, großes Tempo und klares Raster", "Side navigation, large tempo and a clear grid")}</small></span></button>
+          </div>
+          <div className="theme-choice-grid" role="group" aria-label={t("Farbwelt auswählen", "Choose color")}>{colorways.map((theme) => <button key={theme.id} className={`theme-choice theme-${theme.id} ${colorway === theme.id ? "active" : ""}`} aria-pressed={colorway === theme.id} onClick={() => onChange(studio ? { studioTheme: theme.id as StudioTheme } : { theme: theme.id as UiTheme })}><span className="theme-swatches" aria-hidden="true"><i /><i /><i /><i /></span><strong>{theme.name}</strong><small>{preferences.language === "de" ? theme.de : theme.en}</small></button>)}</div>
         </section>
 
         <div className="interface-settings-columns">

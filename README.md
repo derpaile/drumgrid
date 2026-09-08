@@ -47,12 +47,14 @@ The library covers groove vocabulary from jazz, funk and hip-hop to metal, jungl
 | Feedback | Optional microphone transient analysis, timing markers, session recap and manual or measured latency correction |
 | Sounds | Eleven compact sample kits plus a complete procedural precision kit |
 | Personal data | Local scenes, custom patterns, recent items, practice history and JSON backup/import |
-| Interface | German and English UI, five color themes, density and scale controls, reduced motion, high contrast and an optional floating desktop transport |
+| Interface | German and English UI, Winamp and Studio layouts with five colorways each, density and scale controls, reduced motion, high contrast and an optional floating desktop transport |
 | PWA | Installable, offline-capable, atomic service-worker updates, kit download status and mobile safe-area navigation |
 
 ## Interface
 
-The control-surface menu separates visual preferences from musical settings. Choose between Signal, Ultraviolet, Ember, Glacier and Mono; adjust UI scale and density; hide the coach or spectrum; and place the floating play/pause transport on the left, center or right of the desktop.
+The control-surface menu separates visual preferences from musical settings. Choose **Winamp** for compact retro windows or **Studio** for side navigation, a large tempo control beside the pattern and quiet, flat surfaces. Winamp offers Signal, Ultraviolet, Ember, Glacier and Mono. Studio offers Chalk (cream/red), Sage, Tide, Plum and Ink (dark graphite/sand). Each layout remembers its colorway; changing appearance preserves the running session, pattern and sound. Existing installations keep their Winamp settings.
+
+Adjust UI scale and density, hide the coach or spectrum, and place the floating play/pause transport on the left, center or right of the desktop. Both layouts adapt to mobile screens and include the pattern library, saved grooves and interface dialogs.
 
 Keyboard controls:
 

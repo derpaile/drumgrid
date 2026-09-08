@@ -122,7 +122,7 @@ function setAudioSessionType(type: AudioSessionType) {
 }
 
 
-function FftSpectrum({ analyserRef, active }: { analyserRef: { current: AnalyserNode | null }; active: boolean }) {
+function FftSpectrum({ analyserRef, active, appearance }: { analyserRef: { current: AnalyserNode | null }; active: boolean; appearance: string }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const levelsRef = useRef(new Float32Array(VISIBLE_FFT_BINS));
   const peaksRef = useRef(new Float32Array(VISIBLE_FFT_BINS));
@@ -134,6 +134,9 @@ function FftSpectrum({ analyserRef, active }: { analyserRef: { current: Analyser
     if (!graphics) return;
     const analyser = analyserRef.current;
     const frequencyData = analyser ? new Uint8Array(analyser.frequencyBinCount) : null;
+    const style = getComputedStyle(canvas);
+    const color = (name: string, fallback: string) => style.getPropertyValue(name).trim() || fallback;
+    const colors = { background: color("--spectrum-bg", "#010401"), signal: color("--spectrum-signal", "#30f22a"), warning: color("--spectrum-warning", "#e0c36a"), peak: color("--spectrum-peak", "#d8f58a"), danger: color("--spectrum-danger", "#ff665d") };
     let frame = 0;
 
     const draw = () => {
@@ -148,7 +151,7 @@ function FftSpectrum({ analyserRef, active }: { analyserRef: { current: Analyser
       }
       graphics.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
       graphics.clearRect(0, 0, width, height);
-      graphics.fillStyle = "#010401";
+      graphics.fillStyle = colors.background;
       graphics.fillRect(0, 0, width, height);
 
       if (active && analyser && frequencyData) analyser.getByteFrequencyData(frequencyData);
@@ -185,13 +188,13 @@ function FftSpectrum({ analyserRef, active }: { analyserRef: { current: Analyser
         const barHeight = Math.max(2, level * plotHeight);
         for (let y = 0; y < barHeight; y += 4) {
           const position = y / plotHeight;
-          graphics.fillStyle = position > .88 ? "#ff665d" : position > .7 ? "#e0c36a" : "#30f22a";
+          graphics.fillStyle = position > .88 ? colors.danger : position > .7 ? colors.warning : colors.signal;
           graphics.globalAlpha = level > .01 ? .92 : .18;
           graphics.fillRect(x, height - 3 - y, barWidth, Math.min(2, barHeight - y));
         }
         if (peaks[index] > .035) {
           graphics.globalAlpha = .85;
-          graphics.fillStyle = "#d8f58a";
+          graphics.fillStyle = colors.peak;
           graphics.fillRect(x, Math.max(1, height - 4 - peaks[index] * plotHeight), barWidth, 1);
         }
       }
@@ -202,7 +205,7 @@ function FftSpectrum({ analyserRef, active }: { analyserRef: { current: Analyser
 
     draw();
     return () => window.cancelAnimationFrame(frame);
-  }, [active, analyserRef]);
+  }, [active, analyserRef, appearance]);
 
   return <canvas ref={canvasRef} className="spectrum" aria-hidden="true" data-visible-bins={VISIBLE_FFT_BINS} />;
 }
@@ -723,6 +726,14 @@ export default function MetronomeApp() {
     document.documentElement.style.fontSize = `${uiPreferences.scale}%`;
     return () => { document.documentElement.style.fontSize = previousFontSize; };
   }, [uiPreferences.scale]);
+
+  useEffect(() => {
+    const html = document.documentElement;
+    const previous = html.style.backgroundColor;
+    const shell = document.querySelector(".app-shell");
+    if (shell) html.style.backgroundColor = getComputedStyle(shell).getPropertyValue("--page-bg");
+    return () => { html.style.backgroundColor = previous; };
+  }, [uiPreferences.layout, uiPreferences.theme, uiPreferences.studioTheme]);
 
   useEffect(() => { meterRef.current = meter; }, [meter]);
   useEffect(() => { subdivisionRef.current = subdivision; }, [subdivision]);
@@ -2612,9 +2623,10 @@ export default function MetronomeApp() {
   }, [phase, saveLastSnapshot]);
 
   return (
-    <main className={`app-shell ${focusMode ? "focus-mode" : ""} ui-theme-${uiPreferences.theme} ui-density-${uiPreferences.density} ${uiPreferences.texture ? "ui-texture" : "ui-texture-off"} ${uiPreferences.highContrast ? "ui-high-contrast" : ""} ${uiPreferences.beatGlow ? "ui-beat-glow" : ""} ${uiPreferences.reduceMotion ? "ui-reduce-motion" : ""}`}>
+    <main className={`app-shell ${focusMode ? "focus-mode" : ""} ui-layout-${uiPreferences.layout} ui-studio-${uiPreferences.studioTheme} ui-theme-${uiPreferences.theme} ui-density-${uiPreferences.density} ${uiPreferences.texture ? "ui-texture" : "ui-texture-off"} ${uiPreferences.highContrast ? "ui-high-contrast" : ""} ${uiPreferences.beatGlow ? "ui-beat-glow" : ""} ${uiPreferences.reduceMotion ? "ui-reduce-motion" : ""}`}>
       <div className="app-content">
       <div className="page">
+        <div className="app-navigation">
         <header className="app-titlebar">
           <span className="brand-glyph" aria-hidden="true"><i /><i /><i /><i /></span>
           <span className="title-rail" aria-hidden="true" />
@@ -2622,12 +2634,12 @@ export default function MetronomeApp() {
           <span className="title-rail" aria-hidden="true" />
           <span className="title-version">V3.0</span>
         </header>
-        <section className="practice-bar" id="trainer" aria-label="Training wählen">
+        <section className="practice-bar" aria-label="Training wählen">
           <h1 className="sr-only">drumgrid Drum-Trainer</h1>
           <nav className="desktop-nav" aria-label="Hauptnavigation">
-            <button className={section === "trainer" ? "active" : ""} onClick={() => navigateTo("trainer")}>Üben</button>
-            <button className={section === "library" ? "active" : ""} onClick={() => navigateTo("library")}>Patterns</button>
-            <button className={section === "mine" ? "active" : ""} onClick={() => navigateTo("mine")}>Meine</button>
+            <button className={section === "trainer" ? "active" : ""} aria-current={section === "trainer" ? "page" : undefined} onClick={() => navigateTo("trainer")}>Üben</button>
+            <button className={section === "library" ? "active" : ""} aria-current={section === "library" ? "page" : undefined} onClick={() => navigateTo("library")}>Patterns</button>
+            <button className={section === "mine" ? "active" : ""} aria-current={section === "mine" ? "page" : undefined} onClick={() => navigateTo("mine")}>Meine</button>
           </nav>
           <div className="session-options" aria-label="Session wählen">
             {([
@@ -2639,6 +2651,7 @@ export default function MetronomeApp() {
             <button className={`status-pill ${pwaStatus}`} onClick={pwaStatus === "update" ? applyUpdate : installPrompt ? installApp : undefined} title={pwaLabel} aria-label={pwaLabel}><span className="status-dot" /><span>{installPrompt && pwaStatus === "ready" ? "Installieren" : pwaLabel}</span></button>
           </div>
         </section>
+        </div>
         {uiPreferences.showCoach && <section className="coach-deck" aria-label="Dein Übecoach">
           {lastSnapshot && <article className="continue-card">
             <div><small>Weiterüben</small><strong>{lastSnapshot.scene.name} · {lastSnapshot.scene.bpm} BPM · {drumKitLabel(lastSnapshot.scene.kit)}</strong><span>{new Intl.DateTimeFormat(localeFor(uiPreferences.language), { dateStyle: "medium", timeStyle: "short" }).format(new Date(lastSnapshot.savedAt))} · {Math.max(1, Math.round(lastSnapshot.activeSeconds / 60))} Min. · {lastSnapshot.currentStage || "Originalform"}</span></div>
@@ -2650,7 +2663,7 @@ export default function MetronomeApp() {
           </article>
           <article className="offline-card"><small>Offline-Stand</small><strong>{offlineStatus.appReady ? "App bereit" : "App wird geprüft"}</strong><span>{offlineStatus.availableKits} von {offlineStatus.totalKits} Kits verfügbar</span>{offlineStatus.availableKits < offlineStatus.totalKits && <button onClick={cacheAllKits} disabled={offlineDownloadPending}>{offlineDownloadPending ? "Wird gespeichert …" : `Alle Kits offline · ${(offlineStatus.totalAudioBytes / 1024 / 1024).toLocaleString(localeFor(uiPreferences.language), { maximumFractionDigits: 2 })} MB`}</button>}</article>
         </section>}
-        <section className="workspace" aria-label="Drum-Groove-Trainer">
+        <section className="workspace" id="trainer" aria-label="Drum-Groove-Trainer">
           <div className="panel metronome-panel">
             <div className="meter-head">
               <div className="live-label"><span className={`live-pulse ${isPlaying ? "playing" : ""}`} />{phaseLabel}</div>
@@ -2663,13 +2676,13 @@ export default function MetronomeApp() {
               <div className="ladder-control"><label htmlFor="ladder-stage">Lernleiter</label><select id="ladder-stage" value={currentStage} onChange={(event) => selectLadderStage(event.target.value)}>{ladderStages.map((stage) => <option key={stage.id} value={stage.id}>{stage.label} · {stage.description}</option>)}</select><button onClick={() => void saveCurrentScene()}>Scene speichern</button></div>
             </div>
             <div className={`tempo-toolbar ${uiPreferences.showSpectrum ? "" : "without-spectrum"}`} aria-label="Tempo">
-              <button className="play-button tempo-play" onClick={togglePlayback} aria-label={isPlaying ? "Wiedergabe stoppen" : "Abspielen"} aria-pressed={isPlaying}>{isPlaying ? "Ⅱ" : "▶"}</button>
+              <button className="play-button tempo-play" onClick={togglePlayback} aria-label={isPlaying ? "Wiedergabe stoppen" : "Abspielen"} aria-pressed={isPlaying}><span aria-hidden="true">{isPlaying ? "Ⅱ" : "▶"}</span><span className="studio-play-label">{isPlaying ? "Stopp" : "Start"}</span></button>
               <button className="tap-compact" onClick={tapTempo}>TAP</button>
-              <button className="nudge" onClick={() => updateBpm(bpmRef.current - 1)} aria-label="Tempo um eins verringern">−</button>
+              <button className="nudge tempo-down" onClick={() => updateBpm(bpmRef.current - 1)} aria-label="Tempo um eins verringern">−</button>
               <label className="bpm-compact"><input type="number" min="20" max="300" value={bpm} onChange={(event) => updateBpm(Number(event.target.value))} aria-label="Tempo in BPM" /><span>BPM</span></label>
-              <button className="nudge" onClick={() => updateBpm(bpmRef.current + 1)} aria-label="Tempo um eins erhöhen">+</button>
+              <button className="nudge tempo-up" onClick={() => updateBpm(bpmRef.current + 1)} aria-label="Tempo um eins erhöhen">+</button>
               <input className="tempo-range" type="range" min="20" max="300" value={bpm} onChange={(event) => updateBpm(Number(event.target.value))} aria-label="Tempo-Regler" />
-              {uiPreferences.showSpectrum && <FftSpectrum analyserRef={analyserRef} active={isPlaying} />}
+              {uiPreferences.showSpectrum && <FftSpectrum analyserRef={analyserRef} active={isPlaying} appearance={`${uiPreferences.layout}-${uiPreferences.studioTheme}`} />}
             </div>
 
             <div className="beat-strip">
