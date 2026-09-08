@@ -15,7 +15,7 @@ const PATTERN_CATEGORIES = new Set([
   "Funk & Soul", "Hip-Hop", "Old School Hip-Hop", "Trip-Hop & Downtempo", "Dance & Electronic",
   "Jungle & Drum and Bass", "Reggae", "Latin & World", "Genreübergreifend",
 ]);
-const PATTERN_TYPES = new Set(["Groove", "Break", "Technik"]);
+const PATTERN_TYPES = new Set(["Groove", "Break", "Technik", "Fill"]);
 const DRUM_VOICES = new Set([
   "kick", "snare", "closedHat", "openHat", "ride", "crash", "rim", "highTom", "lowTom",
 ]);
@@ -115,11 +115,21 @@ test("ships a persistent bilingual interface studio and optional desktop transpo
   assert.match(css, /\.floating-transport/);
 });
 
-test("ships a drum-only v2 library with 491 complete patterns", async () => {
+test("ships a drum-only v2 library with 571 complete patterns", async () => {
   const library = await readLibrary();
   assert.equal(library.version, 2);
-  assert.equal(library.count, 491);
-  assert.equal(library.patterns.length, 491);
+  assert.equal(library.count, 571);
+  assert.equal(library.patterns.length, 571);
+  assert.equal(library.patterns.filter((pattern) => pattern.patternType === "Technik").length, 26);
+  assert.equal(library.patterns.filter((pattern) => pattern.patternType === "Fill").length, 60);
+  assert.equal(library.patterns.filter((pattern) => pattern.patternType === "Fill" && pattern.difficulty === "Schwer").length, 10);
+  assert.equal(library.patterns.filter((pattern) => pattern.difficulty === "Leicht").length, 65);
+  const addedFills = library.patterns.filter((pattern) => {
+    const number = Number(pattern.name.match(/^Fill (\d+)/)?.[1]);
+    return number >= 11 && number <= 60;
+  });
+  assert.equal(addedFills.filter((pattern) => ["Mittel", "Fortgeschritten"].includes(pattern.difficulty)).length, 40);
+  assert.equal(addedFills.filter((pattern) => pattern.difficulty === "Schwer").length, 10);
   const ids = new Set();
   const names = new Set();
   const musicalSignatures = new Set();
@@ -518,12 +528,15 @@ test("previews library patterns in place and defaults the workstation to the 707
   assert.match(source, /useState<DrumKit>\("707"\)/);
   assert.match(source, /soundRef\.current = "707"/);
   assert.match(source, /setSound\("707"\)/);
+  assert.match(source, /className="kit-picker"/);
+  assert.doesNotMatch(source, /<select className="field-select" value=\{sound\}/);
   assert.match(loadPattern, /focusTrainer = true/);
   assert.match(loadPattern, /if \(focusTrainer\) \{[\s\S]*setSection\("trainer"\);[\s\S]*window\.scrollTo/);
   const preview = await readFile(new URL("../app/pattern-preview.ts", import.meta.url), "utf8");
   const cards = await readFile(new URL("../app/pattern-cards.tsx", import.meta.url), "utf8");
   assert.match(source, /audition\.play\(pattern, volumeRef\.current\)/);
   assert.match(preview, /new AudioContext/);
+  assert.match(preview, /normalizeDrumKit\("707"\)/);
   assert.doesNotMatch(preview, /persistStore|setBpm|setPatternId/);
   assert.match(cards, /loadedId === pattern\.id/);
   assert.match(styles, /\.pattern-card\.loaded\s*\{/);
@@ -619,18 +632,18 @@ test("keeps the mobile transport large, icon-based and clear of the iOS home ind
   assert.match(styles, /\.mobile-nav \.mobile-play\s*\{[^}]*width:\s*72px;[^}]*height:\s*78px/s);
 });
 
-test("keeps eleven recorded kits and adds a complete procedural precision kit", async () => {
+test("keeps the eight selected sample kits", async () => {
   const audioRoot = new URL("../public/audio/drums/", import.meta.url);
-  const kitFolders = ["80s", "jungle", "lofi", "garage", "holzwerk", "quartz-click", "707", "808", "808-deep", "909", "pss795"];
+  const kitFolders = ["80s", "lofi", "holzwerk", "quartz-click", "707", "808", "909", "pss795"];
   const completeKitFiles = new Set(["kick.mp3", "snare.mp3", "closed-hat.mp3", "open-hat.mp3", "ride.mp3", "crash.mp3", "rim.mp3", "high-tom.mp3", "low-tom.mp3"]);
-  for (const kit of ["holzwerk", "quartz-click", "707", "808", "808-deep", "909", "pss795"]) {
+  for (const kit of ["holzwerk", "quartz-click", "707", "808", "909", "pss795"]) {
     assert.deepEqual(new Set(await readdir(new URL(`${kit}/`, audioRoot))), completeKitFiles, `${kit} is incomplete`);
   }
   const files = (await Promise.all(kitFolders.map(async (kit) =>
     (await readdir(new URL(`${kit}/`, audioRoot))).map((name) => new URL(`${kit}/${name}`, audioRoot)),
   ))).flat();
   const sizes = await Promise.all(files.map(async (file) => (await stat(file)).size));
-  assert.equal(files.length, 99);
+  assert.equal(files.length, 70);
   assert.ok(files.every((file) => file.pathname.endsWith(".mp3")));
   assert.ok(sizes.every((size) => size > 0));
   assert.ok(sizes.reduce((sum, size) => sum + size, 0) < 1_400_000, "drum samples exceed the 1.4 MB budget");
@@ -640,10 +653,9 @@ test("keeps eleven recorded kits and adds a complete procedural precision kit", 
   assert.match(engine, /\/audio\/drums/);
   assert.match(engine, /Holzwerk: completeKit\("holzwerk"\)/);
   assert.match(engine, /"Quartz Click": completeKit\("quartz-click"\)/);
-  assert.match(engine, /value: "Präzision"/);
-  assert.match(engine, /context\.createBuffer\(1, length, sampleRate\)/);
-  assert.match(engine, /case "kick"[\s\S]*case "snare"[\s\S]*case "closedHat"[\s\S]*case "openHat"[\s\S]*case "ride"[\s\S]*case "crash"[\s\S]*case "rim"[\s\S]*case "highTom"[\s\S]*case "lowTom"/);
-  assert.match(engine, /cache\.get\(key\)\?\.sampleRate !== context\.sampleRate/);
+  for (const removed of ["Jungle", "Future Garage", "808 Deep", "Präzision · Synth"]) assert.doesNotMatch(engine, new RegExp(`label: "${removed.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"`));
+  assert.match(engine, /return kit && PLAYABLE_KITS\.has[\s\S]*: "707"/);
+  assert.doesNotMatch(engine, /renderPrecisionVoice|procedural:precision/);
 });
 
 test("includes complete PWA assets", async () => {
@@ -653,10 +665,10 @@ test("includes complete PWA assets", async () => {
   assert.equal(manifest.display, "standalone");
   assert.equal(manifest.icons.length, 2);
   assert.match(assets.catalogPath, /^\/data\/patterns-v2\.[a-f0-9]{12}\.json$/);
-  assert.equal(assets.assets.filter((asset) => asset.scope === "audio").length, 99);
+  assert.equal(assets.assets.filter((asset) => asset.scope === "audio").length, 70);
   assert.ok(assets.assets.every((asset) => /^[a-f0-9]{16,64}$/.test(asset.revision) && asset.size >= 0));
   const revisedCatalog = JSON.parse(await readFile(new URL(`../public${assets.catalogPath}`, import.meta.url), "utf8"));
-  assert.equal(revisedCatalog.count, 491, "a cached library must update to the current catalog");
+  assert.equal(revisedCatalog.count, 571, "a cached library must update to the current catalog");
   assert.match(serviceWorker, /caches\.open/);
   assert.match(serviceWorker, /request\.mode === "navigate"/);
   assert.match(serviceWorker, /CACHE_RUNTIME/);

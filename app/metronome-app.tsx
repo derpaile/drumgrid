@@ -13,6 +13,10 @@ import {
   DRUM_KIT_OPTIONS, drumHitLevel, drumKitLabel, drumKitOfflinePaths, drumPlaybackRate, drumSampleFor, normalizeDrumKit, primeDrumKit,
   type DrumSampleCache,
 } from "./drum-synthesis";
+import {
+  countingVoiceOfflinePaths, countingVoiceSampleFor, normalizeCountingVoice, primeCountingVoice, spokenCountToken,
+  type CountingVoiceCache, type CountingVoiceLanguage,
+} from "./counting-voice";
 import { clearLocalData, deleteStore, readStore, writeStore } from "./local-store";
 import {
   type AudioFeedbackAnalysis, type AudioFeedbackSession, type ExpectedAudioHit,
@@ -31,9 +35,10 @@ import {
 
 import { createLiveStore, type LiveStore, type PlaybackDisplay } from "./live-store";
 import { LiveProgress, PracticeGrid, type GridView } from "./practice-grid";
+import { STYLE_FAMILIES } from "./pattern-style";
 import { PatternCard } from "./pattern-cards";
 import { usePatternPreview } from "./pattern-preview";
-import { copyBar, groupPatterns, loopBounds, nextLoopStep, setTrackHit, shiftLane, type BarLoop } from "./practice-tools";
+import { copyBar, countStep, groupPatterns, loopBounds, nextLoopStep, setTrackHit, shiftLane, type BarLoop } from "./practice-tools";
 import { InputMeter, LiveFeedback, type InputLevel } from "./live-feedback";
 import { measureLatency, type LatencyMeasurement } from "./audio-calibration";
 
@@ -70,15 +75,7 @@ const EMPTY_LIBRARY_FILTERS: LibraryFilters = {
   difficulty: "Alle", skillId: "Alle", meter: "Alle", subdivision: "Alle", feel: false,
   length: "Alle", kit: "Alle", tempo: null, unpracticed: false, difficult: false,
 };
-const STYLE_FAMILIES = [
-  { id: "rock-heavy", label: "Rock & Heavy", categories: ["Rock & Pop", "Punk & Metal", "Progressive & Heavy"] },
-  { id: "funk-soul", label: "Funk, Soul & R&B", categories: ["Funk & Soul", "R&B & Gospel"] },
-  { id: "hiphop-down", label: "Hip-Hop & Downtempo", categories: ["Hip-Hop", "Old School Hip-Hop", "Trip-Hop & Downtempo"] },
-  { id: "electronic", label: "Electronic & Breakbeat", categories: ["Dance & Electronic", "Jungle & Drum and Bass"] },
-  { id: "jazz-roots", label: "Jazz, Blues & Americana", categories: ["Jazz", "Blues & Shuffle", "Country & Americana"] },
-  { id: "global", label: "Latin, Reggae & World", categories: ["Latin & World", "Reggae"] },
-  { id: "cross", label: "Querbeet", categories: ["Genreübergreifend"] },
-] as const;
+
 const QUICK_FILTERS: Array<{ id: QuickFilterId; label: string; description: string }> = [
   { id: "easy", label: "Einfach starten", description: "Leichte Patterns" },
   { id: "timing", label: "Timing", description: "Puls festigen" },
@@ -525,6 +522,7 @@ export default function MetronomeApp() {
   const [volume, setVolume] = useState(72);
   const [voiceVolumes, setVoiceVolumes] = useState<Record<DrumVoice, number>>(() => ({ ...DEFAULT_VOICE_VOLUMES }));
   const [sound, setSound] = useState<DrumKit>("707");
+  const [countingVoice, setCountingVoice] = useState<CountingVoiceLanguage>("off");
   const [swing, setSwing] = useState(50);
   const [timerMinutes, setTimerMinutes] = useState(0);
   const [repeatBars, setRepeatBars] = useState(0);
@@ -566,7 +564,7 @@ export default function MetronomeApp() {
   const [online, setOnline] = useState(true);
   const [libraryStatus, setLibraryStatus] = useState<"loading" | "ready" | "fallback">("loading");
   const [pwaStatus, setPwaStatus] = useState<PwaStatus>("checking");
-  const [offlineStatus, setOfflineStatus] = useState<OfflineStatus>({ appReady: false, availableKits: 1, totalKits: 12, totalAudioBytes: 0 });
+  const [offlineStatus, setOfflineStatus] = useState<OfflineStatus>({ appReady: false, availableKits: 0, totalKits: DRUM_KIT_OPTIONS.length, totalAudioBytes: 0 });
   const [offlineDownloadPending, setOfflineDownloadPending] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [storageError, setStorageError] = useState("");
@@ -611,6 +609,7 @@ export default function MetronomeApp() {
   const compressorRef = useRef<DynamicsCompressorNode | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const drumSampleCacheRef = useRef<DrumSampleCache>(new Map());
+  const countingVoiceCacheRef = useRef<CountingVoiceCache>(new Map());
   const openHatSourcesRef = useRef<Set<OpenHatHandle>>(new Set());
   const drumHitCounterRef = useRef(0);
   const wakeLockRef = useRef<WakeLockHandle | null>(null);
@@ -629,6 +628,7 @@ export default function MetronomeApp() {
   const volumeRef = useRef(volume);
   const voiceVolumesRef = useRef(voiceVolumes);
   const soundRef = useRef<DrumKit>(sound);
+  const countingVoiceRef = useRef<CountingVoiceLanguage>(countingVoice);
   const swingRef = useRef(swing);
   const originalFeelRef = useRef<OriginalFeel | null>(originalFeel);
   const feelModeRef = useRef<FeelMode>(feelMode);
@@ -731,6 +731,7 @@ export default function MetronomeApp() {
   useEffect(() => { tempoUnitRef.current = tempoUnit; }, [tempoUnit]);
   useEffect(() => { volumeRef.current = volume; }, [volume]);
   useEffect(() => { soundRef.current = sound; }, [sound]);
+  useEffect(() => { countingVoiceRef.current = countingVoice; }, [countingVoice]);
   useEffect(() => { swingRef.current = swing; }, [swing]);
   useEffect(() => { originalFeelRef.current = originalFeel; }, [originalFeel]);
   useEffect(() => { feelModeRef.current = feelMode; }, [feelMode]);
@@ -777,8 +778,8 @@ export default function MetronomeApp() {
       if (event.data?.type !== "OFFLINE_STATUS") return;
       const next = {
         appReady: Boolean(event.data.appReady),
-        availableKits: Number(event.data.availableKits || 1),
-        totalKits: Number(event.data.totalKits || 12),
+        availableKits: Number(event.data.availableKits || 0),
+        totalKits: Number(event.data.totalKits || DRUM_KIT_OPTIONS.length),
         totalAudioBytes: Number(event.data.totalAudioBytes || 0),
         buildRevision: event.data.buildRevision,
       };
@@ -820,7 +821,7 @@ export default function MetronomeApp() {
           } catch { return []; }
         });
         ready.active?.postMessage({ type: "CACHE_RUNTIME", paths: [...new Set(runtimePaths)] });
-        ready.active?.postMessage({ type: "CACHE_KIT", paths: drumKitOfflinePaths(soundRef.current) });
+        ready.active?.postMessage({ type: "CACHE_KIT", paths: [...drumKitOfflinePaths(soundRef.current), ...countingVoiceOfflinePaths(countingVoiceRef.current)] });
       }).catch(() => setPwaStatus("error"));
     } else {
       queueMicrotask(() => setPwaStatus("error"));
@@ -853,7 +854,8 @@ export default function MetronomeApp() {
       readStore<number>("dataSchemaVersion", 1),
       readStore<AudioFeedbackConfig>("audioFeedbackConfig", { latencyMs: 0, latencySource: "estimated" }),
       readStore<UiPreferences>("uiPreferences", DEFAULT_UI_PREFERENCES),
-    ]).then(([savedFavorites, savedPresets, savedRecent, savedPractice, savedScenes, savedResults, savedSnapshot, savedSchema, savedAudioFeedback, savedUiPreferences]) => {
+      readStore<CountingVoiceLanguage>("countingVoice", "off"),
+    ]).then(([savedFavorites, savedPresets, savedRecent, savedPractice, savedScenes, savedResults, savedSnapshot, savedSchema, savedAudioFeedback, savedUiPreferences, savedCountingVoice]) => {
       setFavorites(Array.isArray(savedFavorites) ? savedFavorites : []);
       setPresets(Array.isArray(savedPresets) ? savedPresets.filter((item) => item?.id?.startsWith("custom-") && item.drumTracks) : []);
       setRecent(Array.isArray(savedRecent) ? savedRecent : []);
@@ -874,6 +876,12 @@ export default function MetronomeApp() {
       setAudioFeedbackConfig(nextFeedbackConfig);
       setAudioInputDeviceId(nextFeedbackConfig.deviceId || "");
       setUiPreferences(normalizeUiPreferences(savedUiPreferences));
+      const nextCountingVoice = normalizeCountingVoice(savedCountingVoice);
+      countingVoiceRef.current = nextCountingVoice;
+      setCountingVoice(nextCountingVoice);
+      if (nextCountingVoice !== "off" && "serviceWorker" in navigator) {
+        void navigator.serviceWorker.ready.then((registration) => registration.active?.postMessage({ type: "CACHE_KIT", paths: countingVoiceOfflinePaths(nextCountingVoice) }));
+      }
       if (savedSchema < DATA_SCHEMA_VERSION) {
         void Promise.all([
           persistStore("scenes", nextScenes),
@@ -1227,6 +1235,28 @@ export default function MetronomeApp() {
     source.stop(endAt);
   }, [registerSource]);
 
+  const scheduleCountingVoice = useCallback((context: AudioContext, when: number, stepInBar: number, stepSeconds: number) => {
+    const language = countingVoiceRef.current;
+    if (language === "off") return;
+    const token = spokenCountToken(stepInBar, meterRef.current, subdivisionRef.current, language);
+    const sampleBuffer = countingVoiceSampleFor(countingVoiceCacheRef.current, language, token);
+    if (!sampleBuffer) return;
+    const output: AudioNode = masterGainRef.current || context.destination;
+    const source = context.createBufferSource();
+    const gain = context.createGain();
+    const beatStart = countStep(stepInBar, meterRef.current, subdivisionRef.current).beatStart;
+    const availableDuration = Math.max(.08, stepSeconds * .9);
+    const playbackRate = Math.min(2.5, Math.max(1, sampleBuffer.duration / availableDuration));
+    source.buffer = sampleBuffer;
+    source.playbackRate.setValueAtTime(playbackRate, when);
+    gain.gain.setValueAtTime((beatStart ? .72 : .48) * volumeRef.current / 100, when);
+    source.connect(gain).connect(output);
+    const endAt = when + sampleBuffer.duration / playbackRate + .02;
+    registerSource(source, () => { try { gain.disconnect(); } catch { /* Already disconnected. */ } });
+    source.start(when);
+    source.stop(endAt);
+  }, [registerSource]);
+
   const changeDrumKit = useCallback(async (kit: DrumKit) => {
     const nextKit = normalizeDrumKit(kit);
     const context = audioRef.current;
@@ -1242,6 +1272,23 @@ export default function MetronomeApp() {
     setSound(nextKit);
     navigator.serviceWorker?.controller?.postMessage({ type: "CACHE_KIT", paths: drumKitOfflinePaths(nextKit) });
   }, [showToast]);
+
+  const changeCountingVoice = useCallback(async (language: CountingVoiceLanguage) => {
+    const nextLanguage = normalizeCountingVoice(language);
+    const context = audioRef.current;
+    if (nextLanguage !== "off" && context && context.state !== "closed") {
+      try {
+        await withAudioTimeout(primeCountingVoice(context, countingVoiceCacheRef.current, nextLanguage), 8000);
+      } catch {
+        showToast("Die Zählstimme konnte nicht vorbereitet werden.");
+        return;
+      }
+    }
+    countingVoiceRef.current = nextLanguage;
+    setCountingVoice(nextLanguage);
+    void persistStore("countingVoice", nextLanguage);
+    navigator.serviceWorker?.controller?.postMessage({ type: "CACHE_KIT", paths: countingVoiceOfflinePaths(nextLanguage) });
+  }, [persistStore, showToast]);
 
   const pauseForLifecycle = useCallback(() => {
     if (!wantsPlaybackRef.current) return;
@@ -1363,6 +1410,13 @@ export default function MetronomeApp() {
     } catch {
       return fail("Drumklänge konnten nicht vorbereitet werden. Prüfe deine Verbindung und tippe erneut auf ▶.");
     }
+    if (countingVoiceRef.current !== "off") {
+      try {
+        await withAudioTimeout(primeCountingVoice(context, countingVoiceCacheRef.current, countingVoiceRef.current), 8000);
+      } catch {
+        return fail("Die Zählstimme konnte nicht vorbereitet werden. Prüfe deine Verbindung und tippe erneut auf ▶.");
+      }
+    }
     if (generationRef.current !== token || !wantsPlaybackRef.current || document.hidden || audioRef.current !== context) return;
 
     const master = context.createGain();
@@ -1426,6 +1480,12 @@ export default function MetronomeApp() {
         const bounds = loopBounds(barLoopRef.current, barSteps, cycleSteps);
         const stepIndex = nextStepRef.current < bounds.start || nextStepRef.current >= bounds.end ? bounds.start : nextStepRef.current;
         const stepInBar = stepIndex % barSteps;
+        let scheduledStepSeconds = stepSeconds;
+        if (subdivisionRef.current === "Achtel" || subdivisionRef.current === "16tel") {
+          const pairDuration = stepSeconds * 2;
+          const longShare = swingRef.current / 100;
+          scheduledStepSeconds = stepInBar % 2 === 0 ? pairDuration * longShare : pairDuration * (1 - longShare);
+        }
         if (audioFeedbackEnabledRef.current && audioOnsetNodeRef.current) {
           const feedbackVoices: DrumVoice[] = [];
           const feedbackStates: ExpectedAudioHit["states"] = {};
@@ -1472,6 +1532,7 @@ export default function MetronomeApp() {
         } else {
           if (isVoiceAudible(practiceModeRef.current, barsRef.current, "rim")) scheduleDrumVoice(context, nextTimeRef.current, "rim", stepsRef.current[stepIndex] || "normal");
         }
+        if (isVoiceAudible(practiceModeRef.current, barsRef.current, "rim")) scheduleCountingVoice(context, nextTimeRef.current, stepInBar, scheduledStepSeconds);
 
         const visualDelay = Math.max(0, (nextTimeRef.current - context.currentTime) * 1000);
         nextStepRef.current = nextLoopStep(stepIndex, bounds);
@@ -1518,13 +1579,7 @@ export default function MetronomeApp() {
         }, visualDelay);
         visualTimersRef.current.add(timerId);
 
-        let duration = stepSeconds;
-        if (subdivisionRef.current === "Achtel" || subdivisionRef.current === "16tel") {
-          const pairDuration = stepSeconds * 2;
-          const longShare = swingRef.current / 100;
-          duration = stepInBar % 2 === 0 ? pairDuration * longShare : pairDuration * (1 - longShare);
-        }
-        nextTimeRef.current += duration;
+        nextTimeRef.current += scheduledStepSeconds;
         if (stopAfterStep) {
           nextTimeRef.current = Number.POSITIVE_INFINITY;
           break;
@@ -1565,7 +1620,7 @@ export default function MetronomeApp() {
         })
         .catch(() => undefined);
     }
-  }, [attachAudioFeedback, clearRuntime, refreshAudioFeedback, saveAudioFeedbackConfig, scheduleDrumVoice, setPlaybackPhase, showToast, clock, stopPreview, setAudioFeedbackAnalysis, setCurrentStep, setSessionBars, setTimerText, stopInputMonitor]);
+  }, [attachAudioFeedback, clearRuntime, refreshAudioFeedback, saveAudioFeedbackConfig, scheduleCountingVoice, scheduleDrumVoice, setPlaybackPhase, showToast, clock, stopPreview, setAudioFeedbackAnalysis, setCurrentStep, setSessionBars, setTimerText, stopInputMonitor]);
   useEffect(() => { startRef.current = startPlayback; }, [startPlayback]);
 
   const resumeFromLifecycle = useCallback(() => {
@@ -2462,12 +2517,14 @@ export default function MetronomeApp() {
 
   const resetControls = () => {
     volumeRef.current = 72; soundRef.current = "707"; swingRef.current = 50; timerMinutesRef.current = 0;
+    countingVoiceRef.current = "off";
     voiceVolumesRef.current = { ...DEFAULT_VOICE_VOLUMES };
     repeatBarsRef.current = 0; trainerRef.current = false; trainerModeRef.current = "up"; trainerMinRef.current = 20; trainerMaxRef.current = 300; trainerDirectionRef.current = 1;
     timerRemainingRef.current = 0;
     feelModeRef.current = "quantized";
-    setVolume(72); setVoiceVolumes({ ...DEFAULT_VOICE_VOLUMES }); setSound("707"); setSwing(50); setTimerMinutes(0); setTimerText("∞"); setRepeatBars(0); setTrainer(false); setTrainerMode("up"); setTrainerMin(20); setTrainerMax(300);
+    setVolume(72); setVoiceVolumes({ ...DEFAULT_VOICE_VOLUMES }); setSound("707"); setCountingVoice("off"); setSwing(50); setTimerMinutes(0); setTimerText("∞"); setRepeatBars(0); setTrainer(false); setTrainerMode("up"); setTrainerMin(20); setTrainerMax(300);
     setFeelMode("quantized");
+    void persistStore("countingVoice", "off");
     showToast("Einstellungen zurückgesetzt");
   };
 
@@ -2652,7 +2709,17 @@ export default function MetronomeApp() {
             <div className="panel-title-row"><h2 className="panel-title">Einstellungen</h2><button className="reset-button" onClick={resetControls}>Reset</button></div>
             <div className="control-group compact-sound settings-cell settings-sound">
               <div className="control-label"><span>Klang</span><span>{volume}%</span></div>
-              <div className="select-row"><select className="field-select" value={sound} title={DRUM_KIT_OPTIONS.find((kit) => kit.value === sound)?.description} onChange={(event) => void changeDrumKit(event.target.value as DrumKit)} aria-label="Drumkit">{DRUM_KIT_OPTIONS.map((kit) => <option key={kit.value} value={kit.value}>{kit.label}</option>)}</select><input type="range" min="0" max="100" value={volume} onChange={(event) => setVolume(Number(event.target.value))} aria-label="Lautstärke" /></div>
+              <div className="kit-controls">
+                <div className="kit-picker" role="group" aria-label="Drumkit">{DRUM_KIT_OPTIONS.map((kit) => <button type="button" key={kit.value} className={sound === kit.value ? "active" : ""} aria-pressed={sound === kit.value} title={kit.description} onClick={() => void changeDrumKit(kit.value)}>{kit.label}</button>)}</div>
+                <input type="range" min="0" max="100" value={volume} onChange={(event) => setVolume(Number(event.target.value))} aria-label="Lautstärke" />
+                <div className="counting-voice-control">
+                  <div className="control-label"><span>Zählstimme</span><span>{countingVoice === "off" ? uiPreferences.language === "de" ? "aus" : "off" : countingVoice === "en" ? "English" : "Deutsch"}</span></div>
+                  <div className="segmented counting-voice-picker" role="group" aria-label="Zählstimme auswählen">
+                    {(["off", "en", "de"] as const).map((language) => <button type="button" key={language} className={countingVoice === language ? "active" : ""} aria-pressed={countingVoice === language} onClick={() => void changeCountingVoice(language)}>{language === "off" ? uiPreferences.language === "de" ? "Aus" : "Off" : language === "en" ? "EN" : "DE"}</button>)}
+                  </div>
+                  <small>Spricht das sichtbare Raster: „one and two“ bzw. „eins und zwei“.</small>
+                </div>
+              </div>
             </div>
             <div className="control-group settings-cell settings-feel">
               <div className="control-label"><span>Spielweise</span><span>{feelMode === "original" ? originalFeel?.label || "Original Feel" : "Raster"}</span></div>
@@ -2774,7 +2841,7 @@ export default function MetronomeApp() {
                   if (!availableCategories.length) return null;
                   const value = familySelection(family.id);
                   const familyCount = availableCategories.reduce((sum, item) => sum + (categoryCounts.get(item) || 0), 0);
-                  return <section className="style-family" key={family.id}>
+                  return <section className="style-family" data-style-family={family.id} key={family.id}>
                     <button className={`style-family-option ${category === value ? "active" : ""}`} disabled={familyCount === 0 && category !== value} aria-pressed={category === value} onClick={() => setCategory(value)}><span><strong>{family.label}</strong><small>{availableCategories.join(" · ")}</small></span><b>{familyCount}</b></button>
                     <div className="style-category-grid">{availableCategories.map((item) => {
                       const count = categoryCounts.get(item) || 0;
@@ -2796,12 +2863,12 @@ export default function MetronomeApp() {
                   <div className="pattern-type-grid">{availablePatternTypes.map((item) => {
                     const count = patternTypeCounts.get(item) || 0;
                     const info = PATTERN_TYPE_INFO[item];
-                    return <button key={item} className={patternTypeFilter === item ? "active" : ""} disabled={count === 0 && patternTypeFilter !== item} aria-pressed={patternTypeFilter === item} onClick={() => setPatternTypeFilter(item)}><span><strong>{info.label}</strong><small>{info.description}</small></span><b>{count}</b></button>;
+                    return <button key={item} data-pattern-type={item} className={patternTypeFilter === item ? "active" : ""} disabled={count === 0 && patternTypeFilter !== item} aria-pressed={patternTypeFilter === item} onClick={() => setPatternTypeFilter(item)}><span><strong>{info.label}</strong><small>{info.description}</small></span><b>{count}</b></button>;
                   })}</div>
                 </section>
                 <section className="filter-section"><div className="filter-section-head"><div><h4>Grundfilter</h4><p>Niveau, Lernziel und Takt</p></div></div>
                   <div className="filter-field-grid">
-                    <label>Schwierigkeit<select value={learningFilters.difficulty} onChange={(event) => setLearningFilters((current) => ({ ...current, difficulty: event.target.value }))}><option>Alle</option><option>Leicht</option><option>Mittel</option><option>Fortgeschritten</option></select></label>
+                    <label>Schwierigkeit<select value={learningFilters.difficulty} onChange={(event) => setLearningFilters((current) => ({ ...current, difficulty: event.target.value }))}><option>Alle</option><option>Leicht</option><option>Mittel</option><option>Fortgeschritten</option><option>Schwer</option></select></label>
                     <label>Lernziel<select value={learningFilters.skillId} onChange={(event) => setLearningFilters((current) => ({ ...current, skillId: event.target.value }))}><option value="Alle">Alle</option>{SKILLS.map((skill) => <option key={skill.id} value={skill.id}>{skill.group} · {skill.label}</option>)}</select></label>
                     <label>Takt<select value={learningFilters.meter} onChange={(event) => setLearningFilters((current) => ({ ...current, meter: event.target.value }))}>{meters.map((item) => <option key={item}>{item}</option>)}</select></label>
                   </div>
@@ -2818,6 +2885,11 @@ export default function MetronomeApp() {
           </div>}
           {audition.error && <p role="status">{audition.error}</p>}
           {audition.previewId && <div className="preview-status" role="status">{audition.loading ? "Vorschau wird geladen" : "Hörvorschau läuft"}<button onClick={audition.stop}>■ Vorschau stoppen</button></div>}
+          <div className="pattern-color-key" aria-label="Farblegende und Schnellfilter">
+            <div className="pattern-color-types style-color-types"><strong>Kartenfarbe · Stil</strong><button aria-pressed={category === "Alle"} onClick={() => setCategory("Alle")}>Alle Stile</button>{STYLE_FAMILIES.map(family => <button key={family.id} data-style-family={family.id} aria-pressed={category === familySelection(family.id) || (family.categories as readonly string[]).includes(category)} onClick={() => setCategory(category === familySelection(family.id) ? "Alle" : familySelection(family.id))}><i />{family.label}</button>)}</div>
+            <div className="pattern-color-types"><strong>Übungsart</strong><button aria-pressed={patternTypeFilter === "Alle"} onClick={() => setPatternTypeFilter("Alle")}>Alle</button>{availablePatternTypes.map(type => <button key={type} data-pattern-type={type} aria-pressed={patternTypeFilter === type} onClick={() => setPatternTypeFilter(patternTypeFilter === type ? "Alle" : type)}><i />{PATTERN_TYPE_INFO[type].label}<small>{patternTypeCounts.get(type) || 0}</small></button>)}</div>
+            <details className="pattern-reading-legend"><summary>Schlagfarben &amp; Zeichen</summary><div className="pattern-reading-key"><span className="lane-kick">● Kick / Puls</span><span className="lane-snare">● Snare / Toms</span><span className="lane-cymbal">● Becken</span><span>Voll = Akzent · gedämpft = Schlag · hohl = Ghostnote · gelb = aktivierter Vergleich</span></div></details>
+          </div>
           <div className="pattern-grid">
             {patternGroups.slice(0, visibleCount).map(group => <PatternCard key={group.id} group={group} loadedId={patternId} favorites={favorites} previewId={audition.previewId} previewLoading={audition.loading} onFavorite={toggleFavorite} onPreview={previewPattern} onLoad={loadPattern} />)}
             {!filteredPatterns.length && <div className="empty-state"><p>Kein Pattern passt zu dieser Auswahl.</p><button onClick={() => resetLibraryFilters(true)}>Alles zurücksetzen</button></div>}

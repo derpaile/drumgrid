@@ -9,7 +9,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     metadataBase: new URL(origin),
     title: { default: "drumgrid — Drum Practice Workstation", template: "%s · drumgrid" },
-    description: "491 Drum-Grooves, adaptive Sessions, Lernleitern und Gap Click — privat, präzise und offline.",
+    description: "571 Drum-Patterns, adaptive Sessions, Lernleitern und Gap Click — privat, präzise und offline.",
     applicationName: "drumgrid",
     manifest: "/manifest.webmanifest",
     appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "drumgrid" },
@@ -19,7 +19,7 @@ export async function generateMetadata(): Promise<Metadata> {
       type: "website",
       locale: "de_DE",
       title: "drumgrid — Drum Practice Workstation",
-      description: "491 Drum-Grooves, adaptive Sessions, Lernleitern und Gap Click. Privat, präzise und offline.",
+      description: "571 Drum-Patterns, adaptive Sessions, Lernleitern und Gap Click. Privat, präzise und offline.",
       images: [{ url: `${origin}/og-drums.png`, width: 1731, height: 909, alt: "drumgrid Drum Practice Workstation" }],
     },
     twitter: { card: "summary_large_image", title: "drumgrid — Drum Practice Workstation", images: [`${origin}/og-drums.png`] },

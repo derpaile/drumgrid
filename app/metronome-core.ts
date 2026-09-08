@@ -5,7 +5,7 @@ export type TempoUnit = "quarter" | "eighth" | "dotted-quarter";
 export type TrainerMode = "up" | "pyramid";
 export type Meter = { beats: number; denominator: number };
 export type DrumKit = "Studio" | "Trocken" | "Vintage" | "Besen" | "Elektronisch" | "Holzwerk" | "Quartz Click" | "Präzision" | "707" | "808" | "808 Deep" | "909" | "PSS-795";
-export type PatternType = "Groove" | "Break" | "Technik";
+export type PatternType = "Groove" | "Break" | "Technik" | "Fill";
 
 export const DRUM_VOICES = ["kick", "snare", "closedHat", "openHat", "ride", "crash", "rim", "highTom", "lowTom"] as const;
 export type DrumVoice = typeof DRUM_VOICES[number];
@@ -44,7 +44,7 @@ export type Pattern = {
   pattern: StepState[];
   drumTracks?: DrumTracks;
   drumOnly?: boolean;
-  difficulty: "Leicht" | "Mittel" | "Fortgeschritten";
+  difficulty: "Leicht" | "Mittel" | "Fortgeschritten" | "Schwer";
   instruction: string;
   attribution?: string;
   learningGoals?: string[];
@@ -71,11 +71,12 @@ export const PATTERN_CATEGORIES = [
   "Funk & Soul", "Hip-Hop", "Old School Hip-Hop", "Trip-Hop & Downtempo", "Dance & Electronic",
   "Jungle & Drum and Bass", "Reggae", "Latin & World", "Genreübergreifend",
 ] as const;
-export const PATTERN_TYPES: PatternType[] = ["Groove", "Break", "Technik"];
+export const PATTERN_TYPES: PatternType[] = ["Groove", "Break", "Technik", "Fill"];
 export const PATTERN_TYPE_INFO: Record<PatternType, { label: string; description: string }> = {
   Groove: { label: "Groove", description: "Wiederholbare Begleitung für einen Song" },
   Break: { label: "Drum-Break", description: "Markanter, oft bekannter Schlagzeug-Ausschnitt" },
   Technik: { label: "Technikübung", description: "Isoliertes Bewegungs- oder Koordinationstraining" },
+  Fill: { label: "Fill", description: "Übergang mit sicherer Rückkehr zur Eins" },
 };
 export const FACTOR: Record<Subdivision, number> = { Viertel: 1, Achtel: 2, "16tel": 4, Triolen: 3, Sextolen: 6 };
 export const DRUM_LABELS: Record<DrumVoice, string> = {
@@ -99,7 +100,7 @@ export const FALLBACK_PATTERNS: Pattern[] = [{
   instruction: "Spiele Kick auf eins und drei, Snare auf zwei und vier und führe die Hi-Hat in Achteln.",
   attribution: "Genreübung", learningGoals: ["Timing", "Grundlagen"],
   whyInteresting: "Der klare Backbeat eignet sich als Referenz für saubere Abstände und Dynamik.",
-  playback: { bpm: 92, kit: "Studio" },
+  playback: { bpm: 92, kit: "707" },
 }];
 
 export const parseMeter = (meter: string): Meter => {
@@ -179,6 +180,7 @@ export function learningGoalsFor(pattern: Pattern): string[] {
   if (pattern.difficulty === "Leicht") goals.add("Grundlagen");
   if ((pattern.playback?.swing ?? 50) > 50 || pattern.category === "Blues & Shuffle") goals.add("Pocket");
   if (pattern.patternType === "Technik") goals.add("Technik");
+  if (pattern.patternType === "Fill") goals.add("Fill");
   if (pattern.bpmMax >= 170) goals.add("Geschwindigkeit");
   if (pattern.drumTracks?.kick) goals.add("Fußtechnik");
   if (!goals.size) goals.add("Timing");

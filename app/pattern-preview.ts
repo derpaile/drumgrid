@@ -35,7 +35,7 @@ export function usePatternPreview() {
       runtime.current = { context };
       await context.resume();
       const cache: DrumSampleCache = new Map();
-      const kit = normalizeDrumKit(pattern.playback?.kit || "707");
+      const kit = normalizeDrumKit("707");
       await primeDrumKit(context, cache, kit, DRUM_VOICES);
       if (generation.current !== token) return;
       const output = context.createGain();

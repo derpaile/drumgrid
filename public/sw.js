@@ -1,4 +1,4 @@
-const SOURCE_REVISION = "e86f93c67451cb066eabd42ceb1553683d31e9293b4acf2d8c419ca030c91782";
+const SOURCE_REVISION = "b000b7641c8cd78ec123a8ae9f2ee1793e48c26677a4fa7d0d8646cc47c157d4";
 const PREFIX = "drumgrid-";
 const LEGACY_PREFIXES = ["klangmass-"];
 const META_CACHE = `${PREFIX}meta`;
@@ -92,8 +92,8 @@ async function offlineStatus(manifest) {
     type: "OFFLINE_STATUS",
     buildRevision: manifest.buildRevision,
     appReady,
-    availableKits: availableKits.length + 1,
-    totalKits: kits.length + 1,
+    availableKits: availableKits.length,
+    totalKits: kits.length,
     totalAudioBytes: manifest.assets.filter((asset) => asset.scope === "audio").reduce((sum, asset) => sum + asset.size, 0),
   };
 }

@@ -1,10 +1,268 @@
 {
   "version": 2,
-  "buildRevision": "67491e5c97ea9eb6",
-  "sourceRevision": "e86f93c67451cb066eabd42ceb1553683d31e9293b4acf2d8c419ca030c91782",
-  "catalogPath": "/data/patterns-v2.2dc8c635e3cc.json",
-  "catalogRevision": "2dc8c635e3cc644510879f5619e10b45557e15178ad0720b7660fdca74b44252",
+  "buildRevision": "5f5d95a60213a924",
+  "sourceRevision": "b000b7641c8cd78ec123a8ae9f2ee1793e48c26677a4fa7d0d8646cc47c157d4",
+  "catalogPath": "/data/patterns-v2.5651d326f6fe.json",
+  "catalogRevision": "5651d326f6fe7794c5f4ab9629217b398f87445f8e4abd515889ba777b5f2b34",
   "assets": [
+    {
+      "path": "/audio/counting/README.md",
+      "revision": "a0ba95103638c657ee442fb4668441e8ebfab39ccbaf878b793ee97e2e055d20",
+      "size": 630,
+      "scope": "app"
+    },
+    {
+      "path": "/audio/counting/de/a.mp3",
+      "revision": "02262c0d423a4a9d0bca5568e0d93ad63417f2381b5823c144fe775764c1902e",
+      "size": 2622,
+      "scope": "app"
+    },
+    {
+      "path": "/audio/counting/de/acht.mp3",
+      "revision": "57c619c36d11adc072db9856ec0015a0619c773e5f306e89ba6cf15fdf27cf0c",
+      "size": 3065,
+      "scope": "app"
+    },
+    {
+      "path": "/audio/counting/de/drei.mp3",
+      "revision": "7ec743a9bdc7975cef85c0b833b1588c1d14d0f37e8b363dfc800c15aa24d780",
+      "size": 3536,
+      "scope": "app"
+    },
+    {
+      "path": "/audio/counting/de/dreizehn.mp3",
+      "revision": "0ee7c2011a82bf251ebfdaf983d4dad06e4d2b4e1d4606890c2b07316f5c44a7",
+      "size": 6092,
+      "scope": "app"
+    },
+    {
+      "path": "/audio/counting/de/e.mp3",
+      "revision": "406bcdd1fdb6122ec1068d6c1038429d81f643acea19e74cddceb940a3de0d8c",
+      "size": 3120,
+      "scope": "app"
+    },
+    {
+      "path": "/audio/counting/de/eins.mp3",
+      "revision": "705608f24a2f73de3708b10a5af1623bb064f698db8ee30b06611b111c85abf1",
+      "size": 4162,
+      "scope": "app"
+    },
+    {
+      "path": "/audio/counting/de/elf.mp3",
+      "revision": "6dee29d69bd8f6dd5ebc1e9403ff535905fd3fadd0d8a55693de7c06a60cd30e",
+      "size": 3901,
+      "scope": "app"
+    },
+    {
+      "path": "/audio/counting/de/fuenf.mp3",
+      "revision": "dde84c2152b40a229271d137793e33c02bf29f96aea82dc50c1a3517cc604ead",
+      "size": 4267,
+      "scope": "app"
+    },
+    {
+      "path": "/audio/counting/de/fuenfzehn.mp3",
+      "revision": "32df50d12ae8b8a4a2d459191df4ef31735c3047a09d3970549f74b0c36b829e",
+      "size": 6432,
+      "scope": "app"
+    },
+    {
+      "path": "/audio/counting/de/la.mp3",
+      "revision": "c852accf98059fff218de1264c33c22f4fd199f144dfc6f7a457f56a22094ca4",
+      "size": 3639,
+      "scope": "app"
+    },
+    {
+      "path": "/audio/counting/de/neun.mp3",
+      "revision": "38a3fdc9498c3efee940343183879c68dd695532ff8ff627874f51df62f458b7",
+      "size": 4293,
+      "scope": "app"
+    },
+    {
+      "path": "/audio/counting/de/sechs.mp3",
+      "revision": "438778062dd1096133b9314dc8e0b6b8feaa1937f2493e6adb5559d988a959e9",
+      "size": 4216,
+      "scope": "app"
+    },
+    {
+      "path": "/audio/counting/de/sechzehn.mp3",
+      "revision": "88d7f30b362893c6761996aeed6ddc8efda5c7cdb46fdea10ec6873d6cfc5511",
+      "size": 5857,
+      "scope": "app"
+    },
+    {
+      "path": "/audio/counting/de/sieben.mp3",
+      "revision": "531f535db6d5db9fcc8ed6a70ed01a5ee21dac73c7617989eca34bb7ec36d3b0",
+      "size": 4606,
+      "scope": "app"
+    },
+    {
+      "path": "/audio/counting/de/ta.mp3",
+      "revision": "307d6c1807f4acd31e308eac698f4f00ffdb2219411efe7d117e34e4c147e8da",
+      "size": 3170,
+      "scope": "app"
+    },
+    {
+      "path": "/audio/counting/de/und.mp3",
+      "revision": "40037d18b9232c8b136b283aa11dac1b77c3d376d3048e1826434a57520ef9ce",
+      "size": 3301,
+      "scope": "app"
+    },
+    {
+      "path": "/audio/counting/de/vier.mp3",
+      "revision": "2ca40e3bd330df91bc9ca91fa16244948ec8346edf88aba11a6264bf69c95aa4",
+      "size": 4136,
+      "scope": "app"
+    },
+    {
+      "path": "/audio/counting/de/vierzehn.mp3",
+      "revision": "e6c3201b4eb9a3ecae82fa836e7b12c98bb6c53f24f5ee4bbcdd7e19210ce9a1",
+      "size": 6562,
+      "scope": "app"
+    },
+    {
+      "path": "/audio/counting/de/zehn.mp3",
+      "revision": "76aebff5b9a01b2bc98a481eb747351cd888fe6d4a5f63b115d1bf85ad6e0720",
+      "size": 4712,
+      "scope": "app"
+    },
+    {
+      "path": "/audio/counting/de/zwei.mp3",
+      "revision": "f19f046e8ffafe14ca2a8d4f921923fc2b30677ac2365adbc4f28fe6b19007c3",
+      "size": 4343,
+      "scope": "app"
+    },
+    {
+      "path": "/audio/counting/de/zwoelf.mp3",
+      "revision": "36ae8ad9c1049fd4d11ac4345f563bb5cc49f77633b83c9c8a78c3a23ad5ccb6",
+      "size": 5570,
+      "scope": "app"
+    },
+    {
+      "path": "/audio/counting/en/a.mp3",
+      "revision": "bf5c5e45948e012b548f450d9e913b6f7a8a4d50547bdad746223c9e30193521",
+      "size": 2938,
+      "scope": "app"
+    },
+    {
+      "path": "/audio/counting/en/and.mp3",
+      "revision": "bfc14682b3f1a4ca5f87be94d18025f94e0975d90a65c9d3e5b50c3ab3d886b3",
+      "size": 4555,
+      "scope": "app"
+    },
+    {
+      "path": "/audio/counting/en/e.mp3",
+      "revision": "88e88e1d353e297eeefb253d769e0d68b22e94fd42f34f951c648a9a1e00fe7f",
+      "size": 3250,
+      "scope": "app"
+    },
+    {
+      "path": "/audio/counting/en/eight.mp3",
+      "revision": "d1ded1208e8f4e64d23aa11db8dc96f7cf1836cf00f3fc6e75a46a7c881fc153",
+      "size": 3771,
+      "scope": "app"
+    },
+    {
+      "path": "/audio/counting/en/eleven.mp3",
+      "revision": "e7070c9c9212bfd08cfc1d8a4078f42bcedbefefa24343bdc0a622a7d88ddeaa",
+      "size": 5780,
+      "scope": "app"
+    },
+    {
+      "path": "/audio/counting/en/fifteen.mp3",
+      "revision": "9df148f7cb2953193c3ed703b3d3199e04297521c989e55fc790a3588e6da2a8",
+      "size": 5754,
+      "scope": "app"
+    },
+    {
+      "path": "/audio/counting/en/five.mp3",
+      "revision": "18192019f806f05a9f84c7db4027ec9f357c9bded45eb1df2a3b13f6d1a0f04a",
+      "size": 4788,
+      "scope": "app"
+    },
+    {
+      "path": "/audio/counting/en/four.mp3",
+      "revision": "e24699bc9be52113c48a283c34bb0f58782dd308705d26a9b553c5045058af4d",
+      "size": 3665,
+      "scope": "app"
+    },
+    {
+      "path": "/audio/counting/en/fourteen.mp3",
+      "revision": "7c217c46333ccb84473fc9b9a89f71045e6f71049051762daf27049d528aba0d",
+      "size": 5465,
+      "scope": "app"
+    },
+    {
+      "path": "/audio/counting/en/let.mp3",
+      "revision": "3b82f3b44b3cb2c58b114972829db1538bf08116b9c1ff21bd16a1d31def4562",
+      "size": 4188,
+      "scope": "app"
+    },
+    {
+      "path": "/audio/counting/en/nine.mp3",
+      "revision": "77058d330771365c35e9ef987b46e316af307a9aa371a5ccccd2993808d46f1e",
+      "size": 4998,
+      "scope": "app"
+    },
+    {
+      "path": "/audio/counting/en/one.mp3",
+      "revision": "ec2dd427359abf6a93cf852caf27243082b256c8ced452c2c1844c75aa38bafd",
+      "size": 4451,
+      "scope": "app"
+    },
+    {
+      "path": "/audio/counting/en/seven.mp3",
+      "revision": "5959a2e9efefdeb44a9f47e9e0719bd962591a23ff540766c1e1b8ab09e68128",
+      "size": 5284,
+      "scope": "app"
+    },
+    {
+      "path": "/audio/counting/en/six.mp3",
+      "revision": "574a206259e5f0e8672db44a78ca58001b70023e7c9b730798fd2551ccb8a7e2",
+      "size": 4606,
+      "scope": "app"
+    },
+    {
+      "path": "/audio/counting/en/sixteen.mp3",
+      "revision": "27d8aa5e48c34740c240bbc58d6cbf05a6ffee5f04795c409c36137fb5c3ee5b",
+      "size": 6326,
+      "scope": "app"
+    },
+    {
+      "path": "/audio/counting/en/ten.mp3",
+      "revision": "4f9a12c2081f98dbbed250e9fc7ac204d2345a1778f2bbcdbcff9812c7f7e0f8",
+      "size": 4294,
+      "scope": "app"
+    },
+    {
+      "path": "/audio/counting/en/thirteen.mp3",
+      "revision": "1369bf95a7909ab81e6ea257c094742e1728b3c8b5b3d7312a4d39f433399f31",
+      "size": 5362,
+      "scope": "app"
+    },
+    {
+      "path": "/audio/counting/en/three.mp3",
+      "revision": "f568e42f0a3089bc8f6a720223def5f04657e2cafb6f4518c41fe03ca6eb17f3",
+      "size": 4033,
+      "scope": "app"
+    },
+    {
+      "path": "/audio/counting/en/trip.mp3",
+      "revision": "5ef7237e3d1b0353b98abacbc19baafef91f3f7b0bdfcb775091e5e5c9f177f9",
+      "size": 4082,
+      "scope": "app"
+    },
+    {
+      "path": "/audio/counting/en/twelve.mp3",
+      "revision": "4959d20eff92aae64986b7795139991c3431c5d226acc40e77a1d48e5adf44fc",
+      "size": 5623,
+      "scope": "app"
+    },
+    {
+      "path": "/audio/counting/en/two.mp3",
+      "revision": "9dd7545e55f11b57487e169c8c95397b9b85dbdf3f1ee3f490116d9ad39799ad",
+      "size": 3459,
+      "scope": "app"
+    },
     {
       "path": "/audio/drums/707/closed-hat.mp3",
       "revision": "534eb621368611bfce06dd2e2cae73703c5ae9f2223a42b9bfcc5811cfa4c795",
@@ -130,69 +388,6 @@
       "size": 3805,
       "scope": "audio",
       "kit": "808"
-    },
-    {
-      "path": "/audio/drums/808-deep/closed-hat.mp3",
-      "revision": "e8c36c57cbe6843c7c92f2799b3e02f7009726112024acd7a0c9b69e087283e1",
-      "size": 6313,
-      "scope": "audio",
-      "kit": "808-deep"
-    },
-    {
-      "path": "/audio/drums/808-deep/crash.mp3",
-      "revision": "52aadddb6c2bfca00310a1b83e001ba876d84c49284b71d6b97437a67d02bb38",
-      "size": 62110,
-      "scope": "audio",
-      "kit": "808-deep"
-    },
-    {
-      "path": "/audio/drums/808-deep/high-tom.mp3",
-      "revision": "1b0536d05aed6e142572fa9c254441b8719633bd9b76f414120ef8458f7ae465",
-      "size": 4119,
-      "scope": "audio",
-      "kit": "808-deep"
-    },
-    {
-      "path": "/audio/drums/808-deep/kick.mp3",
-      "revision": "301f89ba97914ca771559382b16422762e89e607a75957a80966d3ecb97a70c1",
-      "size": 50199,
-      "scope": "audio",
-      "kit": "808-deep"
-    },
-    {
-      "path": "/audio/drums/808-deep/low-tom.mp3",
-      "revision": "1d1db92839c52ef637e75dce2a266fba49b093838d97f9a3f937b85a99dd89db",
-      "size": 28569,
-      "scope": "audio",
-      "kit": "808-deep"
-    },
-    {
-      "path": "/audio/drums/808-deep/open-hat.mp3",
-      "revision": "fcf98e3421db2eb0ef14844a17bb7f6a82566e0133cbe18d7fe032dbc3962865",
-      "size": 29196,
-      "scope": "audio",
-      "kit": "808-deep"
-    },
-    {
-      "path": "/audio/drums/808-deep/ride.mp3",
-      "revision": "581c3d7190117d80f855f54ea6d2642c0cbb9ff1538605df279541a89ce8772e",
-      "size": 70888,
-      "scope": "audio",
-      "kit": "808-deep"
-    },
-    {
-      "path": "/audio/drums/808-deep/rim.mp3",
-      "revision": "264db71b14d824edc358002e3adb5ae8e8e7e18c979e1f6f7283f55ece7f5007",
-      "size": 1297,
-      "scope": "audio",
-      "kit": "808-deep"
-    },
-    {
-      "path": "/audio/drums/808-deep/snare.mp3",
-      "revision": "87ff9b5bf5bb4d9639e03ef584d3cd85796c71f7e1c6ad04d35ea3e566541c94",
-      "size": 19792,
-      "scope": "audio",
-      "kit": "808-deep"
     },
     {
       "path": "/audio/drums/80s/closed-hat.mp3",
@@ -321,69 +516,6 @@
       "kit": "909"
     },
     {
-      "path": "/audio/drums/garage/closed-hat-a.mp3",
-      "revision": "d983169b5e160d71fe8a18a53a120e3b20ddbf112691bd2c8767ea52b2384a44",
-      "size": 2865,
-      "scope": "audio",
-      "kit": "garage"
-    },
-    {
-      "path": "/audio/drums/garage/closed-hat-b.mp3",
-      "revision": "8dfa5653ef68b0bb05bbaafea33c58fef01529c954d4f8d9ba4388b9686e0283",
-      "size": 3492,
-      "scope": "audio",
-      "kit": "garage"
-    },
-    {
-      "path": "/audio/drums/garage/kick.mp3",
-      "revision": "5f4516c5ac5fc685d701146f0b9868ec5700739e86780f734c6a8462885b5811",
-      "size": 4119,
-      "scope": "audio",
-      "kit": "garage"
-    },
-    {
-      "path": "/audio/drums/garage/open-hat-a.mp3",
-      "revision": "31b7f15563dbb6b591f59cada415938cc4298b160590b5484e451bc4f991ec4e",
-      "size": 4119,
-      "scope": "audio",
-      "kit": "garage"
-    },
-    {
-      "path": "/audio/drums/garage/open-hat-b.mp3",
-      "revision": "80afbbd111f62d5c6cefcf53fcabb9b1ae230a594a6331f3516a0f8058ab8ebc",
-      "size": 3492,
-      "scope": "audio",
-      "kit": "garage"
-    },
-    {
-      "path": "/audio/drums/garage/rim-a.mp3",
-      "revision": "d6e645bd8021b87ffd42b57902c3793b86bf7f8a99888e9a3a46eeb1511cf8d8",
-      "size": 2865,
-      "scope": "audio",
-      "kit": "garage"
-    },
-    {
-      "path": "/audio/drums/garage/rim-b.mp3",
-      "revision": "e534f052aab7363b7dad8f6fcb88aa0086a047042daa8493206406008187a818",
-      "size": 2865,
-      "scope": "audio",
-      "kit": "garage"
-    },
-    {
-      "path": "/audio/drums/garage/snare-a.mp3",
-      "revision": "8f6b20cc2c9a1c20533650e2bb07fbc1012e4daed9521024d4ab42491adf0943",
-      "size": 3178,
-      "scope": "audio",
-      "kit": "garage"
-    },
-    {
-      "path": "/audio/drums/garage/snare-b.mp3",
-      "revision": "9fb0997f9ef34c83bb27c377a6cce9688ff4c456b2874a4d6c08777b62b0d321",
-      "size": 2238,
-      "scope": "audio",
-      "kit": "garage"
-    },
-    {
       "path": "/audio/drums/holzwerk/closed-hat.mp3",
       "revision": "a6d6761fb7147d686053cb7593e3f5eb7bc850baf30346e219685274aab59f4a",
       "size": 5686,
@@ -445,83 +577,6 @@
       "size": 9134,
       "scope": "audio",
       "kit": "holzwerk"
-    },
-    {
-      "path": "/audio/drums/jungle/closed-hat-a.mp3",
-      "revision": "24deabd176dfa0a4bce27855aaf91428ff5552ed68d22b4fcc49614bb74d1f56",
-      "size": 17911,
-      "scope": "audio",
-      "kit": "jungle"
-    },
-    {
-      "path": "/audio/drums/jungle/closed-hat-b.mp3",
-      "revision": "eed3fd7a0eaf188967684d35606d0a4cd59a65f602b8f93bb50a652cae92f9c7",
-      "size": 5059,
-      "scope": "audio",
-      "kit": "jungle"
-    },
-    {
-      "path": "/audio/drums/jungle/crash.mp3",
-      "revision": "d9e8d7ed46744886c7d313d5e1abd5793a76b5ff09c3bb503c9fa1cf0199f215",
-      "size": 34839,
-      "scope": "audio",
-      "kit": "jungle"
-    },
-    {
-      "path": "/audio/drums/jungle/kick-a.mp3",
-      "revision": "f74b3e24ab4778fbd6f32f60bec07b6c9a551b0caa3b501760895e6e68071565",
-      "size": 9448,
-      "scope": "audio",
-      "kit": "jungle"
-    },
-    {
-      "path": "/audio/drums/jungle/kick-b.mp3",
-      "revision": "59fcaa708e64fada4f90ac6f50f937317bd20982db290b6fab5ef48d50b7e15f",
-      "size": 9448,
-      "scope": "audio",
-      "kit": "jungle"
-    },
-    {
-      "path": "/audio/drums/jungle/open-hat.mp3",
-      "revision": "4c452b65b7a83f2288d17544950cf6dc3ee3ac6d158a6df82446194fbc0e3aaf",
-      "size": 9448,
-      "scope": "audio",
-      "kit": "jungle"
-    },
-    {
-      "path": "/audio/drums/jungle/ride.mp3",
-      "revision": "e868bef82c46f9ac2988caa854b35f4f2d01d3c17816e52ec98a8e054a8ba783",
-      "size": 9448,
-      "scope": "audio",
-      "kit": "jungle"
-    },
-    {
-      "path": "/audio/drums/jungle/rim-a.mp3",
-      "revision": "412786e6a955c1bcc823f9ca10eb77ee46851f87cd80a6c500061c8b6bf42263",
-      "size": 17911,
-      "scope": "audio",
-      "kit": "jungle"
-    },
-    {
-      "path": "/audio/drums/jungle/rim-b.mp3",
-      "revision": "88476005aaf50d8b0ca0ba805d34022cab393c4f3fa1a1a54d1ad1824db2a492",
-      "size": 51766,
-      "scope": "audio",
-      "kit": "jungle"
-    },
-    {
-      "path": "/audio/drums/jungle/snare-a.mp3",
-      "revision": "4fbfe2c186f64f0e7393a71c5784c74a9b2bb82508307e7492687f314863f6a2",
-      "size": 9448,
-      "scope": "audio",
-      "kit": "jungle"
-    },
-    {
-      "path": "/audio/drums/jungle/snare-b.mp3",
-      "revision": "9de8ef6458fb9bfd6663cb50f4fa6f3548552952466a777e4a6e23e6001bc379",
-      "size": 17911,
-      "scope": "audio",
-      "kit": "jungle"
     },
     {
       "path": "/audio/drums/lofi/closed-hat-a.mp3",
@@ -706,8 +761,8 @@
     },
     {
       "path": "/data/patterns-v1.json",
-      "revision": "2dc8c635e3cc644510879f5619e10b45557e15178ad0720b7660fdca74b44252",
-      "size": 1601460,
+      "revision": "5651d326f6fe7794c5f4ab9629217b398f87445f8e4abd515889ba777b5f2b34",
+      "size": 1954731,
       "scope": "catalog"
     },
     {
@@ -742,19 +797,19 @@
     },
     {
       "path": "/sw.js",
-      "revision": "fc792140246c43dee9016866b8094b6e743d2b586e9dd396feec6e9eaadbadea",
-      "size": 8171,
+      "revision": "0ea4d5fcb960f4c28a9dc272788fe2e95c41db2e36acad1fcb735fbe266b1059",
+      "size": 8163,
       "scope": "app"
     },
     {
-      "path": "/data/patterns-v2.2dc8c635e3cc.json",
-      "revision": "2dc8c635e3cc644510879f5619e10b45557e15178ad0720b7660fdca74b44252",
-      "size": 1601460,
+      "path": "/data/patterns-v2.5651d326f6fe.json",
+      "revision": "5651d326f6fe7794c5f4ab9629217b398f87445f8e4abd515889ba777b5f2b34",
+      "size": 1954731,
       "scope": "catalog"
     },
     {
       "path": "/",
-      "revision": "e86f93c67451cb066eabd42ceb1553683d31e9293b4acf2d8c419ca030c91782",
+      "revision": "b000b7641c8cd78ec123a8ae9f2ee1793e48c26677a4fa7d0d8646cc47c157d4",
       "size": 0,
       "scope": "app"
     }

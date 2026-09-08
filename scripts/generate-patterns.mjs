@@ -28,6 +28,18 @@ const BREAK_IDS = new Set([
 const TECHNIQUE_IDS = new Set([
   "drum-single-stroke", "drum-double-stroke", "drum-paradiddle", "drum-bonham-triplets",
   "drum-kick-doubles", "drum-tempo-pyramid",
+  "drum-rudiment-quarter-alternating", "drum-rudiment-eighth-alternating", "drum-rudiment-single-accents",
+  "drum-rudiment-double-control", "drum-rudiment-five-stroke", "drum-rudiment-paradiddle-basic",
+  "drum-rudiment-paradiddle-inverted", "drum-rudiment-double-paradiddle", "drum-rudiment-flam",
+  "drum-rudiment-drag", "drum-rudiment-six-stroke", "drum-rudiment-nine-stroke",
+  "drum-coordination-quarter-dialogue", "drum-coordination-eighth-dialogue", "drum-coordination-backbeat-entry",
+  "drum-coordination-linear-hksk", "drum-coordination-triplet-hands-foot", "drum-coordination-rlkk",
+  "drum-coordination-rkrk-left", "drum-coordination-four-limb-grid",
+]);
+const FILL_IDS = new Set([
+  "drum-fill-quarter-snare", "drum-fill-eighth-snare", "drum-fill-eighth-toms", "drum-fill-beat-four-pickup",
+  "drum-fill-two-beat-sixteenths", "drum-fill-descending-toms", "drum-fill-triplet-turnaround",
+  "drum-fill-flam-ending", "drum-fill-linear-kick-tom", "drum-fill-syncopated-return",
 ]);
 const BASIC_IDS = new Set([
   "drum-basic-rock", "drum-driving-rock", "drum-half-time", "drum-pop-sixteenths", "drum-pop-pocket-offbeats",
@@ -85,7 +97,7 @@ const sources = {
 };
 
 function exercise(id, name, category, bpm, instruction, tracks, options = {}) {
-  const patternType = TECHNIQUE_IDS.has(id) ? "Technik" : BREAK_IDS.has(id) ? "Break" : "Groove";
+  const patternType = options.patternType || (TECHNIQUE_IDS.has(id) ? "Technik" : FILL_IDS.has(id) ? "Fill" : BREAK_IDS.has(id) ? "Break" : "Groove");
   const learningGoals = options.learningGoals || [
     difficultyGoal(options.difficulty || "Mittel"),
     patternType === "Technik" ? "Technik" : BASIC_IDS.has(id) ? "Grundlagen" : ["drum-five-four", "drum-seven-eight"].includes(id) ? "Ungerade Takte" : category === "Blues & Shuffle" ? "Pocket" : "Timing",
@@ -103,7 +115,7 @@ function exercise(id, name, category, bpm, instruction, tracks, options = {}) {
 }
 
 function difficultyGoal(difficulty) {
-  return difficulty === "Leicht" ? "Grundlagen" : difficulty === "Fortgeschritten" ? "Koordination" : "Pocket";
+  return difficulty === "Leicht" ? "Grundlagen" : ["Fortgeschritten", "Schwer"].includes(difficulty) ? "Koordination" : "Pocket";
 }
 
 function styleExercise(id, name, category, bpm, instruction, tracks, options = {}) {
@@ -118,6 +130,100 @@ const eighths16 = seq(0, 16, 2);
 const quarters16 = seq(0, 16, 4);
 const sixteenths = seq(0, 16);
 const shuffle12 = [0, 2, 3, 5, 6, 8, 9, 11];
+
+function fillStudy(number, slug, name, difficulty, fillStart, subdivision, sequence, focus) {
+  const factor = FACTOR[subdivision];
+  const barSteps = 4 * factor;
+  const length = barSteps * 2;
+  if (fillStart < barSteps || fillStart + sequence.length > length) throw new Error(`Fill ${number} exceeds its grid`);
+  const hits = {};
+  const add = (voice, state, index) => {
+    hits[voice] ||= {};
+    hits[voice][state] ||= [];
+    hits[voice][state].push(index);
+  };
+  for (let index = 0; index < fillStart; index += factor) {
+    add("closedHat", index % (factor * 4) === 0 ? "accent" : "normal", index);
+    const beat = Math.floor(index / factor) % 4;
+    if (beat === 0 || beat === 2) add("kick", "accent", index);
+    if (beat === 1 || beat === 3) add("snare", "accent", index);
+  }
+  add("crash", "accent", 0);
+  sequence.forEach((entry, offset) => {
+    const tokens = Array.isArray(entry) ? entry : [entry];
+    for (const token of tokens) {
+      if (!token || token === "-") continue;
+      const state = token.endsWith("!") ? "accent" : token.endsWith("?") ? "ghost" : "normal";
+      add(token.replace(/[!?]$/, ""), state, fillStart + offset);
+    }
+  });
+  const bpm = difficulty === "Schwer" ? [35, 100] : difficulty === "Fortgeschritten" ? [40, 115] : [45, 125];
+  const startBpm = difficulty === "Schwer" ? 48 : difficulty === "Fortgeschritten" ? 58 : 68;
+  return exercise(`drum-fill-${slug}`, `Fill ${number} · ${name}`, "Genreübergreifend", bpm,
+    `Halte den Grundgroove stabil und spiele den ${focus} exakt ins Raster; die nächste Eins bleibt das hörbare Ziel.`, hits, {
+      bars: 2, subdivision, difficulty, patternType: "Fill", playback: { bpm: startBpm, kit: "Studio" },
+      attribution: "Didaktische Fill-Übung", learningGoals: ["Fill", focus, difficulty === "Schwer" ? "Ausdauer" : "Form"],
+      whyInteresting: `Diese Phrase erweitert die Fill-Sammlung gezielt um ${focus} und trainiert Übergang, innere Unterteilung und sichere Rückkehr zum Groove.`,
+    });
+}
+
+const extraFillStudies = [
+  // Mittel: kurze, klar lesbare Sechzehntelphrasen und erste lineare Bewegungen.
+  fillStudy(11, "snare-accent-cycle", "Snare-Akzentkreis", "Mittel", 24, "16tel", ["snare!", "snare", "snare", "snare", "snare", "snare!", "snare", "snare"], "wandernde Akzente"),
+  fillStudy(12, "snare-high-alternation", "Snare–High-Tom-Wechsel", "Mittel", 24, "16tel", ["snare!", "highTom", "snare", "highTom", "snare!", "highTom", "snare", "highTom"], "Stimmwechsel"),
+  fillStudy(13, "high-low-blocks", "High–Low-Blöcke", "Mittel", 24, "16tel", ["highTom!", "highTom", "lowTom", "lowTom", "highTom!", "highTom", "lowTom", "lowTom"], "Tom-Orchestrierung"),
+  fillStudy(14, "rim-snare-answer", "Rim–Snare-Antwort", "Mittel", 24, "16tel", ["rim!", "snare", "rim", "snare", "snare!", "rim", "snare", "rim"], "Klangkontrast"),
+  fillStudy(15, "floor-tom-build", "Floor-Tom-Aufbau", "Mittel", 24, "16tel", ["lowTom", "-", "lowTom", "lowTom!", "lowTom", "lowTom", "lowTom", "snare!"], "Phrasierung"),
+  fillStudy(16, "three-three-two", "Gruppierung 3–3–2", "Mittel", 24, "16tel", ["snare!", "snare", "snare", "highTom!", "highTom", "highTom", "lowTom!", "lowTom"], "3–3–2-Gruppierung"),
+  fillStudy(17, "rested-sixteenths", "Sechzehntel mit Lücken", "Mittel", 24, "16tel", ["snare!", "-", "snare", "highTom", "-", "highTom!", "lowTom", "-"], "Pausen"),
+  fillStudy(18, "late-two-e", "Später Einsatz auf 3e", "Mittel", 25, "16tel", ["snare!", "snare", "highTom", "highTom!", "lowTom", "lowTom", "snare!"], "synkopierter Einsatz"),
+  fillStudy(19, "and-of-three", "Einsatz auf 3&", "Mittel", 26, "16tel", ["snare!", "snare", "highTom!", "highTom", "lowTom!", "lowTom"], "Offbeat-Einsatz"),
+  fillStudy(20, "beat-four-accents", "Akzente auf vier", "Mittel", 28, "16tel", ["snare!", "snare?", "snare", "snare!"], "Akzentkontrolle"),
+  fillStudy(21, "crescendo", "Sechzehntel-Crescendo", "Mittel", 24, "16tel", ["snare?", "snare?", "snare", "snare", "snare", "snare!", "snare!", "snare!"], "Dynamikaufbau"),
+  fillStudy(22, "decrescendo-toms", "Tom-Decrescendo", "Mittel", 24, "16tel", ["highTom!", "highTom!", "highTom", "lowTom", "lowTom", "lowTom?", "snare?", "-"], "Dynamikabbau"),
+  fillStudy(23, "question-answer", "Frage und Antwort", "Mittel", 24, "16tel", ["snare!", "snare", "highTom", "-", "lowTom!", "lowTom", "snare", "-"], "Call and Response"),
+  fillStudy(24, "kick-punctuation", "Kick als Satzzeichen", "Mittel", 24, "16tel", ["snare!", "snare", "highTom", "kick!", "lowTom!", "lowTom", "snare", "kick!"], "Hand–Fuß-Koordination"),
+  fillStudy(25, "linear-skhs", "Linear S–K–H–K", "Mittel", 24, "16tel", ["snare!", "kick", "highTom", "kick", "snare!", "kick", "lowTom", "kick"], "Linearität"),
+  fillStudy(26, "linear-tom-kick", "Tom–Kick-Kette", "Mittel", 24, "16tel", ["highTom!", "kick", "lowTom", "kick", "highTom!", "kick", "snare", "kick"], "Hand–Fuß-Koordination"),
+  fillStudy(27, "double-kick-ending", "Doppel-Kick-Abschluss", "Mittel", 24, "16tel", ["snare!", "highTom", "snare", "highTom", "lowTom!", "lowTom", "kick", "kick!"], "Kick-Doubles"),
+  fillStudy(28, "open-hat-answer", "Open-Hat-Antwort", "Mittel", 24, "16tel", ["snare!", "snare", "openHat!", "-", "highTom!", "lowTom", "openHat!", "-"], "Beckenfarbe"),
+  fillStudy(29, "ghost-to-accent", "Ghostnote zum Akzent", "Mittel", 24, "16tel", ["snare?", "snare?", "snare!", "highTom", "highTom?", "lowTom?", "lowTom!", "snare!"], "Ghostnotes"),
+  fillStudy(30, "two-voice-unisons", "Zweistimmige Akzente", "Mittel", 24, "16tel", [["snare!", "kick!"], "snare", "highTom", "-", ["lowTom!", "kick!"], "lowTom", "snare", "-"], "Unisono-Akzente"),
+
+  // Fortgeschritten: Triolen, Sextolen, Rudiments und längere lineare Formen.
+  fillStudy(31, "triplet-snare-toms", "Triolen über das Set", "Fortgeschritten", 18, "Triolen", ["snare!", "snare", "highTom", "highTom!", "lowTom", "lowTom"], "Triolen-Orchestrierung"),
+  fillStudy(32, "triplet-hand-foot", "Triolen Hand–Hand–Fuß", "Fortgeschritten", 18, "Triolen", ["snare!", "highTom", "kick", "snare!", "lowTom", "kick"], "Hand–Fuß-Triolen"),
+  fillStudy(33, "triplet-foot-lead", "Triolen mit Fußbeginn", "Fortgeschritten", 18, "Triolen", ["kick!", "snare", "highTom", "kick!", "lowTom", "snare"], "Fußgeführte Triolen"),
+  fillStudy(34, "triplet-rests", "Triolen mit Atem", "Fortgeschritten", 15, "Triolen", ["snare!", "-", "highTom", "lowTom!", "-", "kick", "snare!", "highTom", "-"], "Triolenpausen"),
+  fillStudy(35, "triplet-full-bar", "Ganztakt-Triolen", "Fortgeschritten", 12, "Triolen", ["snare!", "snare", "highTom", "highTom!", "highTom", "kick", "lowTom!", "lowTom", "kick", "snare!", "highTom", "lowTom"], "Triolen-Ausdauer"),
+  fillStudy(36, "sextuplet-one-beat", "Ein Schlag Sextolen", "Fortgeschritten", 42, "Sextolen", ["snare!", "highTom", "kick", "snare", "lowTom", "kick"], "Sextolen"),
+  fillStudy(37, "sextuplet-two-beat", "Zwei Schläge Sextolen", "Fortgeschritten", 36, "Sextolen", ["snare!", "snare", "highTom", "kick", "lowTom", "kick", "highTom!", "snare", "kick", "lowTom", "snare", "kick"], "Sextolen-Ausdauer"),
+  fillStudy(38, "sextuplet-three-three", "Sextolen in 3+3", "Fortgeschritten", 36, "Sextolen", ["snare!", "snare", "highTom", "lowTom!", "lowTom", "kick", "snare!", "highTom", "kick", "lowTom!", "snare", "kick"], "3+3-Gruppierung"),
+  fillStudy(39, "sextuplet-rlkk", "Sextolen RLKKRK", "Fortgeschritten", 36, "Sextolen", ["snare!", "highTom", "kick", "kick", "snare", "kick", "highTom!", "snare", "kick", "kick", "lowTom", "kick"], "Hand–Fuß-Sextolen"),
+  fillStudy(40, "sextuplet-dynamics", "Sextolen-Dynamik", "Fortgeschritten", 36, "Sextolen", ["snare!", "snare?", "snare?", "highTom", "kick", "kick", "lowTom!", "lowTom?", "snare?", "highTom", "kick", "kick"], "Dynamik in Sextolen"),
+  fillStudy(41, "paradiddle-orchestration", "Paradiddle über das Set", "Fortgeschritten", 24, "16tel", ["snare!", "highTom", "snare", "snare", "lowTom!", "snare", "lowTom", "lowTom"], "Paradiddle-Orchestrierung"),
+  fillStudy(42, "inverted-paradiddle", "Inverted-Paradiddle-Fill", "Fortgeschritten", 24, "16tel", ["snare!", "highTom", "highTom", "snare", "lowTom!", "snare", "snare", "lowTom"], "Inverted Paradiddle"),
+  fillStudy(43, "double-stroke-toms", "Doppelschläge über Toms", "Fortgeschritten", 24, "16tel", ["snare!", "snare", "highTom!", "highTom", "lowTom!", "lowTom", "snare!", "snare"], "Doppelschläge"),
+  fillStudy(44, "flam-path", "Flam-Pfad", "Fortgeschritten", 24, "16tel", ["snare?", "snare!", "highTom?", "highTom!", "lowTom?", "lowTom!", "snare?", "snare!"], "Flams"),
+  fillStudy(45, "drag-resolution", "Drag-Auflösungen", "Fortgeschritten", 24, "16tel", ["snare?", "snare?", "highTom!", "-", "lowTom?", "lowTom?", "snare!", "kick!"], "Drags"),
+  fillStudy(46, "five-note-grouping", "Fünfergruppe im 4/4", "Fortgeschritten", 22, "16tel", ["snare!", "highTom", "lowTom", "kick", "kick", "snare!", "highTom", "lowTom", "kick", "kick"], "Fünfergruppierung"),
+  fillStudy(47, "seven-note-phrase", "Siebenerphrase", "Fortgeschritten", 25, "16tel", ["snare!", "highTom", "kick", "lowTom", "snare", "kick", "highTom"], "Siebenergruppierung"),
+  fillStudy(48, "displaced-accents", "Verschobene Dreierakzente", "Fortgeschritten", 20, "16tel", ["snare!", "snare", "snare", "highTom!", "highTom", "highTom", "lowTom!", "lowTom", "lowTom", "snare!", "kick", "-"], "Akzentverschiebung"),
+  fillStudy(49, "descending-ascending", "Abwärts und zurück", "Fortgeschritten", 20, "16tel", ["snare!", "highTom", "lowTom", "kick", "lowTom!", "highTom", "snare", "kick", "highTom!", "lowTom", "snare", "kick"], "Richtungswechsel"),
+  fillStudy(50, "linear-full-bar", "Ganztakt linear", "Fortgeschritten", 16, "16tel", ["snare!", "kick", "highTom", "kick", "lowTom!", "kick", "snare", "kick", "highTom!", "kick", "lowTom", "kick", "snare!", "kick", "lowTom", "kick"], "lineare Ausdauer"),
+
+  // Schwer: ganztaktige dichte Formen, lange Gruppierungen und konsequente Hand–Fuß-Verzahnung.
+  fillStudy(51, "hard-full-sextuplets", "Ganztakt-Sextolen-Kaskade", "Schwer", 24, "Sextolen", ["snare!", "highTom", "lowTom", "kick", "kick", "snare", "highTom!", "lowTom", "snare", "kick", "kick", "highTom", "lowTom!", "snare", "highTom", "kick", "kick", "lowTom", "snare!", "highTom", "lowTom", "kick", "snare", "kick"], "ganztaktige Sextolen"),
+  fillStudy(52, "hard-double-paradiddle", "Double-Paradiddle-Sextolen", "Schwer", 24, "Sextolen", ["snare!", "highTom", "snare", "highTom", "snare", "snare", "lowTom!", "snare", "lowTom", "snare", "lowTom", "lowTom", "highTom!", "snare", "highTom", "snare", "highTom", "highTom", "lowTom!", "highTom", "lowTom", "highTom", "lowTom", "lowTom"], "Double Paradiddle"),
+  fillStudy(53, "hard-hand-foot-sextuplets", "Hand–Fuß-Sextolenlauf", "Schwer", 24, "Sextolen", ["snare!", "highTom", "kick", "snare", "lowTom", "kick", "highTom!", "snare", "kick", "lowTom", "snare", "kick", "snare!", "lowTom", "kick", "highTom", "snare", "kick", "lowTom!", "highTom", "kick", "snare", "lowTom", "kick"], "Hand–Fuß-Verzahnung"),
+  fillStudy(54, "hard-three-over-four", "Dreierakzente über 4/4", "Schwer", 16, "16tel", ["snare!", "highTom", "lowTom", "kick!", "snare", "highTom", "lowTom!", "kick", "snare", "highTom!", "lowTom", "kick", "snare!", "highTom", "lowTom", "kick!"], "Dreierakzente"),
+  fillStudy(55, "hard-five-five-six", "Gruppierung 5–5–6", "Schwer", 16, "16tel", ["snare!", "highTom", "lowTom", "kick", "kick", "snare!", "highTom", "lowTom", "kick", "kick", "snare!", "highTom", "lowTom", "kick", "snare", "kick"], "5–5–6-Gruppierung"),
+  fillStudy(56, "hard-ghost-accent-matrix", "Ghostnote-Akzent-Matrix", "Schwer", 16, "16tel", ["snare!", "snare?", "highTom?", "kick", "snare?", "highTom!", "lowTom?", "kick", "snare?", "highTom?", "lowTom!", "kick", "snare!", "snare?", "lowTom?", "kick!"], "extreme Dynamik"),
+  fillStudy(57, "hard-triplet-displacement", "Ganztakt-Triolenverschiebung", "Schwer", 12, "Triolen", ["snare!", "highTom", "kick", "lowTom", "snare!", "kick", "highTom", "lowTom", "kick!", "snare", "highTom", "lowTom"], "verschobene Triolen"),
+  fillStudy(58, "hard-kick-double-chain", "Lineare Kick-Doppel-Kette", "Schwer", 16, "16tel", ["snare!", "highTom", "kick", "kick", "lowTom!", "snare", "kick", "kick", "highTom!", "lowTom", "kick", "kick", "snare!", "highTom", "kick", "kick"], "Kick-Doubles"),
+  fillStudy(59, "hard-sextuplet-accent-cycle", "Sextolen-Akzentzyklus", "Schwer", 24, "Sextolen", ["snare!", "snare", "highTom", "kick", "lowTom!", "kick", "snare", "highTom!", "kick", "lowTom", "snare", "kick!", "highTom", "lowTom", "snare!", "kick", "kick", "highTom", "lowTom!", "snare", "kick", "highTom", "snare!", "kick"], "wandernde Sextolenakzente"),
+  fillStudy(60, "hard-orchestration-finale", "Orchestrierungs-Finale", "Schwer", 16, "16tel", [["snare!", "kick!"], "highTom", "lowTom", "kick", "rim!", "snare?", "highTom", "kick", "lowTom!", "snare", "openHat!", "kick", "highTom!", "lowTom", "snare", ["kick!", "crash!"]], "mehrstimmige Orchestrierung"),
+];
 
 const exercises = [
   exercise("drum-basic-rock", "Rock-Backbeat", "Rock & Pop", [45, 160], "Spiele Kick auf eins und drei, Snare auf zwei und vier und führe die Hi-Hat in Achteln.", {
@@ -560,6 +666,103 @@ const exercises = [
   exercise("drum-tempo-pyramid", "Drumgroove Tempo-Pyramide", "Genreübergreifend", [60, 180], "Halte Rock-Backbeat und Kick sauber, während der Trainer automatisch hoch- und wieder herunterfährt.", {
     kick: { accent: [0, 3, 7, 8, 10, 14] }, snare: { accent: [4, 12], ghost: [11, 15] }, closedHat: { normal: sixteenths, accent: quarters16 },
   }, { difficulty: "Fortgeschritten", playback: { bpm: 60, kit: "Studio", trainer: { mode: "pyramid", step: 5, every: 8, min: 60, max: 180 } } }),
+
+  // Rudiment-Lehrpfad: erst gleichmäßige Einzelschläge, dann Akzente, Doppelschläge und Vorschläge.
+  exercise("drum-rudiment-quarter-alternating", "Rudiment 1 · Wechselnde Viertel", "Genreübergreifend", [40, 110], "Spiele R L R L als entspannte Viertel. Rim steht für links, Snare für rechts; beide Hände klingen gleich laut.", {
+    snare: { normal: [0, 2] }, rim: { normal: [1, 3] },
+  }, { subdivision: "Viertel", difficulty: "Leicht", playback: { bpm: 60, kit: "Trocken" }, learningGoals: ["Single Strokes", "Balance"], whyInteresting: "Die langsamste Stufe macht Griff, Rebound und Lautstärke beider Hände hörbar, bevor das Raster dichter wird." }),
+  exercise("drum-rudiment-eighth-alternating", "Rudiment 2 · Wechselnde Achtel", "Genreübergreifend", [40, 130], "Spiele R L als durchgehende Achtel und lasse den Stock nach jedem Schlag frei zurückfedern.", {
+    snare: { normal: [0, 2, 4, 6] }, rim: { normal: [1, 3, 5, 7] },
+  }, { subdivision: "Achtel", difficulty: "Leicht", playback: { bpm: 70, kit: "Trocken" }, learningGoals: ["Single Strokes", "Rebound"], whyInteresting: "Die verdoppelte Dichte baut direkt auf den Vierteln auf und deckt Unterschiede zwischen rechter und linker Hand auf." }),
+  exercise("drum-rudiment-single-accents", "Rudiment 3 · Wandernde Akzente", "Genreübergreifend", [40, 120], "Spiele abwechselnde Achtel und verschiebe den Akzent in jedem Viertel von rechts auf links: R l r L.", {
+    snare: { normal: [2, 6], accent: [0, 4] }, rim: { normal: [1, 5], accent: [3, 7] },
+  }, { subdivision: "Achtel", difficulty: "Leicht", playback: { bpm: 68, kit: "Trocken" }, learningGoals: ["Single Strokes", "Akzente", "Balance"], whyInteresting: "Wandernde Akzente trennen Schlaghöhe und Puls von der bloßen Rechts-links-Folge und bereiten Paradiddles vor." }),
+  exercise("drum-rudiment-double-control", "Rudiment 4 · Doppelschlag-Kontrolle", "Genreübergreifend", [35, 110], "Spiele RR LL in Achteln. Der zweite Schlag jedes Paares soll ohne Pressen dieselbe Lautstärke behalten.", {
+    snare: { normal: [0, 1, 4, 5], accent: [0, 4] }, rim: { normal: [2, 3, 6, 7], accent: [2, 6] },
+  }, { subdivision: "Achtel", difficulty: "Leicht", playback: { bpm: 62, kit: "Trocken" }, learningGoals: ["Doubles", "Rebound", "Balance"], whyInteresting: "Langsame, offene Doppelschläge legen die Grundlage für geschlossene Rolls, ohne schwache zweite Schläge zu verdecken." }),
+  exercise("drum-rudiment-five-stroke", "Rudiment 5 · Five-Stroke Roll", "Genreübergreifend", [35, 105], "Spiele rr ll R, dann ll rr L; die Schlussnote ist akzentuiert und die Doppelschläge bleiben tief.", {
+    snare: { ghost: [0, 1, 6, 7], accent: [4] }, rim: { ghost: [2, 3, 8, 9], accent: [10] },
+  }, { subdivision: "Triolen", difficulty: "Leicht", playback: { bpm: 58, kit: "Trocken" }, learningGoals: ["Doubles", "Akzente", "Five-Stroke Roll"], whyInteresting: "Der kurze Roll verbindet kontrollierte Doppelschläge erstmals mit einem klaren Zielakzent und einer bewussten Pause." }),
+  exercise("drum-rudiment-paradiddle-basic", "Rudiment 6 · Single Paradiddle", "Genreübergreifend", [40, 125], "Spiele RLRR LRLL; akzentuiere nur den ersten Schlag jeder Vierergruppe.", {
+    snare: { normal: [2, 3, 4, 6], accent: [0] }, rim: { normal: [1, 5, 7], accent: [4] },
+  }, { subdivision: "Achtel", difficulty: "Leicht", playback: { bpm: 66, kit: "Trocken" }, learningGoals: ["Paradiddle", "Akzente", "Doubles"], whyInteresting: "Der Paradiddle verbindet Wechsel- und Doppelschläge zu einer symmetrischen Handfolge, die sich später frei orchestrieren lässt." }),
+  exercise("drum-rudiment-paradiddle-inverted", "Rudiment 7 · Inverted Paradiddle", "Genreübergreifend", [40, 115], "Spiele RLLR LRRL und halte den inneren Doppelschlag weich; die erste Note jeder Gruppe bleibt Akzent.", {
+    snare: { normal: [3, 5, 6], accent: [0] }, rim: { normal: [1, 2, 7], accent: [4] },
+  }, { subdivision: "Achtel", difficulty: "Mittel", playback: { bpm: 64, kit: "Trocken" }, learningGoals: ["Paradiddle", "Doubles", "Akzente"], whyInteresting: "Die Umkehrung verschiebt den Doppelschlag in die Mitte und verhindert, dass nur die vertraute Standardbewegung automatisiert wird." }),
+  exercise("drum-rudiment-double-paradiddle", "Rudiment 8 · Double Paradiddle", "Genreübergreifend", [35, 105], "Spiele RLRLRR LRLRLL als Sextolen und gib nur jedem Gruppenanfang einen Akzent.", {
+    snare: { normal: [2, 4, 5, 6, 8, 10], accent: [0, 12] }, rim: { normal: [1, 3, 7, 9, 11, 14, 16, 17, 19, 21, 23], accent: [6, 18] },
+  }, { subdivision: "Sextolen", difficulty: "Mittel", playback: { bpm: 55, kit: "Trocken" }, learningGoals: ["Paradiddle", "Sextolen", "Ausdauer"], whyInteresting: "Sechs Noten pro Handfolge verbinden Paradiddle-Technik mit triolischem Puls und gleichmäßigem Bewegungsfluss." }),
+  exercise("drum-rudiment-flam", "Rudiment 9 · Flams", "Genreübergreifend", [35, 100], "Spiele vor jedem Akzent eine sehr leise Vorschlagnote mit der anderen Hand; der Abstand bleibt klein und konstant.", {
+    snare: { ghost: [3, 11], accent: [8] }, rim: { ghost: [7, 15], accent: [4, 12] },
+  }, { difficulty: "Leicht", playback: { bpm: 55, kit: "Trocken" }, learningGoals: ["Flams", "Dynamik", "Balance"], whyInteresting: "Flams führen kontrollierte Höhenunterschiede beider Hände ein und machen aus einem Einzelschlag einen breiten Klang." }),
+  exercise("drum-rudiment-drag", "Rudiment 10 · Drags", "Genreübergreifend", [35, 95], "Spiele zwei leise Vorschläge vor jedem Hauptschlag: llR und rrL. Halte den Hauptschlag klar vom Buzz getrennt.", {
+    snare: { ghost: [4, 5, 16, 17], accent: [6, 18] }, rim: { ghost: [10, 11, 22, 23], accent: [0, 12] },
+  }, { subdivision: "Sextolen", difficulty: "Mittel", playback: { bpm: 50, kit: "Trocken" }, learningGoals: ["Drags", "Doubles", "Dynamik"], whyInteresting: "Der Drag kombiniert einen leisen Doppelschlag mit einer lauten Auflösung und schärft dadurch Rebound- und Dynamikkontrolle." }),
+  exercise("drum-rudiment-six-stroke", "Rudiment 11 · Six-Stroke Roll", "Genreübergreifend", [35, 105], "Spiele R ll rr L als Sextole: Außenstimmen laut, beide inneren Doppelschläge leise und gleichmäßig.", {
+    snare: { ghost: [3, 4, 8, 9, 15, 16, 20, 21], accent: [0, 6, 12, 18] }, rim: { ghost: [1, 2, 10, 11, 13, 14, 22, 23], accent: [5, 11, 17, 23] },
+  }, { subdivision: "Sextolen", difficulty: "Mittel", playback: { bpm: 54, kit: "Trocken" }, learningGoals: ["Six-Stroke Roll", "Doubles", "Akzente"], whyInteresting: "Außenakzente und innere Doppelschläge bündeln die zuvor getrennt geübten Bausteine zu einer fließenden Sextolenphrase." }),
+  exercise("drum-rudiment-nine-stroke", "Rudiment 12 · Nine-Stroke Roll", "Genreübergreifend", [35, 100], "Spiele vier tiefe Doppelschläge und löse sie abwechselnd mit R und L als Akzent auf.", {
+    snare: { ghost: [0, 1, 4, 5, 8, 9, 12, 13, 18, 19, 22, 23, 26, 27, 30, 31], accent: [16] }, rim: { ghost: [2, 3, 6, 7, 10, 11, 14, 15, 20, 21, 24, 25, 28, 29], accent: [0] },
+  }, { bars: 2, difficulty: "Mittel", playback: { bpm: 52, kit: "Trocken" }, learningGoals: ["Nine-Stroke Roll", "Doubles", "Ausdauer"], whyInteresting: "Die längere Rollform trainiert vier stabile Doppelschläge am Stück und eine saubere Auflösung mit beiden Händen." }),
+
+  // Hand-Fuß-Koordination: vom Dialog bis zu linearen Sechzehnteln und Triolen.
+  exercise("drum-coordination-quarter-dialogue", "Hand–Fuß 1 · Viertel-Dialog", "Genreübergreifend", [40, 120], "Wechsle auf jedem Viertel zwischen Snare und Kick. Jeder Schlag steht allein und bleibt gleich lang und laut.", {
+    snare: { normal: [0, 2] }, kick: { normal: [1, 3] },
+  }, { subdivision: "Viertel", difficulty: "Leicht", playback: { bpm: 60, kit: "Studio" }, learningGoals: ["Hand/Fuß", "Puls", "Balance"], whyInteresting: "Der einfache Dialog isoliert den Wechsel zwischen Hand und Fuß, bevor beide Gliedmaßen dichter ineinandergreifen." }),
+  exercise("drum-coordination-eighth-dialogue", "Hand–Fuß 2 · Achtel-Dialog", "Genreübergreifend", [40, 125], "Verdopple den Hand–Fuß-Wechsel zu Achteln: Hand Fuß Hand Fuß, ohne Lücken oder überlappende Schläge.", {
+    snare: { normal: [0, 2, 4, 6] }, kick: { normal: [1, 3, 5, 7] },
+  }, { subdivision: "Achtel", difficulty: "Leicht", playback: { bpm: 68, kit: "Studio" }, learningGoals: ["Hand/Fuß", "Unterteilung", "Balance"], whyInteresting: "Die Achtelstufe erhöht die Reaktionsdichte, behält aber die vollständig lineare und leicht kontrollierbare Bewegungsfolge." }),
+  exercise("drum-coordination-backbeat-entry", "Hand–Fuß 3 · Backbeat-Einstieg", "Genreübergreifend", [45, 125], "Halte Achtel auf der Hi-Hat, setze die Kick auf eins und drei und die Snare auf zwei und vier.", {
+    kick: { accent: [0, 4] }, snare: { accent: [2, 6] }, closedHat: { normal: seq(0, 8), accent: [0, 4] },
+  }, { subdivision: "Achtel", difficulty: "Leicht", playback: { bpm: 72, kit: "Studio" }, learningGoals: ["Hand/Fuß", "Unabhängigkeit", "Grundlagen"], whyInteresting: "Aus dem linearen Dialog wird erstmals ein dreistimmiger Grundgroove mit gleichzeitigen Hand- und Fußschlägen." }),
+  exercise("drum-coordination-linear-hksk", "Hand–Fuß 4 · Linear H–K–S–K", "Genreübergreifend", [40, 120], "Spiele Hi-Hat, Kick, Snare, Kick als lineare Sechzehntelgruppe; nie erklingen zwei Stimmen gleichzeitig.", {
+    closedHat: { accent: [0, 4, 8, 12] }, kick: { normal: [1, 3, 5, 7, 9, 11, 13, 15] }, snare: { normal: [2, 6, 10, 14] },
+  }, { difficulty: "Leicht", playback: { bpm: 62, kit: "Studio" }, learningGoals: ["Hand/Fuß", "Linearität", "16tel"], whyInteresting: "Die feste Viererfolge übersetzt den einfachen Wechsel in eine musikalisch nutzbare lineare Sechzehntelbewegung." }),
+  exercise("drum-coordination-triplet-hands-foot", "Hand–Fuß 5 · Triolen H–H–F", "Genreübergreifend", [40, 115], "Spiele rechte Hand, linke Hand, Kick als gleichmäßige Triole; Snare steht für rechts, Tom für links.", {
+    snare: { accent: [0, 3, 6, 9] }, highTom: { normal: [1, 4, 7, 10] }, kick: { normal: [2, 5, 8, 11] },
+  }, { subdivision: "Triolen", difficulty: "Mittel", playback: { bpm: 60, kit: "Studio" }, learningGoals: ["Hand/Fuß", "Triolen", "Linearität"], whyInteresting: "Zwei Hände und ein Fuß teilen erstmals eine Dreiergruppe und bereiten verbreitete Fill- und Solofiguren vor." }),
+  exercise("drum-coordination-rlkk", "Hand–Fuß 6 · RLKK", "Genreübergreifend", [40, 125], "Spiele R L K K in Sechzehnteln; beide Kick-Schläge bleiben so gleichmäßig wie die beiden Handschläge.", {
+    snare: { accent: [0, 4, 8, 12] }, highTom: { normal: [1, 5, 9, 13] }, kick: { normal: [2, 3, 6, 7, 10, 11, 14, 15] },
+  }, { difficulty: "Mittel", playback: { bpm: 62, kit: "Studio" }, learningGoals: ["Hand/Fuß", "Kick-Doubles", "Linearität"], whyInteresting: "RLKK koppelt wechselnde Hände an einen Fußdoppelschlag und bildet eine kompakte Grundlage für lineare Fills." }),
+  exercise("drum-coordination-rkrk-left", "Hand–Fuß 7 · RKRK / LKLK", "Genreübergreifend", [40, 120], "Spiele einen Viertelpuls R K R K und antworte im nächsten Viertel spiegelbildlich mit L K L K.", {
+    snare: { accent: [0, 2, 8, 10] }, rim: { accent: [4, 6, 12, 14] }, kick: { normal: [1, 3, 5, 7, 9, 11, 13, 15] },
+  }, { difficulty: "Mittel", playback: { bpm: 58, kit: "Studio" }, learningGoals: ["Hand/Fuß", "Balance", "Linearität"], whyInteresting: "Der wechselnde Handsatz verhindert eine dominante Führhand und hält den Fuß als konstante Verbindung zwischen beiden Seiten." }),
+  exercise("drum-coordination-four-limb-grid", "Hand–Fuß 8 · Vierer-Koordination", "Genreübergreifend", [40, 110], "Halte Achtel auf der Hat, spiele den Backbeat mit der Snare und ergänze versetzte Kick-Schläge auf e und a.", {
+    closedHat: { normal: eighths16, accent: quarters16 }, snare: { accent: [4, 12] }, kick: { normal: [1, 7, 9, 15] },
+  }, { difficulty: "Mittel", playback: { bpm: 58, kit: "Studio" }, learningGoals: ["Hand/Fuß", "Unabhängigkeit", "Synkopen"], whyInteresting: "Die versetzten Kicks lösen sich vom Handpuls, während Hat und Backbeat als stabiles Koordinatensystem erhalten bleiben." }),
+
+  // Zweitaktige Fill-Phrasen: Takt eins hält den Groove, Takt zwei zeigt Einsatz und Rückkehr.
+  exercise("drum-fill-quarter-snare", "Fill 1 · Viertel auf der Snare", "Genreübergreifend", [45, 115], "Spiele einen Takt Grundgroove, dann Snare auf allen vier Vierteln; lande mit der Kick wieder auf eins.", {
+    kick: { accent: [0, 8, 16] }, snare: { accent: [4, 12, 16, 20, 24, 28] }, closedHat: { normal: eighths16, accent: [0, 8] }, crash: { accent: [0] },
+  }, { bars: 2, difficulty: "Leicht", playback: { bpm: 70, kit: "Studio" }, learningGoals: ["Fill", "Puls", "Zweitaktform"], whyInteresting: "Das einfachste Fill verändert nur eine Stimme und trainiert vor allem den vollständigen Takt sowie die sichere Rückkehr zur Eins." }),
+  exercise("drum-fill-eighth-snare", "Fill 2 · Achtel auf der Snare", "Genreübergreifend", [45, 120], "Fülle den zweiten Takt mit acht gleichmäßigen Snare-Achteln und akzentuiere nur den Beginn jeder Viertelgruppe.", {
+    kick: { accent: [0, 8] }, snare: { accent: [4, 12, 16, 18, 20, 22, 24, 26, 28, 30] }, closedHat: { normal: eighths16, accent: [0, 8] }, crash: { accent: [0] },
+  }, { bars: 2, difficulty: "Leicht", playback: { bpm: 72, kit: "Studio" }, learningGoals: ["Fill", "Achtel", "Zweitaktform"], whyInteresting: "Durchgehende Achtel verdichten den Fill, ohne neue Unterteilungen oder komplizierte Orchestrierung einzuführen." }),
+  exercise("drum-fill-eighth-toms", "Fill 3 · Achtel über die Toms", "Genreübergreifend", [45, 120], "Verteile im zweiten Takt je zwei Achtel auf Snare, High Tom, Floor Tom und Snare; bleibe im Puls.", {
+    kick: { accent: [0, 8] }, snare: { accent: [4, 12, 16, 18, 28, 30] }, highTom: { normal: [20, 22] }, lowTom: { normal: [24, 26] }, closedHat: { normal: eighths16, accent: [0, 8] }, crash: { accent: [0] },
+  }, { bars: 2, difficulty: "Leicht", playback: { bpm: 70, kit: "Studio" }, learningGoals: ["Fill", "Orchestrierung", "Achtel"], whyInteresting: "Dasselbe leichte Achtelraster wird räumlich über das Set verteilt und trainiert Wege zwischen Snare und Toms." }),
+  exercise("drum-fill-beat-four-pickup", "Fill 4 · Auftakt auf vier", "Genreübergreifend", [50, 130], "Bleibe bis Schlag vier im Groove und spiele dort vier Snare-Sechzehntel als kurzen Auftakt zur nächsten Eins.", {
+    kick: { accent: [0, 8, 16, 24] }, snare: { accent: [4, 12, 20, 28], normal: [29, 30, 31] }, closedHat: { normal: repeated(eighths16, 2, 16), accent: [0, 8, 16, 24] }, crash: { accent: [0] },
+  }, { bars: 2, difficulty: "Leicht", playback: { bpm: 76, kit: "Studio" }, learningGoals: ["Fill", "16tel", "Form"], whyInteresting: "Der kurze Ein-Schlag-Fill lässt den Groove fast vollständig stehen und übt einen klaren, alltagstauglichen Übergang." }),
+  exercise("drum-fill-two-beat-sixteenths", "Fill 5 · Zwei Schläge Sechzehntel", "Genreübergreifend", [45, 115], "Beginne den Fill auf Schlag drei des zweiten Takts und spiele acht gleichmäßige Sechzehntel bis zur neuen Eins.", {
+    kick: { accent: [0, 8, 16] }, snare: { accent: [4, 12, 20, 24, 28], normal: [25, 26, 27, 29, 30, 31] }, closedHat: { normal: [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22], accent: [0, 8, 16] }, crash: { accent: [0] },
+  }, { bars: 2, difficulty: "Leicht", playback: { bpm: 68, kit: "Studio" }, learningGoals: ["Fill", "16tel", "Zweitaktform"], whyInteresting: "Der Fill verdoppelt kontrolliert die Länge des Auftakts und macht den Wechsel von Groove-Achteln zu Sechzehnteln hörbar." }),
+  exercise("drum-fill-descending-toms", "Fill 6 · Abwärts über die Toms", "Genreübergreifend", [45, 120], "Spiele ab Schlag drei je vier Sechzehntel auf Snare und High Tom, dann vier auf dem Floor Tom bis zur Eins.", {
+    kick: { accent: [0, 8, 16] }, snare: { accent: [4, 12, 20], normal: [21, 22, 23] }, highTom: { accent: [24], normal: [25, 26, 27] }, lowTom: { accent: [28], normal: [29, 30, 31] }, closedHat: { normal: [0, 2, 4, 6, 8, 10, 12, 14, 16, 18], accent: [0, 8, 16] }, crash: { accent: [0] },
+  }, { bars: 2, difficulty: "Mittel", playback: { bpm: 66, kit: "Studio" }, learningGoals: ["Fill", "Orchestrierung", "16tel"], whyInteresting: "Die absteigende Klangbewegung trainiert einen planbaren Weg über das Set und eine klare Zielnote statt wahlloser Tomschläge." }),
+  exercise("drum-fill-triplet-turnaround", "Fill 7 · Triolen-Turnaround", "Genreübergreifend", [40, 105], "Halte den ersten Takt im Shuffle und spiele im zweiten Takt ab Schlag drei zwei Triolengruppen Snare–Tom–Kick.", {
+    kick: { accent: [0, 6, 12], normal: [20, 23] }, snare: { accent: [3, 9, 15, 18, 21] }, highTom: { normal: [19, 22] }, closedHat: { normal: [0, 2, 3, 5, 6, 8, 9, 11, 12, 14, 15, 17], accent: [0, 6, 12] }, crash: { accent: [0] },
+  }, { bars: 2, subdivision: "Triolen", difficulty: "Mittel", playback: { bpm: 62, swing: 58, kit: "Studio" }, learningGoals: ["Fill", "Triolen", "Hand/Fuß"], whyInteresting: "Der Turnaround überträgt die zuvor isolierte Hand–Hand–Fuß-Koordination in einen kurzen musikalischen Fill." }),
+  exercise("drum-fill-flam-ending", "Fill 8 · Flam-Abschluss", "Genreübergreifend", [45, 110], "Spiele vier Sechzehntel auf Schlag vier und beende sie mit einer leisen Vorschlagnote vor dem letzten Akzent.", {
+    kick: { accent: [0, 8, 16, 24] }, snare: { accent: [4, 12, 20, 28, 31], normal: [29], ghost: [30] }, closedHat: { normal: repeated(eighths16, 2, 16), accent: [0, 8, 16, 24] }, crash: { accent: [0] },
+  }, { bars: 2, difficulty: "Mittel", playback: { bpm: 68, kit: "Studio" }, learningGoals: ["Fill", "Flams", "Dynamik"], whyInteresting: "Ein einzelner Flam gibt dem kurzen Fill einen deutlichen Schlusspunkt und verbindet Rudiment-Technik mit Songform." }),
+  exercise("drum-fill-linear-kick-tom", "Fill 9 · Linear Kick und Toms", "Genreübergreifend", [45, 115], "Spiele im letzten halben Takt Snare–Kick–High Tom–Kick–Floor Tom–Kick–Snare–Kick, ohne Gleichzeitigkeit.", {
+    kick: { accent: [0, 8, 16], normal: [25, 27, 29, 31] }, snare: { accent: [4, 12, 20, 24], normal: [30] }, highTom: { normal: [26] }, lowTom: { normal: [28] }, closedHat: { normal: [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22], accent: [0, 8, 16] }, crash: { accent: [0] },
+  }, { bars: 2, difficulty: "Mittel", playback: { bpm: 62, kit: "Studio" }, learningGoals: ["Fill", "Linearität", "Hand/Fuß"], whyInteresting: "Die lineare Folge setzt die RLKK- und Hand–Fuß-Bausteine in eine abwechslungsreiche Bewegung über das ganze Set um." }),
+  exercise("drum-fill-syncopated-return", "Fill 10 · Synkopierte Rückkehr", "Genreübergreifend", [45, 115], "Beginne den Fill auf dem Und von drei, lasse die letzte Sechzehntel frei und lande dadurch hörbar auf der neuen Eins.", {
+    kick: { accent: [0, 8, 16], normal: [26, 30] }, snare: { accent: [4, 12, 20, 24, 28], ghost: [22, 27] }, highTom: { normal: [23, 25] }, lowTom: { normal: [29] }, closedHat: { normal: [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20], accent: [0, 8, 16] }, crash: { accent: [0] },
+  }, { bars: 2, difficulty: "Mittel", playback: { bpm: 64, kit: "Studio" }, learningGoals: ["Fill", "Synkopen", "Form"], whyInteresting: "Die bewusste Pause vor der Eins schafft mehr Spannung als ein durchgespielter Lauf und trainiert Phrasierung statt bloßer Notendichte." }),
+  ...extraFillStudies,
 ];
 
 function expansionExercise(pattern) {
@@ -676,7 +879,7 @@ const patterns = exercises.map((entry) => {
 });
 
 const target = new URL("../public/data/patterns-v1.json", import.meta.url);
-const output = `${JSON.stringify({ version: 2, updated: "2026-09-07", count: patterns.length, patterns }, null, 2)}\n`;
+const output = `${JSON.stringify({ version: 2, updated: "2026-09-08", count: patterns.length, patterns }, null, 2)}\n`;
 
 if (process.argv.includes("--check")) {
   const current = await readFile(target, "utf8");

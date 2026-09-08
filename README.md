@@ -5,7 +5,7 @@
 <h1 align="center">drumgrid</h1>
 
 <p align="center">
-  An offline-first drum practice workstation with 491 curated patterns,<br>
+  An offline-first drum practice workstation with 571 curated patterns,<br>
   adaptive sessions, multi-voice sequencing and precise Web Audio playback.
 </p>
 
@@ -21,7 +21,7 @@
 
 <p align="center">
   <img alt="PWA" src="https://img.shields.io/badge/PWA-offline--first-30f22a?style=flat-square">
-  <img alt="Patterns" src="https://img.shields.io/badge/patterns-491-e0c36a?style=flat-square">
+  <img alt="Patterns" src="https://img.shields.io/badge/patterns-571-e0c36a?style=flat-square">
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-strict-55578b?style=flat-square">
   <img alt="Cloudflare Workers" src="https://img.shields.io/badge/Cloudflare-Workers-f48120?style=flat-square">
 </p>
@@ -40,9 +40,9 @@ The library covers groove vocabulary from jazz, funk and hip-hop to metal, jungl
 
 | Area | Included |
 | --- | --- |
-| Pattern library | 491 curated drum patterns, multi-bar forms, search, style families, learning filters and favorites |
+| Pattern library | 571 curated drum patterns, multi-bar forms, search, style families, learning filters and favorites |
 | Sequencer | Kick, snare, hats, cymbals, rim and tom lanes with accents, ghost notes and per-voice volume |
-| Timing | Stable Web Audio scheduler, 20–300 BPM, tap tempo, meter, subdivisions, swing and original-feel microtiming |
+| Timing | Stable Web Audio scheduler, 20–300 BPM, tap tempo, meter, subdivisions, swing, English/German spoken counting and original-feel microtiming |
 | Practice | Free sessions, timing and groove sessions, tempo pyramids, gap click, random gaps, voice dropout and call-and-response |
 | Feedback | Optional microphone transient analysis, timing markers, session recap and manual or measured latency correction |
 | Sounds | Eleven compact sample kits plus a complete procedural precision kit |
@@ -115,6 +115,7 @@ After that, a push to `main` publishes the current GitHub version automatically.
 ```text
 app/                       React UI, audio engine and local data layer
 public/audio/drums/        Compact drum-kit assets
+public/audio/counting/     English and German spoken count syllables
 public/data/               Generated production pattern catalog
 research/drum-patterns/    Reviewed sources and catalog generation data
 scripts/                   Manifest and catalog generators
@@ -123,6 +124,6 @@ tests/                     Audio, catalog, PWA and rendered-UI checks
 
 ## Deutsch
 
-drumgrid ist eine installierbare, offlinefähige Drum-Übungsstation mit 491 kuratierten Patterns, darunter 202 MIDI-basierte Radiohead-Groovevarianten aus 86 Songs sowie 89 quellenmarkierte Künstlerstudien einschließlich eigener Blöcke für Limp Bizkit, Porcupine Tree und Steven Wilson. Die App verbindet Mehrspur-Sequencer, stabiles Metronom, adaptive Übemodi, optionale Timing-Analyse und lokale Fortschrittsdaten. Bedienoberfläche, Themes und Desktop-Transport lassen sich im Interface-Menü anpassen; die UI steht auf Deutsch und Englisch zur Verfügung.
+drumgrid ist eine installierbare, offlinefähige Drum-Übungsstation mit 571 kuratierten Patterns, darunter 26 Technikübungen und 60 gestufte Fills von leicht bis schwer. Hinzu kommen 202 MIDI-basierte Radiohead-Groovevarianten aus 86 Songs sowie 89 quellenmarkierte Künstlerstudien. Die App verbindet Mehrspur-Sequencer, stabiles Metronom, adaptive Übemodi, optionale Timing-Analyse und lokale Fortschrittsdaten. Bedienoberfläche, Themes und Desktop-Transport lassen sich im Interface-Menü anpassen; die UI steht auf Deutsch und Englisch zur Verfügung.
 
 Die App benötigt kein Konto und sendet weder Übedaten noch Mikrofonaufnahmen an einen Server.

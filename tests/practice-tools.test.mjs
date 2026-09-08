@@ -15,6 +15,7 @@ async function compile(file, dependencies = {}) {
 }
 const core = await compile("metronome-core");
 const { countStep, loopBounds, nextLoopStep, setTrackHit, copyBar, shiftLane, groupPatterns, variantDifference } = await compile("practice-tools", { "./metronome-core": core });
+const { countingVoiceOfflinePaths, normalizeCountingVoice, spokenCountToken } = await compile("counting-voice", { "./metronome-core": core, "./practice-tools": { countStep } });
 const { measureLatency } = await compile("audio-calibration");
 const { createLiveStore } = await compile("live-store");
 
@@ -24,6 +25,15 @@ test("counts straight, triplet, sextuplet and compound subdivisions musically", 
   assert.deepEqual(labels(6, { beats: 4, denominator: 4 }, "Triolen"), ["1", "tri", "ole", "2", "tri", "ole"]);
   assert.deepEqual(labels(6, { beats: 4, denominator: 4 }, "Sextolen"), ["1", "ta", "la", "&", "ta", "la"]);
   assert.deepEqual(labels(6, { beats: 6, denominator: 8 }, "Achtel"), ["1", "2", "3", "4", "5", "6"]);
+});
+test("spoken counting follows the visible grid in English and German", () => {
+  const spoken = (n, meter, division, language) => Array.from({ length: n }, (_, i) => spokenCountToken(i, meter, division, language));
+  assert.deepEqual(spoken(8, { beats: 4, denominator: 4 }, "16tel", "en"), ["one", "e", "and", "a", "two", "e", "and", "a"]);
+  assert.deepEqual(spoken(6, { beats: 4, denominator: 4 }, "Triolen", "en"), ["one", "and", "a", "two", "and", "a"]);
+  assert.deepEqual(spoken(4, { beats: 4, denominator: 4 }, "Achtel", "de"), ["eins", "und", "zwei", "und"]);
+  assert.equal(countingVoiceOfflinePaths("en").length, 21);
+  assert.equal(countingVoiceOfflinePaths("de").length, 21);
+  assert.equal(normalizeCountingVoice("fr"), "off");
 });
 test("Amen bars 3–4 loop without ever playing bars 1–2", () => {
   const bounds = loopBounds({ start: 3, end: 4 }, 16, 64);
@@ -44,9 +54,9 @@ test("bar copy and lane shift preserve originals and exclusive hats", () => {
 test("Radiohead variants group into 86 songs without losing search matches", async () => {
   const { patterns } = JSON.parse(await readFile(new URL("../public/data/patterns-v1.json", import.meta.url), "utf8"));
   const grouped = groupPatterns(patterns);
-  assert.equal(grouped.length, 375);
+  assert.equal(grouped.length, 455);
   assert.equal(grouped.filter(g => g.name.startsWith("Radiohead — ")).length, 86);
-  assert.equal(grouped.reduce((n, g) => n + g.variants.length, 0), 491);
+  assert.equal(grouped.reduce((n, g) => n + g.variants.length, 0), 571);
   const song = grouped.find(g => g.name === "Radiohead — 15 Step");
   assert.equal(song.variants.length, 3);
   assert.ok(variantDifference(song.variants[0], song.variants[1]).includes("snare"));
