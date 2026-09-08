@@ -1235,7 +1235,7 @@ export default function MetronomeApp() {
     source.stop(endAt);
   }, [registerSource]);
 
-  const scheduleCountingVoice = useCallback((context: AudioContext, when: number, stepInBar: number, stepSeconds: number) => {
+  const scheduleCountingVoice = useCallback((context: AudioContext, when: number, stepInBar: number) => {
     const language = countingVoiceRef.current;
     if (language === "off") return;
     const token = spokenCountToken(stepInBar, meterRef.current, subdivisionRef.current, language);
@@ -1245,13 +1245,14 @@ export default function MetronomeApp() {
     const source = context.createBufferSource();
     const gain = context.createGain();
     const beatStart = countStep(stepInBar, meterRef.current, subdivisionRef.current).beatStart;
-    const availableDuration = Math.max(.08, stepSeconds * .9);
-    const playbackRate = Math.min(2.5, Math.max(1, sampleBuffer.duration / availableDuration));
     source.buffer = sampleBuffer;
-    source.playbackRate.setValueAtTime(playbackRate, when);
+    // Keep the recorded pitch at every tempo. Short count syllables may overlap
+    // at extreme BPM values, which sounds far more natural than chipmunk-like
+    // resampling and does not disturb the metronome's exact scheduling.
+    source.playbackRate.setValueAtTime(1, when);
     gain.gain.setValueAtTime((beatStart ? .72 : .48) * volumeRef.current / 100, when);
     source.connect(gain).connect(output);
-    const endAt = when + sampleBuffer.duration / playbackRate + .02;
+    const endAt = when + sampleBuffer.duration + .02;
     registerSource(source, () => { try { gain.disconnect(); } catch { /* Already disconnected. */ } });
     source.start(when);
     source.stop(endAt);
@@ -1532,7 +1533,7 @@ export default function MetronomeApp() {
         } else {
           if (isVoiceAudible(practiceModeRef.current, barsRef.current, "rim")) scheduleDrumVoice(context, nextTimeRef.current, "rim", stepsRef.current[stepIndex] || "normal");
         }
-        if (isVoiceAudible(practiceModeRef.current, barsRef.current, "rim")) scheduleCountingVoice(context, nextTimeRef.current, stepInBar, scheduledStepSeconds);
+        if (isVoiceAudible(practiceModeRef.current, barsRef.current, "rim")) scheduleCountingVoice(context, nextTimeRef.current, stepInBar);
 
         const visualDelay = Math.max(0, (nextTimeRef.current - context.currentTime) * 1000);
         nextStepRef.current = nextLoopStep(stepIndex, bounds);
